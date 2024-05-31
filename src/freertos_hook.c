@@ -93,6 +93,7 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
   *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 
+#if 0
 void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                           StackType_t **ppxIdleTaskStackBuffer,
                                           configSTACK_DEPTH_TYPE *puxIdleTaskStackSize,
@@ -115,6 +116,7 @@ void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
    * configMINIMAL_STACK_SIZE is specified in words, not bytes. */
   *puxIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
+#endif
 
 #if CFG_TUSB_MCU == OPT_MCU_RX63X | CFG_TUSB_MCU == OPT_MCU_RX65X
 #include "iodefine.h"

@@ -66,12 +66,14 @@
 #define configUSE_NEWLIB_REENTRANT 0
 #define configENABLE_BACKWARD_COMPATIBILITY 1
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP 0
+#define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
 
 #define configSUPPORT_STATIC_ALLOCATION 0
 #define configSUPPORT_DYNAMIC_ALLOCATION 1
 
 #define configNUMBER_OF_CORES 2
 #define configTICK_CORE 0
+#define configUSE_CORE_AFFINITY 1
 
 /* Hook function related definitions. */
 #define configUSE_PASSIVE_IDLE_HOOK 0
