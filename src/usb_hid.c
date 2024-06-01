@@ -118,21 +118,19 @@ void hid_task(void *param) {
   QueueHandle_t *q = (QueueHandle_t *)param;
 
   while (1) {
-    // Poll every 10ms
+    // Poll every 100ms
     uint8_t key = HID_KEY_NONE;
-    BaseType_t r = xQueueReceive(*q, &key, pdMS_TO_TICKS(10));
-    if (r == pdFALSE) {
-      continue;
-    }
-
-    // Remote wakeup
-    if (tud_suspended()) {
-      // Wake up host if we are in suspend mode
-      // and REMOTE_WAKEUP feature is enabled by host
-      tud_remote_wakeup();
-    } else {
-      // Send the 1st of report chain, the rest will be sent by tud_hid_report_complete_cb()
-      send_hid_report(key);
+    BaseType_t r = xQueueReceive(*q, &key, pdMS_TO_TICKS(100));
+    if (r == pdTRUE) {
+      // Remote wakeup
+      if (tud_suspended()) {
+        // Wake up host if we are in suspend mode
+        // and REMOTE_WAKEUP feature is enabled by host
+        tud_remote_wakeup();
+      } else {
+        // Send the 1st of report chain, the rest will be sent by tud_hid_report_complete_cb()
+        send_hid_report(key);
+      }
     }
   }
 }

@@ -162,6 +162,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
           rx_frame.state = HDMI_FRAME_STATE_ACK_END;
           gpio_set_dir(CECPIN, GPIO_OUT);  // pull low, then schedule pull high
           add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
+          // interrupt ourselves
           gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE, true);
           return;
         }

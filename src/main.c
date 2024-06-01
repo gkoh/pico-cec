@@ -10,10 +10,10 @@
 
 #include "hdmi-cec.h"
 
-#define USBD_STACK_SIZE (4096)
-#define HID_STACK_SIZE (1024)
+#define USBD_STACK_SIZE (768)
+#define HID_STACK_SIZE (128)
 #define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (2048)
+#define CEC_STACK_SIZE (512)
 
 void usb_device_task(void *);
 void hid_task(void *);
