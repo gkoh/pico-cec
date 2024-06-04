@@ -37,8 +37,7 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-void usb_device_task(void *param);
-void hid_task(void *params);
+#include "usb_hid.h"
 
 // USB Device Driver task
 // This top level thread process all usb events and invoke callbacks
@@ -88,11 +87,6 @@ static void send_hid_report(uint8_t key) {
   if (!tud_hid_ready())
     return;
 
-  // use to avoid send multiple consecutive zero report for keyboard
-  // static bool has_keyboard_key = false;
-
-  // if ( btn )
-  //{
   uint8_t keycode[6] = {0};
   keycode[0] = key;
 
@@ -101,18 +95,7 @@ static void send_hid_report(uint8_t key) {
   } else {
     tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
   }
-  // has_keyboard_key = true;
-#if 0
-  }else
-  {
-    // send empty key report if previously has key pressed
-    if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, HID_KEY_NONE, NULL);
-    has_keyboard_key = false;
-  }
-#endif
 }
-
-// extern QueueHandle_t q;
 
 void hid_task(void *param) {
   QueueHandle_t *q = (QueueHandle_t *)param;

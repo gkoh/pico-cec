@@ -68,8 +68,8 @@
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP 0
 #define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
 
-#define configSUPPORT_STATIC_ALLOCATION 0
-#define configSUPPORT_DYNAMIC_ALLOCATION 1
+#define configSUPPORT_STATIC_ALLOCATION 1
+#define configSUPPORT_DYNAMIC_ALLOCATION 0
 
 #define configNUMBER_OF_CORES 2
 #define configTICK_CORE 0
@@ -108,8 +108,8 @@
 #define INCLUDE_vTaskDelay 1
 #define INCLUDE_xTaskGetSchedulerState 0
 #define INCLUDE_xTaskGetCurrentTaskHandle 1
-#define INCLUDE_uxTaskGetStackHighWaterMark 0
-#define INCLUDE_xTaskGetIdleTaskHandle 0
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
+#define INCLUDE_xTaskGetIdleTaskHandle 1
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 0
 #define INCLUDE_pcTaskGetTaskName 0
 #define INCLUDE_eTaskGetState 0

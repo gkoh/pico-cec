@@ -30,11 +30,6 @@
 #include "common/tusb_common.h"
 #include "task.h"
 
-void vApplicationMallocFailedHook(void) {
-  taskDISABLE_INTERRUPTS();
-  TU_ASSERT(false, );
-}
-
 void vApplicationStackOverflowHook(xTaskHandle pxTask, char *pcTaskName) {
   (void)pxTask;
   (void)pcTaskName;
@@ -93,7 +88,6 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
   *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 
-#if 0
 void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                           StackType_t **ppxIdleTaskStackBuffer,
                                           configSTACK_DEPTH_TYPE *puxIdleTaskStackSize,
@@ -116,22 +110,3 @@ void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
    * configMINIMAL_STACK_SIZE is specified in words, not bytes. */
   *puxIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
-#endif
-
-#if CFG_TUSB_MCU == OPT_MCU_RX63X | CFG_TUSB_MCU == OPT_MCU_RX65X
-#include "iodefine.h"
-void vApplicationSetupTimerInterrupt(void) {
-  /* Enable CMT0 */
-  SYSTEM.PRCR.WORD = (0xA5u << 8) | TU_BIT(1);
-  MSTP(CMT0) = 0;
-  SYSTEM.PRCR.WORD = (0xA5u << 8);
-
-  CMT0.CMCNT = 0;
-  CMT0.CMCOR = (unsigned short)(((configPERIPHERAL_CLOCK_HZ / configTICK_RATE_HZ) - 1) / 128);
-  CMT0.CMCR.WORD = TU_BIT(6) | 2;
-  IR(CMT0, CMI0) = 0;
-  IPR(CMT0, CMI0) = configKERNEL_INTERRUPT_PRIORITY;
-  IEN(CMT0, CMI0) = 1;
-  CMT.CMSTR0.BIT.STR0 = 1;
-}
-#endif

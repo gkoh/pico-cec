@@ -37,10 +37,9 @@ target_link_libraries(${PROJECT}
   pico_unique_id
   tinyusb_device
   tinyusb_board
-  FreeRTOS-Kernel
-  FreeRTOS-Kernel-Heap3)
+  FreeRTOS-Kernel)
 
 pico_add_extra_outputs(${PROJECT})
 pico_set_binary_type(${PROJECT} copy_to_ram)
-#pico_enable_stdio_usb(${PROJECT} 1)
-#pico_enable_stdio_uart(${PROJECT} 0)
+pico_enable_stdio_usb(${PROJECT} 0)
+pico_enable_stdio_uart(${PROJECT} 0)
