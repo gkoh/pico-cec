@@ -88,6 +88,7 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
   *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 
+#if (configNUMBER_OF_CORES > 1)
 void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                           StackType_t **ppxIdleTaskStackBuffer,
                                           configSTACK_DEPTH_TYPE *puxIdleTaskStackSize,
@@ -110,3 +111,4 @@ void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
    * configMINIMAL_STACK_SIZE is specified in words, not bytes. */
   *puxIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
+#endif

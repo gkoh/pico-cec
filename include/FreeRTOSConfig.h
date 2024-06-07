@@ -50,7 +50,7 @@
 #define configUSE_PREEMPTION 1
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 #define configCPU_CLOCK_HZ SystemCoreClock
-#define configTICK_RATE_HZ (10000)
+#define configTICK_RATE_HZ (1000)
 #define configMAX_PRIORITIES (5)
 #define configMINIMAL_STACK_SIZE (64)
 #define configTOTAL_HEAP_SIZE (configSUPPORT_DYNAMIC_ALLOCATION * 8 * 1024)
@@ -74,6 +74,8 @@
 #define configNUMBER_OF_CORES 2
 #define configTICK_CORE 0
 #define configUSE_CORE_AFFINITY 1
+#define configSUPPORT_PICO_SYNC_INTEROP 1
+#define configSUPPORT_PICO_TIME_INTEROP 1
 
 /* Hook function related definitions. */
 #define configUSE_PASSIVE_IDLE_HOOK 0

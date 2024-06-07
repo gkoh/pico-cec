@@ -11,10 +11,10 @@
 #include "hdmi-cec.h"
 #include "usb_hid.h"
 
-#define USBD_STACK_SIZE (1024)
+#define USBD_STACK_SIZE (512)
 #define HID_STACK_SIZE (256)
 #define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (512)
+#define CEC_STACK_SIZE (256)
 #define CEC_QUEUE_LENGTH (16)
 
 void blink_task(void *) {
@@ -76,7 +76,7 @@ int main() {
   vTaskCoreAffinitySet(xBlinkTask, (1 << 0));
   vTaskCoreAffinitySet(xHIDTask, (1 << 0));
 
-  // bind USB to core 1
+  // bind USBD to core 1
   vTaskCoreAffinitySet(xUSBDTask, (1 << 1));
 
   vTaskStartScheduler();

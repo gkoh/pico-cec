@@ -40,6 +40,6 @@ target_link_libraries(${PROJECT}
   FreeRTOS-Kernel)
 
 pico_add_extra_outputs(${PROJECT})
-#pico_set_binary_type(${PROJECT} copy_to_ram)
+pico_set_binary_type(${PROJECT} copy_to_ram)
 pico_enable_stdio_usb(${PROJECT} 0)
 pico_enable_stdio_uart(${PROJECT} 0)
