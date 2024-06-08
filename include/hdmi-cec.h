@@ -7,7 +7,10 @@
 
 #include "task.h"
 #define CEC_TASK_NAME "cec"
-#define CECPIN 11
+
+#ifndef CECPIN
+#define CECPIN 3 // GPIO3 == D10 (Seeed Studio XIAO RP2040)
+#endif
 
 typedef struct {
   uint8_t *data;

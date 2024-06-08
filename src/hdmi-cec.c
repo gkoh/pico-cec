@@ -343,9 +343,9 @@ static void system_audio_mode_status(uint8_t initiator,
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
-  uint8_t pld[6] = {(initiator << 4) | destination, 0x47, 'P', 'i', 'c', 'o'};
+  uint8_t pld[10] = {(initiator << 4) | destination, 0x47, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
-  send_frame(6, pld);
+  send_frame(10, pld);
   printf("\n<-- %02x:47 [Set OSD Name]", pld[0]);
 }
 

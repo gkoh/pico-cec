@@ -27,9 +27,12 @@ add_executable(${PROJECT}
 target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include)
 
+set(CECPIN "10" CACHE STRING "GPIO pin for HDMI CEC.")
+
 target_compile_options(${PROJECT} PRIVATE
   -UCFG_TUSB_OS
   -DCFG_TUSB_OS=OPT_OS_FREERTOS
+  -DCECPIN=${CECPIN}
   -Wall -Werror)
 
 target_link_libraries(${PROJECT}
