@@ -18,17 +18,21 @@ module hdmi_2d_male() {
 }
 
 module hdmi_2d_female() {
-    scale([14.8/13.9, 5.3/4.45])
+    scale([15.0/13.9, 5.3/4.45])
         hdmi_2d_male();
 }
 
 module hdmi_male() {
-    color("goldenrod") linear_extrude(12.7)
-        hdmi_2d_male();
+    color("goldenrod") union() {
+        linear_extrude(12.7)
+            hdmi_2d_male();
+        translate([0, -1, 12])
+            cube([14.0, 5.0, 3],true);
+    }
 }
 
 module hdmi_female() {
-    color("goldenrod") linear_extrude(11.4)
+    color("red") linear_extrude(11.4)
         hdmi_2d_female();
 }
 
@@ -58,9 +62,9 @@ module hdmi_adapter() {
 module usb_c_female() {
     color("silver") linear_extrude(7.2) {
         hull() {
-            translate([4.5-1.6, 0, 0])
+            translate([4.55-1.6, 0, 0])
                 circle(r=1.6);
-            translate([-4.5+1.6, 0, 0])
+            translate([-4.55+1.6, 0, 0])
                 circle(r=1.6);
         }
     }
@@ -76,7 +80,7 @@ module xiao_rp2040() {
 }
 
 module nut_m3() {
-    cylinder(2.5, r=3, $fn=6);
+    cylinder(2.5, r=3.1, $fn=6);
 }
 
 module head_m3() {
@@ -90,8 +94,12 @@ module base() {
                 cube([32, 40.5+1.5, 9], true);
                 translate([0, 0, 1.5])
                     cube([32-3, 40.5+1.5-3, 9-1.5], true);
-                translate([0, 0, 2.3])
+                translate([0, 4.1, 1.5])
                     hdmi_adapter();
+                translate([0, 20, 5])
+                    cube([13.9, 3, 3], true);
+                translate([0, -20, 5])
+                    cube([15.0, 3, 3], true);
             }
             // posts
             translate([11, 13.0, -4.5])
@@ -160,10 +168,10 @@ module middle() {
                         usb_c_female();
             }
          // side supports
-         translate([-9.5, -14.5, (4+2.9)/2])
-            cube([1.5, 12, 2.9], true);
-         translate([9.5, -14.5, (4+2.9)/2])
-            cube([1.5, 12, 2.9], true);
+         translate([-9.6, -14.5, (4+2.9)/2])
+            cube([1.3, 12, 2.9], true);
+         translate([9.6, -14.5, (4+2.9)/2])
+            cube([1.3, 12, 2.9], true);
         }
 }
 
@@ -187,6 +195,12 @@ module top() {
             head_m3();
         translate([11, 2, 2.5])
             head_m3();
+        // led/button slot
+        translate([0, 6.7, 2.2])
+            cube([15, 3, 5], true);
+        // power led
+        translate([-7, -10, -0.3])
+            cylinder(5, r=1.5);
     }
 }
 

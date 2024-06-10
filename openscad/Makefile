@@ -1,6 +1,6 @@
 .PHONY: all stl
 
-%.stl: %.scad
+%.stl: %.scad pico-cec-lib.scad
 	openscad -o $@ $<
 
 all: stl
