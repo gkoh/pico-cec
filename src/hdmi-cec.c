@@ -69,7 +69,7 @@ static uint64_t time_next(uint64_t start, uint64_t next) {
  * Pull the CEC line high at the specified time.
  */
 static int64_t ack_high(alarm_id_t alarm, void *user_data) {
-  gpio_set_dir(CECPIN, GPIO_IN);
+  gpio_set_dir(CEC_PIN, GPIO_IN);
 
   return 0;
 }
@@ -81,13 +81,13 @@ hdmi_frame_t rx_frame = {.message = &rx_message};
 static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
   uint64_t low_time = 0;
   gpio_acknowledge_irq(gpio, events);
-  gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
   //printf("state = %d, byte = %d, bit = %d\n", rx_frame.state, rx_frame.byte, rx_frame.bit);
   switch (rx_frame.state) {
     case HDMI_FRAME_STATE_START_LOW:
       rx_frame.start = time_us_64();
       rx_frame.state = HDMI_FRAME_STATE_START_HIGH;
-      gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE, true);
+      gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
       return;
     case HDMI_FRAME_STATE_START_HIGH:
       low_time = time_us_64() - rx_frame.start;
@@ -96,7 +96,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
         rx_frame.byte = 0;
         rx_frame.bit = 0;
         rx_frame.state = HDMI_FRAME_STATE_DATA_LOW;
-        gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_FALL, true);
+        gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
       } else {
         rx_frame.state = HDMI_FRAME_STATE_ABORT;
         xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
@@ -117,7 +117,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
           rx_frame.state = HDMI_FRAME_STATE_DATA_HIGH;
         }
         rx_frame.first = false;
-        gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE, true);
+        gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
       } else {
         rx_frame.state = HDMI_FRAME_STATE_ABORT;
         xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
@@ -149,12 +149,12 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
           rx_frame.state = HDMI_FRAME_STATE_DATA_LOW;
         }
       }
-      gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_FALL, true);
+      gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
       return;
     case HDMI_FRAME_STATE_ACK_LOW:
       rx_frame.start = time_us_64();
       rx_frame.state = HDMI_FRAME_STATE_ACK_HIGH;
-      gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE, true);
+      gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
       return;
     case HDMI_FRAME_STATE_ACK_HIGH:
       low_time = time_us_64() - rx_frame.start;
@@ -163,10 +163,10 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
         uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
         if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
           rx_frame.state = HDMI_FRAME_STATE_ACK_END;
-          gpio_set_dir(CECPIN, GPIO_OUT);  // pull low, then schedule pull high
+          gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
           add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
           // interrupt ourselves
-          gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE, true);
+          gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
           return;
         }
       } else {
@@ -180,7 +180,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
         rx_frame.state = HDMI_FRAME_STATE_END;
       } else {
         rx_frame.state = HDMI_FRAME_STATE_DATA_LOW;
-        gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_FALL, true);
+        gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
         return;
       }
       // finish receiving frame
@@ -196,7 +196,7 @@ static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
   rx_frame.address = address;
   rx_frame.state = HDMI_FRAME_STATE_START_LOW;
   memset(&rx_frame.message->data[0], 0, 16);
-  gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_FALL, true);
+  gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
   ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, portMAX_DELAY);
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
   printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
@@ -215,22 +215,22 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
   uint64_t low_time = 0;
   switch (frame->state) {
     case HDMI_FRAME_STATE_START_LOW:
-      gpio_set_dir(CECPIN, GPIO_OUT);
+      gpio_set_dir(CEC_PIN, GPIO_OUT);
       frame->start = time_us_64();
       frame->state = HDMI_FRAME_STATE_START_HIGH;
       return time_next(frame->start, 3700);
     case HDMI_FRAME_STATE_START_HIGH:
-      gpio_set_dir(CECPIN, GPIO_IN);
+      gpio_set_dir(CEC_PIN, GPIO_IN);
       frame->state = HDMI_FRAME_STATE_DATA_LOW;
       return time_next(frame->start, 4500);
     case HDMI_FRAME_STATE_DATA_LOW:
-      gpio_set_dir(CECPIN, GPIO_OUT);
+      gpio_set_dir(CEC_PIN, GPIO_OUT);
       frame->start = time_us_64();
       low_time = (frame->message->data[frame->byte] & (1 << frame->bit)) ? 600 : 1500;
       frame->state = HDMI_FRAME_STATE_DATA_HIGH;
       return time_next(frame->start, low_time);
     case HDMI_FRAME_STATE_DATA_HIGH:
-      gpio_set_dir(CECPIN, GPIO_IN);
+      gpio_set_dir(CEC_PIN, GPIO_IN);
       if (frame->bit--) {
         frame->state = HDMI_FRAME_STATE_DATA_LOW;
       } else {
@@ -239,22 +239,22 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
       }
       return time_next(frame->start, 2400);
     case HDMI_FRAME_STATE_EOM_LOW:
-      gpio_set_dir(CECPIN, GPIO_OUT);
+      gpio_set_dir(CEC_PIN, GPIO_OUT);
       low_time = (frame->byte < frame->message->len) ? 1500 : 600;
       frame->start = time_us_64();
       frame->state = HDMI_FRAME_STATE_EOM_HIGH;
       return time_next(frame->start, low_time);
     case HDMI_FRAME_STATE_EOM_HIGH:
-      gpio_set_dir(CECPIN, GPIO_IN);
+      gpio_set_dir(CEC_PIN, GPIO_IN);
       frame->state = HDMI_FRAME_STATE_ACK_LOW;
       return time_next(frame->start, 2400);
     case HDMI_FRAME_STATE_ACK_LOW:
-      gpio_set_dir(CECPIN, GPIO_OUT);
+      gpio_set_dir(CEC_PIN, GPIO_OUT);
       frame->start = time_us_64();
       frame->state = HDMI_FRAME_STATE_ACK_HIGH;
       return time_next(frame->start, 600);
     case HDMI_FRAME_STATE_ACK_HIGH:
-      gpio_set_dir(CECPIN, GPIO_IN);
+      gpio_set_dir(CEC_PIN, GPIO_IN);
       if (frame->byte < frame->message->len) {
         frame->bit = 7;
         frame->state = HDMI_FRAME_STATE_DATA_LOW;
@@ -284,7 +284,7 @@ static void hdmi_tx_frame(uint8_t *data, uint8_t len) {
 static void send_frame(uint8_t pldcnt, uint8_t *pld) {
   // gpio_put(PICO_DEFAULT_LED_PIN, true);
   //  disable GPIO ISR for sending
-  gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
   hdmi_tx_frame(pld, pldcnt);
   printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
   // gpio_put(PICO_DEFAULT_LED_PIN, false);
@@ -363,9 +363,13 @@ static void report_physical_address(uint8_t initiator,
 void cec_task(void *data) {
   QueueHandle_t *q = (QueueHandle_t *)data;
 
+  gpio_init(CEC_PIN);
+  gpio_disable_pulls(CEC_PIN);
+  gpio_set_dir(CEC_PIN, GPIO_IN);
+
   gpio_set_irq_callback(&hdmi_rx_frame_isr);
   irq_set_enabled(IO_IRQ_BANK0, true);
-  gpio_set_irq_enabled(CECPIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
   while (true) {
     uint8_t pld[16] = {0x0};
@@ -467,7 +471,7 @@ void cec_task(void *data) {
         case 0x83:
           printf("[Give Physical Address]");
           if (destination == ADDRESS)
-            report_physical_address(ADDRESS, 0x0f, 0x1000, TYPE);
+            report_physical_address(ADDRESS, 0x0f, CEC_PHYS_ADDR, TYPE);
           break;
         case 0x44:
           gpio_put(PICO_DEFAULT_LED_PIN, true);

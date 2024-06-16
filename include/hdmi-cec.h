@@ -8,8 +8,12 @@
 #include "task.h"
 #define CEC_TASK_NAME "cec"
 
-#ifndef CECPIN
-#define CECPIN 3 // GPIO3 == D10 (Seeed Studio XIAO RP2040)
+#ifndef CEC_PIN
+#define CEC_PIN 3 // GPIO3 == D10 (Seeed Studio XIAO RP2040)
+#endif
+
+#ifndef CEC_PHYS_ADDR
+#define CEC_PHYS_ADDR (0x1000) // Default to 1.0.0.0
 #endif
 
 typedef struct {

@@ -54,10 +54,6 @@ int main() {
   gpio_init(PICO_DEFAULT_LED_PIN);
   gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-  gpio_init(CECPIN);
-  gpio_disable_pulls(CECPIN);
-  gpio_set_dir(CECPIN, GPIO_IN);
-
   // HID key queue
   QueueHandle_t cec_q =
       xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
