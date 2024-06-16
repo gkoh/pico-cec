@@ -2,18 +2,23 @@ cmake_minimum_required(VERSION 3.13)
 
 set(PROJECT pico-cec)
 set(FAMILY rp2040)
+set(BOARD "pico_sdk")
+set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
+#set(PICO_BOARD "pico" CACHE STRING "Raspberry Pi Pico board type." FORCE)
 
 # Pull in SDK (must be before project)
 include(pico-sdk/pico_sdk_init.cmake)
 include(pico-sdk/lib/tinyusb/hw/bsp/family_support.cmake)
 family_get_project_name(PROJECT ${PROJECT})
 
-# Pull in FreeRTOS
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Kernel/portable/ThirdParty/GCC/RP2040)
-
-project(app C CXX ASM)
+project(${PROJECT}
+  DESCRIPTION "HDMI CEC to USB HID keyboard adapter."
+  LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
+
+# Pull in FreeRTOS
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Kernel/portable/ThirdParty/GCC/RP2040)
 
 # Initialize the SDK
 pico_sdk_init()
