@@ -24,18 +24,21 @@ add_executable(${PROJECT}
   src/main.c
   src/usb_descriptors.c
   src/usb_hid.c)
+
 target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
 set(CEC_PHYS_ADDR "0x1000" CACHE STRING "Physical address for HDMI CEC.")
 
+set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
+  "CEC_PIN=${CEC_PIN};CEC_PHYS_ADDR=${CEC_PHYS_ADDR}")
+
 target_compile_options(${PROJECT} PRIVATE
-  -UCFG_TUSB_OS
-  -DCFG_TUSB_OS=OPT_OS_FREERTOS
-  -DCEC_PIN=${CEC_PIN}
-  -DCEC_PHYS_ADDR=${CEC_PHYS_ADDR}
   -Wall -Werror)
+
+target_compile_options(tinyusb_common_base INTERFACE
+  -UCFG_TUSB_OS)
 
 target_link_libraries(${PROJECT}
   pico_stdlib

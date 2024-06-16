@@ -54,7 +54,7 @@ extern "C" {
 #endif
 
 // This examples use FreeRTOS
-// #define CFG_TUSB_OS           OPT_OS_FREERTOS
+#define CFG_TUSB_OS           OPT_OS_FREERTOS
 
 // Espressif IDF requires "freertos/" prefix in include path
 #if TU_CHECK_MCU(OPT_MCU_ESP32S2, OPT_MCU_ESP32S3)
