@@ -82,7 +82,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
   uint64_t low_time = 0;
   gpio_acknowledge_irq(gpio, events);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
-  //printf("state = %d, byte = %d, bit = %d\n", rx_frame.state, rx_frame.byte, rx_frame.bit);
+  // printf("state = %d, byte = %d, bit = %d\n", rx_frame.state, rx_frame.byte, rx_frame.bit);
   switch (rx_frame.state) {
     case HDMI_FRAME_STATE_START_LOW:
       rx_frame.start = time_us_64();
@@ -192,7 +192,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
 }
 
 static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
-  //printf("recv_frame\n");
+  // printf("recv_frame\n");
   rx_frame.address = address;
   rx_frame.state = HDMI_FRAME_STATE_START_LOW;
   memset(&rx_frame.message->data[0], 0, 16);
@@ -509,7 +509,7 @@ void cec_task(void *data) {
     } else {
       // single byte polling message
       printf("[Polling Message]: 0x%01x -> 0x%01x\n", initiator, destination);
-      //report_physical_address(ADDRESS, 0x0f, 0x1000, TYPE);
+      // report_physical_address(ADDRESS, 0x0f, 0x1000, TYPE);
     }
   }
 }
