@@ -27,7 +27,7 @@ module hdmi_male() {
         linear_extrude(12.7)
             hdmi_2d_male();
         translate([0, -1, 12])
-            cube([14.0, 5.0, 3],true);
+            cube([14.2, 5.0, 3],true);
     }
 }
 
@@ -80,7 +80,7 @@ module xiao_rp2040() {
 }
 
 module nut_m3() {
-    cylinder(2.5, r=3.1, $fn=6);
+    cylinder(2.5, r=3.3, $fn=6);
 }
 
 module head_m3() {
@@ -97,7 +97,7 @@ module base() {
                 translate([0, 4.1, 1.5])
                     hdmi_adapter();
                 translate([0, 20, 5])
-                    cube([13.9, 3, 3], true);
+                    cube([14.1, 3, 3], true);
                 translate([0, -20, 5])
                     cube([15.0, 3, 3], true);
             }
@@ -113,13 +113,13 @@ module base() {
         }
         // bolt
         translate([11, 13.0, -4.55])
-            cylinder(5.1, r=1.5);
+            cylinder(5.1, r=1.6);
         translate([11, -4.0, -4.55])
-            cylinder(5.1, r=1.5);
+            cylinder(5.1, r=1.6);
         translate([-11, 13.0, -4.55])
-            cylinder(5.1, r=1.5);
+            cylinder(5.1, r=1.6);
         translate([-11, -4.0, -4.55])
-            cylinder(5.1, r=1.5);
+            cylinder(5.1, r=1.6);
         // nuts
         translate([11, 13.0, -4.55])
             nut_m3();
@@ -138,13 +138,13 @@ module middle() {
             cube([32, 40.5+1.5, 4], true);
             // bolt
             translate([11, 13.0, -2.55])
-                cylinder(5.1, r=1.5);
+                cylinder(5.1, r=1.6);
             translate([11, -4.0, -2.55])
-                cylinder(5.1, r=1.5);
+                cylinder(5.1, r=1.6);
             translate([-11, 13.0, -2.55])
-                cylinder(5.1, r=1.5);
+                cylinder(5.1, r=1.6);
             translate([-11, -4.0, -2.55])
-                cylinder(5.1, r=1.5);
+                cylinder(5.1, r=1.6);
             // head
             translate([-11, 13.0, -0.45])
                 head_m3();
@@ -187,9 +187,9 @@ module top() {
             cube([20.5, 2, 3.05], true);
         // bolt
         translate([-11, 2, -0.5])
-            cylinder(5.1, r=1.5);
+            cylinder(5.1, r=1.6);
         translate([11, 2, -0.5])
-            cylinder(5.1, r=1.5);
+            cylinder(5.1, r=1.6);
         // head
         translate([-11, 2, 2.5])
             head_m3();
@@ -199,7 +199,7 @@ module top() {
         translate([0, 6.7, 2.2])
             cube([15, 3, 5], true);
         // power led
-        translate([-7, -10, -0.3])
+        translate([-6, -10, -0.3])
             cylinder(5, r=1.5);
     }
 }
