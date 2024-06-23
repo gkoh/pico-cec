@@ -29,7 +29,7 @@ In this project we use a Pico to both:
 ## Cloning
 To avoid cloning unneeded code, clone like this:
 ```
-git -c submodule.active="lib/tinyusb" -c submodule.active=":(exclude,glob){lib,hw}/*" clone --recurse-submodulesi
+git -c submodule.active="lib/tinyusb" -c submodule.active=":(exclude,glob){lib,hw}/*" clone --recurse-submodules
 ```
 
 Alternatively, clone everything in pico-sdk and tinyUSB:
