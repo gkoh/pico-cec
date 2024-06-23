@@ -61,7 +61,7 @@ jobs:
         path: |
           ${{github.workspace}}/build/pico-cec.uf2
           ${{github.workspace}}/openscad/*.stl
-        if-no-file-found: error
+        if-no-files-found: error
 
   release:
     needs: build
