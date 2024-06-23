@@ -105,25 +105,24 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
     case HDMI_FRAME_STATE_EOM_LOW:
       rx_frame.byte++;
       rx_frame.bit = 0;
-    case HDMI_FRAME_STATE_DATA_LOW:
-      {
-        uint64_t min_time = rx_frame.first ? 4300 : 2050;
-        uint64_t max_time = rx_frame.first ? 4700 : 2750;
-        uint64_t bit_time = time_us_64() - rx_frame.start;
-        if (bit_time >= min_time && bit_time <= max_time) {
-          rx_frame.start = time_us_64();
-          if (rx_frame.state == HDMI_FRAME_STATE_EOM_LOW) {
-            rx_frame.state = HDMI_FRAME_STATE_EOM_HIGH;
-          } else {
-            rx_frame.state = HDMI_FRAME_STATE_DATA_HIGH;
-          }
-          rx_frame.first = false;
-          gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
+    case HDMI_FRAME_STATE_DATA_LOW: {
+      uint64_t min_time = rx_frame.first ? 4300 : 2050;
+      uint64_t max_time = rx_frame.first ? 4700 : 2750;
+      uint64_t bit_time = time_us_64() - rx_frame.start;
+      if (bit_time >= min_time && bit_time <= max_time) {
+        rx_frame.start = time_us_64();
+        if (rx_frame.state == HDMI_FRAME_STATE_EOM_LOW) {
+          rx_frame.state = HDMI_FRAME_STATE_EOM_HIGH;
         } else {
-          rx_frame.state = HDMI_FRAME_STATE_ABORT;
-          xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
+          rx_frame.state = HDMI_FRAME_STATE_DATA_HIGH;
         }
+        rx_frame.first = false;
+        gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
+      } else {
+        rx_frame.state = HDMI_FRAME_STATE_ABORT;
+        xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
       }
+    }
       return;
     case HDMI_FRAME_STATE_EOM_HIGH:
     case HDMI_FRAME_STATE_DATA_HIGH:
@@ -484,16 +483,15 @@ void cec_task(void *data) {
             case 0x42:
               printf("[User Control Volume Down]");
               break;
-            default:
-              {
-                command_t command = keymap[pld[2]];
-                if (command.name != NULL) {
-                  printf(command.name);
-                  xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
-                } else {
-                  printf("Unmapped command: 0x%02x\n", pld[2]);
-                }
+            default: {
+              command_t command = keymap[pld[2]];
+              if (command.name != NULL) {
+                printf(command.name);
+                xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
+              } else {
+                printf("Unmapped command: 0x%02x\n", pld[2]);
               }
+            }
           }
           break;
         case 0x45:
