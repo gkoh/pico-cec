@@ -37,13 +37,17 @@ jobs:
       run: |
         cd pico-sdk && git submodule update --init lib/tinyusb
 
-    - name: Install GCC cross compiler
+    - name: Install required packages
       shell: bash
       run: |
-        sudo apt install -y gcc-arm-none-eabi
+        sudo apt install -y gcc-arm-none-eabi openscad
 
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-    - name: Build
+    - name: Build Pico-CEC
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Export to STL
+      run: |
+        cd ${{github.workspace}}/openscad && make
