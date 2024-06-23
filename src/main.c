@@ -17,7 +17,7 @@
 #define CEC_STACK_SIZE (256)
 #define CEC_QUEUE_LENGTH (16)
 
-void blink_task(void *) {
+void blink_task(void *param) {
   static uint32_t blink_delay = 1000;
   static bool state = true;
 
