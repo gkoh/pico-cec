@@ -77,6 +77,8 @@ jobs:
     - name: Generate release hashes
       run: |
         ls -lR
+        mv build/pico-cec.uf2 .
+        mv openscad/*.stl .
         sha256sum pico-cec.uf2 *.stl > sha256sum.txt
 
     - name: Release
