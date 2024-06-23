@@ -14,22 +14,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Run clang-format style check
-        uses: jidicula/clang-format-action@v4.11.0
-        with:
-          clang-format-version: '13'
-          check-path: .
-          exclude-regex: '(FreeRTOS-Kernel\/.+|pico-sdk\/.+)'
+    - uses: actions/checkout@v4
+
+    - name: Run clang-format style check
+      uses: jidicula/clang-format-action@v4.11.0
+      with:
+        clang-format-version: '13'
+        check-path: .
+        exclude-regex: '(FreeRTOS-Kernel\/.+|pico-sdk\/.+)'
 
   build:
     needs: format
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clone (minimal)
-      shell: bash
-      run: |
-        git -c submodule.active="lib/tinyusb" -c submodule.active=":(exclude,glob){lib,hw}/*" clone --depth=1 --recurse-submodules
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'true'
 
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
