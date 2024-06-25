@@ -10,6 +10,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  RELEASE_ZIP: pico-cec-${{github.ref_name}}.zip
 
 jobs:
   format:
@@ -84,10 +85,12 @@ jobs:
         mv openscad/*.stl .
         sha256sum pico-cec.uf2 *.stl > sha256sum.txt
 
+    - name: Compress release assets
+      run: |
+        zip ${{env.RELEASE_ZIP}} pico-cec.uf2 *.stl sha256sum.txt
+
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          pico-cec.uf2
-          *.stl
-          sha256sum.txt
+          ${{env.RELEASE_ZIP}}
