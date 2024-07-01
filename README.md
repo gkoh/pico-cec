@@ -171,7 +171,7 @@ This project uses:
 | Random short wires | 2 | basically free |
 | Scunge 3D print from friend | 1 | mostly free |
 | Umpteen hours of engineering | 1 | priceless |
-| Total | 16.13 |
+| Total | | 16.13 |
 
 ## Future
 * physical address is currently hard coded
