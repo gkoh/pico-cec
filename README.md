@@ -3,6 +3,8 @@
 A Raspberry Pi Pico based project to bridge HDMI CEC (Consumer Electronics
 Control) and USB HID keyboard control (especially for use with Kodi).
 
+![Fully assembled Pico-CEC.](https://github.com/gkoh/pico-cec/assets/5484552/443a47cb-7011-49a5-afbe-c527a2d5b086)
+
 ## Motivation
 
 Micro/mini desktops are plentiful as second hand, budget friendly media players,
@@ -98,6 +100,14 @@ After this we:
 * connect `Pico-CEC` to the HDMI output of the PC
 * connect the HDMI cable from the TV to `Pico-CEC`
 * connect a USB cable from `Pico-CEC` to the PC
+
+### Prototype
+![Initial prototype.](https://github.com/gkoh/pico-cec/assets/5484552/ca15af77-d33d-41e0-9339-2782b908115f)
+
+### Assembly
+![XIAO RP2040 and HDMI pass through.](https://github.com/gkoh/pico-cec/assets/5484552/40f6f3b6-7869-4254-b7a0-7f342fdb7ce0)
+
+![Partially assembled Pico-CEC.](https://github.com/gkoh/pico-cec/assets/5484552/13374ca2-a17a-4fcc-a04c-6e94110662ed)
 
 ## Software
 The software is extremely simple and built on FreeRTOS tasks:
