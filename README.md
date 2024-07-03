@@ -180,7 +180,7 @@ This project uses:
 
 ## Future
 * physical address is currently hard coded
-   * can curently be specified by build flags
+   * can currently be specified by build flags
    * ideally, tap pin 16 and sniff the physical address from the EDID traffic
       * research says this is 'just' i2c, needs further investigation and
         testing
