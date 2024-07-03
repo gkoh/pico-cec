@@ -5,4 +5,4 @@
 
 all: stl
 
-stl: pico-cec-base.stl pico-cec-middle.stl pico-cec-top.stl
+stl: pico-cec-base.stl pico-cec-middle.stl pico-cec-top.stl pico-cec.stl
