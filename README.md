@@ -104,6 +104,11 @@ After this we:
 ### Prototype
 ![Initial prototype.](https://github.com/gkoh/pico-cec/assets/5484552/ca15af77-d33d-41e0-9339-2782b908115f)
 
+### Enclosure
+The enclosure is a reasonably simple three piece sandwich 3d print modelled with OpenSCAD. It is designed to be printed as three separate pieces which are bolted together with M3 nuts and bolts.
+An exploded preview of the result can be found in this [STL](openscad/pico-cec.stl).
+
+
 ### Assembly
 ![XIAO RP2040 and HDMI pass through.](https://github.com/gkoh/pico-cec/assets/5484552/40f6f3b6-7869-4254-b7a0-7f342fdb7ce0)
 
