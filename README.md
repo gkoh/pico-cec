@@ -185,9 +185,6 @@ This project uses:
       * research says this is 'just' i2c, needs further investigation and
         testing
       * EDID is 5V, Pico GPIO _might_ be 5V tolerant, may need level shifter
-* logical address is hardcoded to 4 (Player 1)
-   * make it a CMake variable ala physical address
-   * perform a CEC ping and choose a non-occupied logical address
 * more blinken LEDs
    * most Pico boards appear to have an RGB LED, use it
    * perhaps:

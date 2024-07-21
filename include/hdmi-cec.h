@@ -30,9 +30,10 @@ typedef enum {
   HDMI_FRAME_STATE_EOM_HIGH = 5,
   HDMI_FRAME_STATE_ACK_LOW = 6,
   HDMI_FRAME_STATE_ACK_HIGH = 7,
-  HDMI_FRAME_STATE_ACK_END = 8,
-  HDMI_FRAME_STATE_END = 9,
-  HDMI_FRAME_STATE_ABORT = 10
+  HDMI_FRAME_STATE_ACK_WAIT = 8,
+  HDMI_FRAME_STATE_ACK_END = 9,
+  HDMI_FRAME_STATE_END = 10,
+  HDMI_FRAME_STATE_ABORT = 11
 } hdmi_frame_state_t;
 
 typedef struct {
@@ -42,6 +43,7 @@ typedef struct {
   uint64_t start;
   bool first;
   bool eom;
+  bool ack;
   uint8_t address;
   hdmi_frame_state_t state;
 } hdmi_frame_t;

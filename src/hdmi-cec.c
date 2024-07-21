@@ -52,9 +52,18 @@ const command_t keymap[256] = {[0x00] = {"User Control Select", HID_KEY_ENTER},
                                [0x46] = {"User Control Pause", HID_KEY_SPACE},
                                [0x48] = {"User Control Rewind", HID_KEY_R},
                                [0x49] = {"User Control Fast Forward", HID_KEY_F}};
+
+#define DEFAULT_TYPE 0x04  // HDMI Playback 1
+
+// HDMI Playback logical addresses
+#define NUM_ADDRESS 4
+static const uint8_t address[NUM_ADDRESS] = {0x04, 0x08, 0x0b, 0x0f};
+
 /* The HDMI address for this device.  Respond to CEC sent to this address. */
-#define ADDRESS 0x04
-#define TYPE 0x04  // HDMI Playback 1
+static uint8_t l_address = address[0];
+
+/* Construct the frame address header. */
+#define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
 
 TaskHandle_t xCECTask;
 
@@ -261,34 +270,55 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
         frame->state = HDMI_FRAME_STATE_DATA_LOW;
         return time_next(frame->start, 2400);
       } else {
-        frame->state = HDMI_FRAME_STATE_END;
+        frame->state = HDMI_FRAME_STATE_ACK_WAIT;
+        // middle of safe sample period (0.85ms, 1.25ms)
+        return time_next(frame->start, (850 + 1250) / 2);
       }
-      // need to handle follower sending ack
-      // fall through
+    case HDMI_FRAME_STATE_ACK_WAIT:
+      // handle follower sending ack
+      if (gpio_get(CEC_PIN) == false) {
+        frame->ack = true;
+      }
+      frame->state = HDMI_FRAME_STATE_END;
+      return time_next(frame->start, 2400);
+    case HDMI_FRAME_STATE_END:
     default:
       xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_TX, 0, eNoAction, NULL);
       return 0;
   }
 }
 
-static void hdmi_tx_frame(uint8_t *data, uint8_t len) {
-  // wait 13 bit times before sending
-  vTaskDelay(pdMS_TO_TICKS(13 * 2.4));
+static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
+  unsigned char i = 0;
+
+  // wait 13 bit times of idle before sending
+  while (i < 13) {
+    vTaskDelay(pdMS_TO_TICKS(2.4));
+    if (gpio_get(CEC_PIN)) {
+      i++;
+    } else {
+      // reset
+      i = 0;
+    }
+  }
 
   hdmi_message_t message = {data, len};
-  hdmi_frame_t frame = {
-      .message = &message, .bit = 7, .byte = 0, .start = 0, .state = HDMI_FRAME_STATE_START_LOW};
+  hdmi_frame_t frame = {.message = &message,
+                        .bit = 7,
+                        .byte = 0,
+                        .start = 0,
+                        .ack = false,
+                        .state = HDMI_FRAME_STATE_START_LOW};
   add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
+  printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
+  return frame.ack;
 }
 
-static void send_frame(uint8_t pldcnt, uint8_t *pld) {
-  // gpio_put(PICO_DEFAULT_LED_PIN, true);
-  //  disable GPIO ISR for sending
+static bool send_frame(uint8_t pldcnt, uint8_t *pld) {
+  // disable GPIO ISR for sending
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
-  hdmi_tx_frame(pld, pldcnt);
-  printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
-  // gpio_put(PICO_DEFAULT_LED_PIN, false);
+  return hdmi_tx_frame(pld, pldcnt);
 }
 
 static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t vendor_id) {
@@ -361,6 +391,35 @@ static void report_physical_address(uint8_t initiator,
   printf("\n<-- %02x:84 [Report Physical Address]", pld[0]);
 }
 
+static void report_cec_version(uint8_t initiator, uint8_t destination) {
+  // 0x04 = 1.3a
+  uint8_t pld[3] = {HEADER0(initiator, destination), 0x9e, 0x04};
+  send_frame(3, pld);
+  printf("\n<-- %02x: 9e [CEC Version]", pld[0]);
+}
+
+static bool ping(uint8_t destination) {
+  uint8_t pld[1] = {HEADER0(destination, destination)};
+
+  bool ack = send_frame(1, pld);
+  printf("ack = %d\n", ack);
+  return ack;
+}
+
+static uint8_t allocate_logical_address(void) {
+  uint8_t a;
+  for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
+    a = address[i];
+    printf("Attempting to allocate logical address 0x%02x\n", a);
+    if (!ping(a)) {
+      break;
+    }
+  }
+
+  printf("Allocated logical address 0x%02x\n", a);
+  return a;
+}
+
 void cec_task(void *data) {
   QueueHandle_t *q = (QueueHandle_t *)data;
 
@@ -372,13 +431,15 @@ void cec_task(void *data) {
   irq_set_enabled(IO_IRQ_BANK0, true);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
+  l_address = allocate_logical_address();
+
   while (true) {
     uint8_t pld[16] = {0x0};
     uint8_t pldcnt, pldcntrcvd;
     uint8_t initiator, destination;
     uint8_t key = HID_KEY_NONE;
 
-    pldcnt = recv_frame(pld, ADDRESS);
+    pldcnt = recv_frame(pld, l_address);
     printf("pldcnt = %u\n", pldcnt);
     pldcntrcvd = pldcnt;
     initiator = (pld[0] & 0xf0) >> 4;
@@ -398,21 +459,21 @@ void cec_task(void *data) {
           break;
         case 0x70:
           printf("[System Audio Mode Request]");
-          if (destination == ADDRESS)
-            set_system_audio_mode(ADDRESS, 0x0f, 1);
+          if (destination == l_address)
+            set_system_audio_mode(l_address, 0x0f, 1);
           break;
         case 0x71:
           printf("[Give Audio Status]");
-          if (destination == ADDRESS)
-            report_audio_status(ADDRESS, initiator, 0x32);  // volume 50%, mute off
+          if (destination == l_address)
+            report_audio_status(l_address, initiator, 0x32);  // volume 50%, mute off
           break;
         case 0x72:
           printf("[Set System Audio Mode]");
           break;
         case 0x7d:
           printf("[Give System Audio Mode Status]");
-          if (destination == ADDRESS)
-            system_audio_mode_status(ADDRESS, initiator, 1);
+          if (destination == l_address)
+            system_audio_mode_status(l_address, initiator, 1);
           break;
         case 0x7e:
           printf("[System Audio Mode Status]");
@@ -432,16 +493,16 @@ void cec_task(void *data) {
           break;
         case 0x8c:
           printf("[Give Device Vendor ID]");
-          if (destination == ADDRESS)
-            device_vendor_id(ADDRESS, 0x0f, 0x0010FA);
+          if (destination == l_address)
+            device_vendor_id(l_address, 0x0f, 0x0010FA);
           break;
         case 0x8e:
           printf("[Menu Status]");
           break;
         case 0x8f:
           printf("[Give Device Power Status]");
-          if (destination == ADDRESS)
-            report_power_status(ADDRESS, initiator, 0x00);
+          if (destination == l_address)
+            report_power_status(l_address, initiator, 0x00);
           /* Hack for Google Chromecast to force it sending V+/V- if no CEC TV is present */
           if (destination == 0)
             report_power_status(0, initiator, 0x00);
@@ -460,19 +521,22 @@ void cec_task(void *data) {
           break;
         case 0x9f:
           printf("[Get CEC Version]");
+          if (destination == l_address) {
+            report_cec_version(l_address, initiator);
+          }
           break;
         case 0x46:
           printf("[Give OSD Name]");
-          if (destination == ADDRESS)
-            set_osd_name(ADDRESS, initiator);
+          if (destination == l_address)
+            set_osd_name(l_address, initiator);
           break;
         case 0x47:
           printf("[Set OSD Name]");
           break;
         case 0x83:
           printf("[Give Physical Address]");
-          if (destination == ADDRESS)
-            report_physical_address(ADDRESS, 0x0f, CEC_PHYS_ADDR, TYPE);
+          if (destination == l_address)
+            report_physical_address(l_address, 0x0f, CEC_PHYS_ADDR, DEFAULT_TYPE);
           break;
         case 0x44:
           gpio_put(PICO_DEFAULT_LED_PIN, true);
@@ -511,7 +575,7 @@ void cec_task(void *data) {
     } else {
       // single byte polling message
       printf("[Polling Message]: 0x%01x -> 0x%01x\n", initiator, destination);
-      // report_physical_address(ADDRESS, 0x0f, 0x1000, TYPE);
+      // report_physical_address(l_address, 0x0f, 0x1000, DEFAULT_TYPE);
     }
   }
 }
