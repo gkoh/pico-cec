@@ -36,12 +36,6 @@ typedef enum {
 } hdmi_frame_state_t;
 
 typedef struct {
-  uint64_t start;
-  bool eom;
-  hdmi_frame_state_t state;
-} hdmi_ack_t;
-
-typedef struct {
   hdmi_message_t *message;
   unsigned int bit;
   unsigned int byte;
