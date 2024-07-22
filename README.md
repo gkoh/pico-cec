@@ -81,6 +81,8 @@ This is currently working with:
 * through a Denon AVR connected to the Sharp TV (physical address 0x1100)
    * Pico-CEC connected to Denon AVR HDMI input 1
    * Denon AVR connected to TV HDMI input 1
+* a Sony 60" TV (physical address 0x1000)
+   * directly connected to TV HDMI input 1
 
 # Design
 ## Hardware

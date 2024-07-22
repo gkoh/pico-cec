@@ -163,22 +163,21 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
       return;
     case HDMI_FRAME_STATE_ACK_LOW:
       rx_frame.start = time_us_64();
+      // send ack by changing ack from 1 to 0
+      uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
+      if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
+        rx_frame.state = HDMI_FRAME_STATE_ACK_END;
+        gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
+        add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
+        rx_frame.ack = true;
+      }
       rx_frame.state = HDMI_FRAME_STATE_ACK_HIGH;
       gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
       return;
     case HDMI_FRAME_STATE_ACK_HIGH:
       low_time = time_us_64() - rx_frame.start;
-      if (low_time >= 400 && low_time <= 800) {
-        // send ack by changing ack from 1 to 0
-        uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
-        if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
-          rx_frame.state = HDMI_FRAME_STATE_ACK_END;
-          gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
-          add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
-          // interrupt ourselves
-          gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
-          return;
-        }
+      if ((low_time >= 400 && low_time <= 800) || (low_time >= 1300 && low_time <= 1700)) {
+        rx_frame.state = HDMI_FRAME_STATE_ACK_END;
       } else {
         rx_frame.state = HDMI_FRAME_STATE_ABORT;
         xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
@@ -205,14 +204,15 @@ static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
   // printf("recv_frame\n");
   rx_frame.address = address;
   rx_frame.state = HDMI_FRAME_STATE_START_LOW;
+  rx_frame.ack = false;
   memset(&rx_frame.message->data[0], 0, 16);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
   ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, portMAX_DELAY);
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
-  printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
+  // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
 
   if (rx_frame.state == HDMI_FRAME_STATE_ABORT) {
-    printf("ABORT\n");
+    // printf("ABORT\n");
     return 0;
   }
 
@@ -291,8 +291,8 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
 static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
 
-  // wait 13 bit times of idle before sending
-  while (i < 13) {
+  // wait 7 bit times of idle before sending
+  while (i < 7) {
     vTaskDelay(pdMS_TO_TICKS(2.4));
     if (gpio_get(CEC_PIN)) {
       i++;
@@ -311,7 +311,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
                         .state = HDMI_FRAME_STATE_START_LOW};
   add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
-  printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
+  // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
   return frame.ack;
 }
 
@@ -388,29 +388,34 @@ static void report_physical_address(uint8_t initiator,
                     (physical_address >> 0) & 0x0ff, device_type};
 
   send_frame(5, pld);
-  printf("\n<-- %02x:84 [Report Physical Address]", pld[0]);
+  printf("\n<-- %02x:84 [Report Physical Address] %02x%02x", pld[0], pld[2], pld[3]);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
   // 0x04 = 1.3a
   uint8_t pld[3] = {HEADER0(initiator, destination), 0x9e, 0x04};
   send_frame(3, pld);
-  printf("\n<-- %02x: 9e [CEC Version]", pld[0]);
+  printf("\n<-- %02x:9e [CEC Version]", pld[0]);
 }
 
 static bool ping(uint8_t destination) {
   uint8_t pld[1] = {HEADER0(destination, destination)};
 
-  bool ack = send_frame(1, pld);
-  printf("ack = %d\n", ack);
-  return ack;
+  return send_frame(1, pld);
+}
+
+static void image_view_on(uint8_t initiator, uint8_t destination) {
+  uint8_t pld[2] = {HEADER0(initiator, destination), 0x04};
+
+  send_frame(2, pld);
+  printf("\n<-- %02x:04 [Image View On]", pld[0]);
 }
 
 static uint8_t allocate_logical_address(void) {
   uint8_t a;
   for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
     a = address[i];
-    printf("Attempting to allocate logical address 0x%02x\n", a);
+    printf("\nAttempting to allocate logical address 0x%02x\n", a);
     if (!ping(a)) {
       break;
     }
@@ -440,10 +445,11 @@ void cec_task(void *data) {
     uint8_t key = HID_KEY_NONE;
 
     pldcnt = recv_frame(pld, l_address);
-    printf("pldcnt = %u\n", pldcnt);
+    // printf("pldcnt = %u\n", pldcnt);
     pldcntrcvd = pldcnt;
     initiator = (pld[0] & 0xf0) >> 4;
     destination = pld[0] & 0x0f;
+    printf("%02x -> %02x: ", initiator, destination);
 
     if ((pldcnt > 1)) {
       switch (pld[1]) {
@@ -478,18 +484,31 @@ void cec_task(void *data) {
         case 0x7e:
           printf("[System Audio Mode Status]");
           break;
+        case 0x80:
+          printf("[Routing Change]");
+          image_view_on(l_address, 0x00);
+          break;
         case 0x82:
-          printf("[Active Source]");
+          printf("[Active Source]\n");
           printf("<*> [Turn the display ON]");
           break;
         case 0x84:
-          printf("[Report Physical Address>]");
+          printf("[Report Physical Address>] %02x%02x", pld[2], pld[3]);
+          // On broadcast receive, do the same
+          if ((initiator == 0x00) && (destination == 0x0f)) {
+            // l_address = allocate_logical_address();
+            report_physical_address(l_address, 0x0f, CEC_PHYS_ADDR, DEFAULT_TYPE);
+          }
           break;
         case 0x85:
           printf("[Request Active Source]");
           break;
         case 0x87:
           printf("[Device Vendor ID]");
+          // On broadcast receive, do the same
+          if ((initiator == 0x00) && (destination == 0x0f)) {
+            device_vendor_id(l_address, 0x0f, 0x0010FA);
+          }
           break;
         case 0x8c:
           printf("[Give Device Vendor ID]");
@@ -566,6 +585,14 @@ void cec_task(void *data) {
           break;
         case 0xFF:
           printf("[Abort]");
+          break;
+        case 0xA0:
+          printf("[Vendor Command with ID]");
+          for (int i = 0; i < pldcnt; i++) {
+            printf(" %02x", pld[i]);
+          }
+          printf("\n");
+          break;
         default:
           if (pldcntrcvd > 1)
             printf("???: %x", pld[1]);  // undecoded command
@@ -575,7 +602,6 @@ void cec_task(void *data) {
     } else {
       // single byte polling message
       printf("[Polling Message]: 0x%01x -> 0x%01x\n", initiator, destination);
-      // report_physical_address(l_address, 0x0f, 0x1000, DEFAULT_TYPE);
     }
   }
 }
