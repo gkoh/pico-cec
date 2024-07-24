@@ -9,12 +9,13 @@
 #include "pico/stdlib.h"
 
 #include "hdmi-cec.h"
+#include "hdmi-edid.h"
 #include "usb_hid.h"
 
 #define USBD_STACK_SIZE (512)
 #define HID_STACK_SIZE (256)
 #define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (256)
+#define CEC_STACK_SIZE (512)
 #define CEC_QUEUE_LENGTH (16)
 
 void blink_task(void *param) {
@@ -50,6 +51,7 @@ int main() {
   board_init();
 
   alarm_pool_init_default();
+  edid_bus_init();
 
   gpio_init(PICO_DEFAULT_LED_PIN);
   gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);

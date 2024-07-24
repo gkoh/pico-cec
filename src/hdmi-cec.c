@@ -9,6 +9,7 @@
 #include "tusb.h"
 
 #include "hdmi-cec.h"
+#include "hdmi-edid.h"
 
 /* Intercept HDMI CEC commands, convert to a keypress and send to HID task
  * handler.
@@ -60,7 +61,7 @@ const command_t keymap[256] = {[0x00] = {"User Control Select", HID_KEY_ENTER},
 static const uint8_t address[NUM_ADDRESS] = {0x04, 0x08, 0x0b, 0x0f};
 
 /* The HDMI address for this device.  Respond to CEC sent to this address. */
-static uint8_t l_address = address[0];
+static uint8_t laddr = address[0];
 
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
@@ -382,7 +383,7 @@ static void set_osd_name(uint8_t initiator, uint8_t destination) {
 
 static void report_physical_address(uint8_t initiator,
                                     uint8_t destination,
-                                    unsigned int physical_address,
+                                    uint16_t physical_address,
                                     uint8_t device_type) {
   uint8_t pld[5] = {(initiator << 4) | destination, 0x84, (physical_address >> 8) & 0x0ff,
                     (physical_address >> 0) & 0x0ff, device_type};
@@ -436,7 +437,8 @@ void cec_task(void *data) {
   irq_set_enabled(IO_IRQ_BANK0, true);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
-  l_address = allocate_logical_address();
+  uint16_t paddr = edid_get_physical_address();
+  laddr = allocate_logical_address();
 
   while (true) {
     uint8_t pld[16] = {0x0};
@@ -444,7 +446,7 @@ void cec_task(void *data) {
     uint8_t initiator, destination;
     uint8_t key = HID_KEY_NONE;
 
-    pldcnt = recv_frame(pld, l_address);
+    pldcnt = recv_frame(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
     pldcntrcvd = pldcnt;
     initiator = (pld[0] & 0xf0) >> 4;
@@ -465,28 +467,29 @@ void cec_task(void *data) {
           break;
         case 0x70:
           printf("[System Audio Mode Request]");
-          if (destination == l_address)
-            set_system_audio_mode(l_address, 0x0f, 1);
+          if (destination == laddr)
+            set_system_audio_mode(laddr, 0x0f, 1);
           break;
         case 0x71:
           printf("[Give Audio Status]");
-          if (destination == l_address)
-            report_audio_status(l_address, initiator, 0x32);  // volume 50%, mute off
+          if (destination == laddr)
+            report_audio_status(laddr, initiator, 0x32);  // volume 50%, mute off
           break;
         case 0x72:
           printf("[Set System Audio Mode]");
           break;
         case 0x7d:
           printf("[Give System Audio Mode Status]");
-          if (destination == l_address)
-            system_audio_mode_status(l_address, initiator, 1);
+          if (destination == laddr)
+            system_audio_mode_status(laddr, initiator, 1);
           break;
         case 0x7e:
           printf("[System Audio Mode Status]");
           break;
         case 0x80:
           printf("[Routing Change]");
-          image_view_on(l_address, 0x00);
+          paddr = edid_get_physical_address();
+          image_view_on(laddr, 0x00);
           break;
         case 0x82:
           printf("[Active Source]\n");
@@ -496,8 +499,11 @@ void cec_task(void *data) {
           printf("[Report Physical Address>] %02x%02x", pld[2], pld[3]);
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            // l_address = allocate_logical_address();
-            report_physical_address(l_address, 0x0f, CEC_PHYS_ADDR, DEFAULT_TYPE);
+            paddr = edid_get_physical_address();
+            laddr = allocate_logical_address();
+            if (paddr != 0x0000) {
+              report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
+            }
           }
           break;
         case 0x85:
@@ -507,21 +513,21 @@ void cec_task(void *data) {
           printf("[Device Vendor ID]");
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            device_vendor_id(l_address, 0x0f, 0x0010FA);
+            device_vendor_id(laddr, 0x0f, 0x0010FA);
           }
           break;
         case 0x8c:
           printf("[Give Device Vendor ID]");
-          if (destination == l_address)
-            device_vendor_id(l_address, 0x0f, 0x0010FA);
+          if (destination == laddr)
+            device_vendor_id(laddr, 0x0f, 0x0010FA);
           break;
         case 0x8e:
           printf("[Menu Status]");
           break;
         case 0x8f:
           printf("[Give Device Power Status]");
-          if (destination == l_address)
-            report_power_status(l_address, initiator, 0x00);
+          if (destination == laddr)
+            report_power_status(laddr, initiator, 0x00);
           /* Hack for Google Chromecast to force it sending V+/V- if no CEC TV is present */
           if (destination == 0)
             report_power_status(0, initiator, 0x00);
@@ -540,22 +546,22 @@ void cec_task(void *data) {
           break;
         case 0x9f:
           printf("[Get CEC Version]");
-          if (destination == l_address) {
-            report_cec_version(l_address, initiator);
+          if (destination == laddr) {
+            report_cec_version(laddr, initiator);
           }
           break;
         case 0x46:
           printf("[Give OSD Name]");
-          if (destination == l_address)
-            set_osd_name(l_address, initiator);
+          if (destination == laddr)
+            set_osd_name(laddr, initiator);
           break;
         case 0x47:
           printf("[Set OSD Name]");
           break;
         case 0x83:
           printf("[Give Physical Address]");
-          if (destination == l_address)
-            report_physical_address(l_address, 0x0f, CEC_PHYS_ADDR, DEFAULT_TYPE);
+          if (destination == laddr && paddr != 0x0000)
+            report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
           break;
         case 0x44:
           gpio_put(PICO_DEFAULT_LED_PIN, true);

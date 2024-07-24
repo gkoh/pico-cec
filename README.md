@@ -18,6 +18,7 @@ In this project we use a Pico to both:
 
 ## What Works
 * HDMI CEC frame send and receive
+* EDID parsing to determine HDMI physical address
 * LibreELEC recognises Pico-CEC as an USB HID keyboard
 * HDMI CEC basic user control messages are properly mapped to Kodi shortcuts,
   including:
@@ -53,15 +54,13 @@ $ make
 The CMake project supports three options:
 * PICO_BOARD: specify variant of Pico board, defaults to Seeed XIAO RP2040
 * CEC_PIN: specify GPIO pin for HDMI CEC, defaults to GPIO3
-* CEC_PHYS_ADDR: specify physical address, defaults to 0x1000 (1.0.0.0, HDMI input 1)
 
 Example invocation to specify:
 * use Raspberry Pi Pico development board
 * use GPIO pin 11
-* use physical address 0x1100 (1.1.0.0, HDMI input 1 and input 1 of that device)
 
 ```
-$ cmake -DPICO_BOARD=pico -DCEC_PIN=11 -DCEC_PHYS_ADDR=0x1100 ..
+$ cmake -DPICO_BOARD=pico -DCEC_PIN=11 ..
 $ make
 ```
 
@@ -87,16 +86,22 @@ This is currently working with:
 # Design
 ## Hardware
 The hardware connections are extremely simple. Both HDMI CEC and the Pico are
-3.3V obviating the need for level shifters.
+3.3V obviating the need for level shifters. The DDC bus (for EDID) is I2C and
+5V, however, the Pico appears to be 5V tolerant.
 
 Additionally, we rely on the GPIO input/output impedance states to read or drive
-the CEC bus. In doing so we only need 2 wires:
+the CEC bus. DDC is I2C requiring data and clock lines.
+Thus, we need to directly connect four wires:
 * HDMI CEC pin 13 direct to a GPIO
 * HDMI CEC ground pin 17 direct to GND
+* HDMI DDC clock pin 15 direct to SCL
+* HDMI DDC data pin 16 direct to SDA
 
 For the Seeed Studio XIAO RP2040:
 * HDMI pin 13 --> D10
 * HDMI pin 17 --> GND
+* HDMI pin 15 --> D5
+* HDMI pin 16 --> D4
 
 After this we:
 * connect `Pico-CEC` to the HDMI output of the PC
@@ -181,12 +186,6 @@ This project uses:
 | Total | | 16.13 |
 
 ## Future
-* physical address is currently hard coded
-   * can currently be specified by build flags
-   * ideally, tap pin 16 and sniff the physical address from the EDID traffic
-      * research says this is 'just' i2c, needs further investigation and
-        testing
-      * EDID is 5V, Pico GPIO _might_ be 5V tolerant, may need level shifter
 * more blinken LEDs
    * most Pico boards appear to have an RGB LED, use it
    * perhaps:

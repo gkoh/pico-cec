@@ -26,6 +26,7 @@ pico_sdk_init()
 add_executable(${PROJECT}
   src/freertos_hook.c
   src/hdmi-cec.c
+  src/hdmi-edid.c
   src/main.c
   src/usb_descriptors.c
   src/usb_hid.c)
@@ -34,10 +35,9 @@ target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
-set(CEC_PHYS_ADDR "0x1000" CACHE STRING "Physical address for HDMI CEC.")
 
 set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
-  "CEC_PIN=${CEC_PIN};CEC_PHYS_ADDR=${CEC_PHYS_ADDR}")
+  "CEC_PIN=${CEC_PIN}")
 
 target_compile_options(${PROJECT} PRIVATE
   -Wall -Werror)
@@ -49,6 +49,7 @@ target_compile_options(tinyusb_common_base INTERFACE
 target_link_libraries(${PROJECT}
   pico_stdlib
   pico_unique_id
+  hardware_i2c
   tinyusb_device
   tinyusb_board
   FreeRTOS-Kernel)
