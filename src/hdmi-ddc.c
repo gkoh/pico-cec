@@ -3,14 +3,18 @@
 #include "hardware/i2c.h"
 #include "pico/stdlib.h"
 
-#include "hdmi-edid.h"
+#include "hdmi-ddc.h"
 
-void edid_bus_init() {
+static void ddc_init() {
   i2c_init(i2c_default, 100 * 1000);
   gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
   gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
   gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
   gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+}
+
+static void ddc_exit() {
+  i2c_deinit(i2c_default);
 }
 
 #define EDID_BLOCK_SIZE (128)
@@ -80,7 +84,7 @@ static uint16_t find_physical_address(uint8_t *block, size_t len) {
   return 0x0000;
 }
 
-uint16_t edid_get_physical_address(void) {
+static uint16_t get_physical_address(void) {
   uint8_t edid[EDID_I2C_READ_SIZE] = {0};
 
   if (read_edid_block(edid, EDID_I2C_READ_SIZE)) {
@@ -124,4 +128,11 @@ uint16_t edid_get_physical_address(void) {
   }
 
   return 0x0000;
+}
+
+uint16_t ddc_get_physical_address(void) {
+  ddc_init();
+  uint16_t address = get_physical_address();
+  ddc_exit();
+  return address;
 }

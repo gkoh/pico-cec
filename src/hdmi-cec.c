@@ -9,7 +9,7 @@
 #include "tusb.h"
 
 #include "hdmi-cec.h"
-#include "hdmi-edid.h"
+#include "hdmi-ddc.h"
 
 /* Intercept HDMI CEC commands, convert to a keypress and send to HID task
  * handler.
@@ -437,7 +437,7 @@ void cec_task(void *data) {
   irq_set_enabled(IO_IRQ_BANK0, true);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
-  uint16_t paddr = edid_get_physical_address();
+  uint16_t paddr = ddc_get_physical_address();
   laddr = allocate_logical_address();
 
   while (true) {
@@ -488,7 +488,7 @@ void cec_task(void *data) {
           break;
         case 0x80:
           printf("[Routing Change]");
-          paddr = edid_get_physical_address();
+          paddr = ddc_get_physical_address();
           image_view_on(laddr, 0x00);
           break;
         case 0x82:
@@ -499,7 +499,7 @@ void cec_task(void *data) {
           printf("[Report Physical Address>] %02x%02x", pld[2], pld[3]);
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            paddr = edid_get_physical_address();
+            paddr = ddc_get_physical_address();
             laddr = allocate_logical_address();
             if (paddr != 0x0000) {
               report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);

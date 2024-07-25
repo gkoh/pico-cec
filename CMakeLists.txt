@@ -26,7 +26,7 @@ pico_sdk_init()
 add_executable(${PROJECT}
   src/freertos_hook.c
   src/hdmi-cec.c
-  src/hdmi-edid.c
+  src/hdmi-ddc.c
   src/main.c
   src/usb_descriptors.c
   src/usb_hid.c)
