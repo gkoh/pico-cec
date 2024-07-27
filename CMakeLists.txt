@@ -23,6 +23,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Kernel/portable/ThirdParty
 # Initialize the SDK
 pico_sdk_init()
 
+add_compile_options(-Wall -Werror)
+
 add_executable(${PROJECT}
   src/freertos_hook.c
   src/hdmi-cec.c
@@ -32,18 +34,16 @@ add_executable(${PROJECT}
   src/usb_hid.c)
 
 target_include_directories(${PROJECT} PRIVATE
-  ${PROJECT_SOURCE_DIR}/include)
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/include/tusb)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
 
 set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
 
-target_compile_options(${PROJECT} PRIVATE
-  -Wall -Werror)
-
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h
-target_compile_options(tinyusb_common_base INTERFACE
+target_compile_options(${PROJECT} PRIVATE
   -UCFG_TUSB_OS)
 
 target_link_libraries(${PROJECT}
@@ -60,3 +60,5 @@ pico_set_binary_type(${PROJECT} copy_to_ram)
 # disable stdio and uart
 pico_enable_stdio_usb(${PROJECT} 0)
 pico_enable_stdio_uart(${PROJECT} 0)
+
+include(debug.cmake)
