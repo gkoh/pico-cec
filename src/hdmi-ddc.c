@@ -131,8 +131,20 @@ static uint16_t get_physical_address(void) {
 }
 
 uint16_t ddc_get_physical_address(void) {
+  uint8_t zero = 0x00;
+  uint16_t address = 0x0000;
+
   ddc_init();
-  uint16_t address = get_physical_address();
+
+  // issue a DDC reset
+  int ret = i2c_write_timeout_us(i2c_default, EDID_I2C_ADDR, &zero, 1, true, EDID_I2C_TIMEOUT_US);
+  if (ret != 1) {
+    printf("Failed to write DDC reset\n");
+    return 0x0000;
+  }
+
+  address = get_physical_address();
   ddc_exit();
+
   return address;
 }
