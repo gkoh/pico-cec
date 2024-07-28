@@ -85,7 +85,6 @@ static uint16_t find_physical_address(uint8_t *block, size_t len) {
 }
 
 static uint16_t get_physical_address(void) {
-  return 0x1000;
   uint8_t edid[EDID_I2C_READ_SIZE] = {0};
 
   if (read_edid_block(edid, EDID_I2C_READ_SIZE)) {
