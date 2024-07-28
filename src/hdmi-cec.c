@@ -54,6 +54,69 @@ const command_t keymap[256] = {[0x00] = {"User Control Select", HID_KEY_ENTER},
                                [0x48] = {"User Control Rewind", HID_KEY_R},
                                [0x49] = {"User Control Fast Forward", HID_KEY_F}};
 
+typedef enum {
+  CEC_ID_IMAGE_VIEW_ON = 0x04,
+  CEC_ID_TEXT_VIEW_ON = 0x0d,
+  CEC_ID_STANDBY = 0x36,
+  CEC_ID_USER_CONTROL_PRESSED = 0x44,
+  CEC_ID_USER_CONTROL_RELEASED = 0x45,
+  CEC_ID_GIVE_OSD_NAME = 0x46,
+  CEC_ID_SET_OSD_NAME = 0x47,
+  CEC_ID_SYSTEM_AUDIO_MODE_REQUEST = 0x70,
+  CEC_ID_GIVE_AUDIO_STATUS = 0x71,
+  CEC_ID_SET_SYSTEM_AUDIO_MODE = 0x72,
+  CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS = 0x7d,
+  CEC_ID_SYSTEM_AUDIO_MODE_STATUS = 0x7e,
+  CEC_ID_REPORT_AUDIO_STATUS = 0x7a,
+  CEC_ID_ROUTING_CHANGE = 0x80,
+  CEC_ID_ACTIVE_SOURCE = 0x82,
+  CEC_ID_GIVE_PHYSICAL_ADDRESS = 0x83,
+  CEC_ID_REPORT_PHYSICAL_ADDRESS = 0x84,
+  CEC_ID_REQUEST_ACTIVE_SOURCE = 0x85,
+  CEC_ID_SET_STREAM_PATH = 0x86,
+  CEC_ID_DEVICE_VENDOR_ID = 0x87,
+  CEC_ID_GIVE_DEVICE_VENDOR_ID = 0x8c,
+  CEC_ID_MENU_STATUS = 0x8e,
+  CEC_ID_GIVE_DEVICE_POWER_STATUS = 0x8f,
+  CEC_ID_REPORT_POWER_STATUS = 0x90,
+  CEC_ID_GET_MENU_LANGUAGE = 0x81,
+  CEC_ID_INACTIVE_SOURCE = 0x9d,
+  CEC_ID_CEC_VERSION = 0x9e,
+  CEC_ID_GET_CEC_VERSION = 0x9f,
+  CEC_ID_VENDOR_COMMAND_WITH_ID = 0xa0,
+  CEC_ID_ABORT = 0xff,
+} cec_id_t;
+
+const char *cec_message[] = {
+    [CEC_ID_IMAGE_VIEW_ON] = "Image View On",
+    [CEC_ID_TEXT_VIEW_ON] = "Text View On",
+    [CEC_ID_STANDBY] = "Standby",
+    [CEC_ID_USER_CONTROL_PRESSED] = "User Control Pressed",
+    [CEC_ID_USER_CONTROL_RELEASED] = "User Control Released",
+    [CEC_ID_SET_OSD_NAME] = "Set OSD Name",
+    [CEC_ID_SYSTEM_AUDIO_MODE_REQUEST] = "System Audio Mode Request",
+    [CEC_ID_GIVE_AUDIO_STATUS] = "Give Audio Status",
+    [CEC_ID_SET_SYSTEM_AUDIO_MODE] = "Set System Audio Mode",
+    [CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS] = "Give System Audio Mode",
+    [CEC_ID_SYSTEM_AUDIO_MODE_STATUS] = "System Audio Mode Status",
+    [CEC_ID_ROUTING_CHANGE] = "Routing Change",
+    [CEC_ID_ACTIVE_SOURCE] = "Active Source",
+    [CEC_ID_GIVE_PHYSICAL_ADDRESS] = "Give Physical Address",
+    [CEC_ID_REPORT_PHYSICAL_ADDRESS] = "Report Physical Address",
+    [CEC_ID_REQUEST_ACTIVE_SOURCE] = "Request Active Source",
+    [CEC_ID_SET_STREAM_PATH] = "Set Stream Path",
+    [CEC_ID_DEVICE_VENDOR_ID] = "Device Vendor ID",
+    [CEC_ID_GIVE_DEVICE_VENDOR_ID] = "Give Device Vendor ID",
+    [CEC_ID_MENU_STATUS] = "Menu Status",
+    [CEC_ID_GIVE_DEVICE_POWER_STATUS] = "Give Device Power Status",
+    [CEC_ID_REPORT_POWER_STATUS] = "Report Power Status",
+    [CEC_ID_GET_MENU_LANGUAGE] = "Get Menu Language",
+    [CEC_ID_CEC_VERSION] = "CEC Version",
+    [CEC_ID_GET_CEC_VERSION] = "Get CEC Version",
+    [CEC_ID_VENDOR_COMMAND_WITH_ID] = "Vendor Command With ID",
+    [CEC_ID_ABORT] = "Abort",
+};
+
 #define DEFAULT_TYPE 0x04  // HDMI Playback 1
 
 // HDMI Playback logical addresses
@@ -327,14 +390,14 @@ static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t ve
                     (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
   send_frame(5, pld);
-  printf("\n<-- %02x:87 [Device Vendor ID]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_DEVICE_VENDOR_ID]);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
   uint8_t pld[3] = {(initiator << 4) | destination, 0x90, power_status};
 
   send_frame(3, pld);
-  printf("\n<-- %02x:90 [Report Power Status]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_REPORT_POWER_STATUS]);
 }
 
 static void set_system_audio_mode(uint8_t initiator,
@@ -343,22 +406,22 @@ static void set_system_audio_mode(uint8_t initiator,
   uint8_t pld[3];
 
   pld[0] = (initiator << 4) | destination;
-  pld[1] = 0x72;
+  pld[1] = CEC_ID_SET_SYSTEM_AUDIO_MODE;
   pld[2] = system_audio_mode;
 
   send_frame(3, pld);
-  printf("\n<-- %02x:72 [Set System Audio Mode]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_SET_SYSTEM_AUDIO_MODE]);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
   uint8_t pld[3];
 
   pld[0] = (initiator << 4) | destination;
-  pld[1] = 0x7a;
+  pld[1] = CEC_ID_REPORT_AUDIO_STATUS;
   pld[2] = audio_status;
 
   send_frame(3, pld);
-  printf("\n<-- %02x:7a [Report Audio Status]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_REPORT_AUDIO_STATUS]);
 }
 
 static void system_audio_mode_status(uint8_t initiator,
@@ -367,36 +430,38 @@ static void system_audio_mode_status(uint8_t initiator,
   uint8_t pld[3];
 
   pld[0] = (initiator << 4) | destination;
-  pld[1] = 0x7e;
+  pld[1] = CEC_ID_SYSTEM_AUDIO_MODE_STATUS;
   pld[2] = system_audio_mode_status;
 
   send_frame(3, pld);
-  printf("\n<-- %02x:7e [System Audio Mode Status]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_SYSTEM_AUDIO_MODE_STATUS]);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
-  uint8_t pld[10] = {(initiator << 4) | destination, 0x47, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
+  uint8_t pld[10] = {
+      (initiator << 4) | destination, CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
   send_frame(10, pld);
-  printf("\n<-- %02x:47 [Set OSD Name]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_SET_OSD_NAME]);
 }
 
 static void report_physical_address(uint8_t initiator,
                                     uint8_t destination,
                                     uint16_t physical_address,
                                     uint8_t device_type) {
-  uint8_t pld[5] = {(initiator << 4) | destination, 0x84, (physical_address >> 8) & 0x0ff,
-                    (physical_address >> 0) & 0x0ff, device_type};
+  uint8_t pld[5] = {(initiator << 4) | destination, CEC_ID_REPORT_PHYSICAL_ADDRESS,
+                    (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
   send_frame(5, pld);
-  printf("\n<-- %02x:84 [Report Physical Address] %02x%02x", pld[0], pld[2], pld[3]);
+  printf("\n<-- %02x:%02x [%s] %02x%02x", pld[0], pld[1],
+         cec_message[CEC_ID_REPORT_PHYSICAL_ADDRESS], pld[2], pld[3]);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
   // 0x04 = 1.3a
-  uint8_t pld[3] = {HEADER0(initiator, destination), 0x9e, 0x04};
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
   send_frame(3, pld);
-  printf("\n<-- %02x:9e [CEC Version]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_CEC_VERSION]);
 }
 
 static bool ping(uint8_t destination) {
@@ -406,10 +471,18 @@ static bool ping(uint8_t destination) {
 }
 
 static void image_view_on(uint8_t initiator, uint8_t destination) {
-  uint8_t pld[2] = {HEADER0(initiator, destination), 0x04};
+  uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
   send_frame(2, pld);
-  printf("\n<-- %02x:04 [Image View On]", pld[0]);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_IMAGE_VIEW_ON]);
+}
+
+static void active_source(uint8_t initiator, uint16_t physical_address) {
+  uint8_t pld[4] = {HEADER0(initiator, 0x0f), CEC_ID_ACTIVE_SOURCE, (physical_address >> 8) & 0x0ff,
+                    (physical_address >> 0) & 0x0ff};
+
+  send_frame(4, pld);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_ACTIVE_SOURCE]);
 }
 
 static uint8_t allocate_logical_address(void) {
@@ -454,49 +527,40 @@ void cec_task(void *data) {
     printf("%02x -> %02x: ", initiator, destination);
 
     if ((pldcnt > 1)) {
+      printf("[%s]", cec_message[pld[1]]);
       switch (pld[1]) {
-        case 0x04:
-          printf("[Image View On]");
+        case CEC_ID_IMAGE_VIEW_ON:
           break;
-        case 0x0d:
-          printf("[Text View On]");
+        case CEC_ID_TEXT_VIEW_ON:
           break;
-        case 0x36:
-          printf("[Standby]");
+        case CEC_ID_STANDBY:
           printf("<*> [Turn the display OFF]");
           break;
-        case 0x70:
-          printf("[System Audio Mode Request]");
+        case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
           if (destination == laddr)
             set_system_audio_mode(laddr, 0x0f, 1);
           break;
-        case 0x71:
-          printf("[Give Audio Status]");
+        case CEC_ID_GIVE_AUDIO_STATUS:
           if (destination == laddr)
             report_audio_status(laddr, initiator, 0x32);  // volume 50%, mute off
           break;
-        case 0x72:
-          printf("[Set System Audio Mode]");
+        case CEC_ID_SET_SYSTEM_AUDIO_MODE:
           break;
-        case 0x7d:
-          printf("[Give System Audio Mode Status]");
+        case CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS:
           if (destination == laddr)
             system_audio_mode_status(laddr, initiator, 1);
           break;
-        case 0x7e:
-          printf("[System Audio Mode Status]");
+        case CEC_ID_SYSTEM_AUDIO_MODE_STATUS:
           break;
-        case 0x80:
-          printf("[Routing Change]");
+        case CEC_ID_ROUTING_CHANGE:
           paddr = ddc_get_physical_address();
           image_view_on(laddr, 0x00);
           break;
-        case 0x82:
-          printf("[Active Source]\n");
+        case CEC_ID_ACTIVE_SOURCE:
           printf("<*> [Turn the display ON]");
           break;
-        case 0x84:
-          printf("[Report Physical Address>] %02x%02x", pld[2], pld[3]);
+        case CEC_ID_REPORT_PHYSICAL_ADDRESS:
+          printf("  %02x%02x", pld[2], pld[3]);
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
             paddr = ddc_get_physical_address();
@@ -506,64 +570,56 @@ void cec_task(void *data) {
             }
           }
           break;
-        case 0x85:
-          printf("[Request Active Source]");
+        case CEC_ID_REQUEST_ACTIVE_SOURCE:
           break;
-        case 0x87:
-          printf("[Device Vendor ID]");
+        case CEC_ID_SET_STREAM_PATH:
+          if (paddr != 0x0000) {
+            active_source(laddr, paddr);
+          }
+          break;
+        case CEC_ID_DEVICE_VENDOR_ID:
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
             device_vendor_id(laddr, 0x0f, 0x0010FA);
           }
           break;
-        case 0x8c:
-          printf("[Give Device Vendor ID]");
+        case CEC_ID_GIVE_DEVICE_VENDOR_ID:
           if (destination == laddr)
             device_vendor_id(laddr, 0x0f, 0x0010FA);
           break;
-        case 0x8e:
-          printf("[Menu Status]");
+        case CEC_ID_MENU_STATUS:
           break;
-        case 0x8f:
-          printf("[Give Device Power Status]");
+        case CEC_ID_GIVE_DEVICE_POWER_STATUS:
           if (destination == laddr)
             report_power_status(laddr, initiator, 0x00);
           /* Hack for Google Chromecast to force it sending V+/V- if no CEC TV is present */
           if (destination == 0)
             report_power_status(0, initiator, 0x00);
           break;
-        case 0x90:
-          printf("[Report Power Status]");
+        case CEC_ID_REPORT_POWER_STATUS:
           break;
-        case 0x91:
-          printf("[Get Menu Language]");
+        case CEC_ID_GET_MENU_LANGUAGE:
           break;
-        case 0x9d:
-          printf("[Inactive Source]");
+        case CEC_ID_INACTIVE_SOURCE:
           break;
-        case 0x9e:
-          printf("[CEC Version]");
+        case CEC_ID_CEC_VERSION:
           break;
-        case 0x9f:
-          printf("[Get CEC Version]");
+        case CEC_ID_GET_CEC_VERSION:
           if (destination == laddr) {
             report_cec_version(laddr, initiator);
           }
           break;
-        case 0x46:
-          printf("[Give OSD Name]");
+        case CEC_ID_GIVE_OSD_NAME:
           if (destination == laddr)
             set_osd_name(laddr, initiator);
           break;
-        case 0x47:
-          printf("[Set OSD Name]");
+        case CEC_ID_SET_OSD_NAME:
           break;
-        case 0x83:
-          printf("[Give Physical Address]");
+        case CEC_ID_GIVE_PHYSICAL_ADDRESS:
           if (destination == laddr && paddr != 0x0000)
             report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
           break;
-        case 0x44:
+        case CEC_ID_USER_CONTROL_PRESSED:
           gpio_put(PICO_DEFAULT_LED_PIN, true);
           switch (pld[2]) {
             case 0x41:
@@ -583,16 +639,15 @@ void cec_task(void *data) {
             }
           }
           break;
-        case 0x45:
+        case CEC_ID_USER_CONTROL_RELEASED:
           gpio_put(PICO_DEFAULT_LED_PIN, false);
-          printf("[User Control Released]");
           key = HID_KEY_NONE;
           xQueueSend(*q, &key, pdMS_TO_TICKS(10));
           break;
-        case 0xFF:
+        case CEC_ID_ABORT:
           printf("[Abort]");
           break;
-        case 0xA0:
+        case CEC_ID_VENDOR_COMMAND_WITH_ID:
           printf("[Vendor Command with ID]");
           for (int i = 0; i < pldcnt; i++) {
             printf(" %02x", pld[i]);

@@ -35,7 +35,7 @@ static int verify(uint8_t *edid, size_t len) {
   uint16_t cksum = 0x0000;
 
   for (size_t i = 0; i < len; i++) {
-    // printf("[%d] %02x\n", i, edid[i]);
+    printf("[%d] %02x\n", i, edid[i]);
     cksum += edid[i];
   }
 
@@ -85,6 +85,7 @@ static uint16_t find_physical_address(uint8_t *block, size_t len) {
 }
 
 static uint16_t get_physical_address(void) {
+  return 0x1000;
   uint8_t edid[EDID_I2C_READ_SIZE] = {0};
 
   if (read_edid_block(edid, EDID_I2C_READ_SIZE)) {
