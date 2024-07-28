@@ -35,7 +35,7 @@ static int verify(uint8_t *edid, size_t len) {
   uint16_t cksum = 0x0000;
 
   for (size_t i = 0; i < len; i++) {
-    // printf("[%d] %02x\n", i, edid[i]);
+    printf("[%d] %02x\n", i, edid[i]);
     cksum += edid[i];
   }
 
