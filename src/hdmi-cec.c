@@ -412,6 +412,14 @@ static void image_view_on(uint8_t initiator, uint8_t destination) {
   printf("\n<-- %02x:04 [Image View On]", pld[0]);
 }
 
+static void active_source(uint8_t initiator, uint16_t physical_address) {
+  uint8_t pld[4] = {HEADER0(initiator, 0x0f), 0x82, (physical_address >> 8) & 0x0ff,
+                    (physical_address >> 0) & 0x0ff};
+
+  send_frame(4, pld);
+  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], "Active Source");
+}
+
 static uint8_t allocate_logical_address(void) {
   uint8_t a;
   for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
@@ -494,6 +502,12 @@ void cec_task(void *data) {
         case 0x82:
           printf("[Active Source]\n");
           printf("<*> [Turn the display ON]");
+          break;
+        case 0x86:
+          printf("[Set Stream Path]");
+          if (paddr != 0x0000) {
+            active_source(laddr, paddr);
+          }
           break;
         case 0x84:
           printf("[Report Physical Address>] %02x%02x", pld[2], pld[3]);
