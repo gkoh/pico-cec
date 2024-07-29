@@ -104,8 +104,7 @@ For the Seeed Studio XIAO RP2040:
 * HDMI pin 16 --> D4
 
 ### Schematic
-![Basic schematic.](https://github.com/user-attachments/assets/999a844b-93f1-4068-9478-b4fa3d19cd7f)
-
+![Basic schematic.](https://github.com/user-attachments/assets/e7cff86f-3934-4b47-be95-2e42a42eb1ed)
 
 After this we:
 * connect `Pico-CEC` to the HDMI output of the PC
