@@ -502,6 +502,9 @@ static uint8_t allocate_logical_address(void) {
 void cec_task(void *data) {
   QueueHandle_t *q = (QueueHandle_t *)data;
 
+  // pause 5000ms
+  vTaskDelay(pdMS_TO_TICKS(5000));
+
   gpio_init(CEC_PIN);
   gpio_disable_pulls(CEC_PIN);
   gpio_set_dir(CEC_PIN, GPIO_IN);
