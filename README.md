@@ -199,6 +199,7 @@ This project uses:
 * pass cec-compliance
    * https://docs.kernel.org/userspace-api/media/cec/cec-intro.html
 * survive cec-compliance fuzzing
+* port to ESP32?
 
 # References
 Inspiration and/or ground work was obtained from the following:
