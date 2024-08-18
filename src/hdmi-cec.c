@@ -36,6 +36,7 @@ const command_t keymap[256] = {[0x00] = {"User Control Select", HID_KEY_ENTER},
                                [0x02] = {"User Control Down", HID_KEY_ARROW_DOWN},
                                [0x03] = {"User Control Left", HID_KEY_ARROW_LEFT},
                                [0x04] = {"User Control Right", HID_KEY_ARROW_RIGHT},
+                               [0x0a] = {"User Control Options", HID_KEY_C},
                                [0x0d] = {"User Control Exit", HID_KEY_BACKSPACE},
                                [0x20] = {"User Control 0", HID_KEY_0},
                                [0x21] = {"User Control 1", HID_KEY_1},
@@ -52,7 +53,8 @@ const command_t keymap[256] = {[0x00] = {"User Control Select", HID_KEY_ENTER},
                                [0x45] = {"User Control Stop", HID_KEY_X},
                                [0x46] = {"User Control Pause", HID_KEY_SPACE},
                                [0x48] = {"User Control Rewind", HID_KEY_R},
-                               [0x49] = {"User Control Fast Forward", HID_KEY_F}};
+                               [0x49] = {"User Control Fast Forward", HID_KEY_F},
+                               [0x51] = {"User Control Subtitle", HID_KEY_L}};
 
 typedef enum {
   CEC_ID_IMAGE_VIEW_ON = 0x04,
