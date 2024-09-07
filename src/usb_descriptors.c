@@ -41,6 +41,16 @@
 #define USB_VID 0xCafe
 #define USB_BCD 0x0200
 
+/**
+ * CDC descriptor constants.
+ */
+#define USBD_STR_CDC (0x04)
+#define USBD_CDC_EP_CMD (0x81)
+#define USBD_CDC_CMD_MAX_SIZE (8)
+#define USBD_CDC_EP_OUT (0x02)
+#define USBD_CDC_EP_IN (0x82)
+#define USBD_CDC_IN_OUT_MAX_SIZE (64)
+
 //--------------------------------------------------------------------+
 // Device Descriptors
 //--------------------------------------------------------------------+
@@ -86,11 +96,11 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
 // Configuration Descriptor
 //--------------------------------------------------------------------+
 
-enum { ITF_NUM_HID, ITF_NUM_TOTAL };
+enum { ITF_NUM_HID, ITF_NUM_CDC, ITF_NUM_CDC_DATA, ITF_NUM_TOTAL };
 
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_CDC_DESC_LEN)
 
-#define EPNUM_HID 0x81
+#define EPNUM_HID 0x84
 
 uint8_t const desc_configuration[] = {
     // Config number, interface count, string index, total length, attribute, power in mA
@@ -109,7 +119,15 @@ uint8_t const desc_configuration[] = {
                        sizeof(desc_hid_report),
                        EPNUM_HID,
                        CFG_TUD_HID_EP_BUFSIZE,
-                       5)};
+                       5),
+
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC,
+                       USBD_STR_CDC,
+                       USBD_CDC_EP_CMD,
+                       USBD_CDC_CMD_MAX_SIZE,
+                       USBD_CDC_EP_OUT,
+                       USBD_CDC_EP_IN,
+                       USBD_CDC_IN_OUT_MAX_SIZE)};
 
 #if TUD_OPT_HIGH_SPEED
 // Per USB specs: high speed capable device must report device_qualifier and
@@ -177,6 +195,7 @@ char const *string_desc_arr[] = {
     "TinyUSB",                   // 1: Manufacturer
     "TinyUSB Device",            // 2: Product
     "123456",                    // 3: Serials, should use chip ID
+    "Pico-CEC Console",          // 4: stdio
 };
 
 static uint16_t _desc_str[32];
