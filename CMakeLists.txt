@@ -53,8 +53,7 @@ add_executable(${PROJECT}
 
 target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/include/tusb
-  ${PROJECT_SOURCE_DIR}/include/external)
+  ${PROJECT_SOURCE_DIR}/include/tusb)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
 set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
