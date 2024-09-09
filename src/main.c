@@ -44,8 +44,8 @@ int main() {
   static StaticTask_t xBlinkTCB;
   static StaticTask_t xCECTCB;
   static StaticTask_t xHIDTCB;
-  static StaticTask_t xCDCTCB;
   static StaticTask_t xUSBDTCB;
+  static StaticTask_t xCDCTCB;
 
   static TaskHandle_t xBlinkTask;
   static TaskHandle_t xUSBDTask;
@@ -70,12 +70,12 @@ int main() {
                                configMAX_PRIORITIES - 1, &stackCEC[0], &xCECTCB);
   xHIDTask = xTaskCreateStatic(hid_task, "hid", HID_STACK_SIZE, &cec_q, configMAX_PRIORITIES - 2,
                                &stackHID[0], &xHIDTCB);
-  xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 2,
-                               &stackCDC[0], &xCDCTCB);
   xUSBDTask = xTaskCreateStatic(usb_device_task, "usbd", USBD_STACK_SIZE, NULL,
                                 configMAX_PRIORITIES - 3, &stackUSBD[0], &xUSBDTCB);
+  xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 4,
+                               &stackCDC[0], &xCDCTCB);
 
-  // bind CEC, blink and HID to core 0
+  // bind CEC, blink, HID and CDC to core 0
   vTaskCoreAffinitySet(xCECTask, (1 << 0));
   vTaskCoreAffinitySet(xBlinkTask, (1 << 0));
   vTaskCoreAffinitySet(xHIDTask, (1 << 0));
