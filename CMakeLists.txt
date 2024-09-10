@@ -25,11 +25,29 @@ pico_sdk_init()
 
 add_compile_options(-Wall -Werror)
 
+set(TCLI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/tcli)
+
+add_library(tcli STATIC
+  ${TCLI_SOURCE_DIR}/source/tcli.c
+  ${TCLI_SOURCE_DIR}/source/tclie.c)
+
+target_include_directories(tcli PUBLIC
+  ${TCLI_SOURCE_DIR}/include)
+
+target_compile_definitions(tcli PUBLIC
+  TCLI_COMPLETE=1
+  TCLIE_ENABLE_USERS=0
+  TCLIE_PATTERN_MATCH=1)
+
+target_compile_options(tcli PRIVATE
+  -Wno-stringop-truncation)
+
 add_executable(${PROJECT}
   src/freertos_hook.c
   src/hdmi-cec.c
   src/hdmi-ddc.c
   src/main.c
+  src/usb_cdc.c
   src/usb_descriptors.c
   src/usb_hid.c)
 
@@ -38,9 +56,13 @@ target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include/tusb)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
+set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
 
 set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
+
+set_source_files_properties(src/usb_cdc.c PROPERTIES COMPILE_DEFINITIONS
+  "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
 
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h
 target_compile_options(${PROJECT} PRIVATE
@@ -52,7 +74,8 @@ target_link_libraries(${PROJECT}
   hardware_i2c
   tinyusb_device
   tinyusb_board
-  FreeRTOS-Kernel)
+  FreeRTOS-Kernel
+  tcli)
 
 pico_add_extra_outputs(${PROJECT})
 pico_set_binary_type(${PROJECT} copy_to_ram)

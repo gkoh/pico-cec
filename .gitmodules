@@ -4,3 +4,6 @@
 [submodule "pico-sdk"]
 	path = pico-sdk
 	url = https://github.com/raspberrypi/pico-sdk.git
+[submodule "tcli"]
+	path = tcli
+	url = https://github.com/dpse/tcli

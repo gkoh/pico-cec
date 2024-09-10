@@ -13,6 +13,7 @@
 
 #define USBD_STACK_SIZE (512)
 #define HID_STACK_SIZE (256)
+#define CDC_STACK_SIZE (768)
 #define BLINK_STACK_SIZE (128)
 #define CEC_STACK_SIZE (512)
 #define CEC_QUEUE_LENGTH (16)
@@ -28,6 +29,8 @@ void blink_task(void *param) {
   }
 }
 
+void cdc_task(void *param);
+
 int main() {
   static StaticQueue_t xStaticCECQueue;
   static uint8_t storageCECQueue[CEC_QUEUE_LENGTH * sizeof(uint8_t)];
@@ -35,16 +38,19 @@ int main() {
   static StackType_t stackBlink[BLINK_STACK_SIZE];
   static StackType_t stackCEC[CEC_STACK_SIZE];
   static StackType_t stackHID[HID_STACK_SIZE];
+  static StackType_t stackCDC[CDC_STACK_SIZE];
   static StackType_t stackUSBD[USBD_STACK_SIZE];
 
   static StaticTask_t xBlinkTCB;
   static StaticTask_t xCECTCB;
   static StaticTask_t xHIDTCB;
   static StaticTask_t xUSBDTCB;
+  static StaticTask_t xCDCTCB;
 
   static TaskHandle_t xBlinkTask;
   static TaskHandle_t xUSBDTask;
   static TaskHandle_t xHIDTask;
+  static TaskHandle_t xCDCTask;
 
   stdio_init_all();
   board_init();
@@ -66,11 +72,14 @@ int main() {
                                &stackHID[0], &xHIDTCB);
   xUSBDTask = xTaskCreateStatic(usb_device_task, "usbd", USBD_STACK_SIZE, NULL,
                                 configMAX_PRIORITIES - 3, &stackUSBD[0], &xUSBDTCB);
+  xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 4,
+                               &stackCDC[0], &xCDCTCB);
 
-  // bind CEC, blink and HID to core 0
+  // bind CEC, blink, HID and CDC to core 0
   vTaskCoreAffinitySet(xCECTask, (1 << 0));
   vTaskCoreAffinitySet(xBlinkTask, (1 << 0));
   vTaskCoreAffinitySet(xHIDTask, (1 << 0));
+  vTaskCoreAffinitySet(xCDCTask, (1 << 0));
 
   // bind USBD to core 1
   vTaskCoreAffinitySet(xUSBDTask, (1 << 1));
