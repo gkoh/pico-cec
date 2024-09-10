@@ -79,6 +79,7 @@ target_link_libraries(${PROJECT}
 
 pico_add_extra_outputs(${PROJECT})
 pico_set_binary_type(${PROJECT} copy_to_ram)
+pico_set_linker_script(${PROJECT} ${PROJECT_SOURCE_DIR}/src/memmap_ram_nvs.ld)
 
 # disable stdio and uart
 pico_enable_stdio_usb(${PROJECT} 0)
