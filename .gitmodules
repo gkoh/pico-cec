@@ -7,3 +7,6 @@
 [submodule "tcli"]
 	path = tcli
 	url = https://github.com/dpse/tcli
+[submodule "crc"]
+	path = crc
+	url = https://github.com/gityf/crc

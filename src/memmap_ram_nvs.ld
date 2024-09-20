@@ -21,12 +21,12 @@
     __stack (== StackTop)
 */
 
-__NVS_LEN = 4k;
+CEC_NVS_LEN = 64k;
 
 MEMORY
 {
-    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 2048k - __NVS_LEN
-    NVS(rx): ORIGIN = 0x10000000 + (2048k - __NVS_LEN), LENGTH = __NVS_LEN
+    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 2048k - CEC_NVS_LEN
+    NVS(rx): ORIGIN = 0x10000000 + (2048k - CEC_NVS_LEN), LENGTH = CEC_NVS_LEN
     RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k
     SCRATCH_Y(rwx) : ORIGIN = 0x20041000, LENGTH = 4k
@@ -101,7 +101,7 @@ SECTIONS
     /* Non-volatile storage */
     .__nvs :
     {
-        "NVS_BASE_ADDR" = .;
+        "CEC_NVS_BASE_ADDR" = .;
     } > NVS
 
     /* Vector table goes first in RAM, to avoid large alignment hole */

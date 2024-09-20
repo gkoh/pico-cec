@@ -20,6 +20,9 @@ set(CMAKE_CXX_STANDARD 17)
 # Include FreeRTOS kernel
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Kernel/portable/ThirdParty/GCC/RP2040)
 
+# Include CRC library
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/crc)
+
 # Initialize the SDK
 pico_sdk_init()
 
@@ -43,10 +46,12 @@ target_compile_options(tcli PRIVATE
   -Wno-stringop-truncation)
 
 add_executable(${PROJECT}
+  src/cec-config.c
   src/freertos_hook.c
   src/hdmi-cec.c
   src/hdmi-ddc.c
   src/main.c
+  src/nvs.c
   src/usb_cdc.c
   src/usb_descriptors.c
   src/usb_hid.c)
@@ -69,6 +74,7 @@ target_compile_options(${PROJECT} PRIVATE
   -UCFG_TUSB_OS)
 
 target_link_libraries(${PROJECT}
+  crc
   pico_stdlib
   pico_unique_id
   hardware_i2c
