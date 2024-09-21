@@ -12,10 +12,6 @@
 #define CEC_PIN 3  // GPIO3 == D10 (Seeed Studio XIAO RP2040)
 #endif
 
-#ifndef CEC_PHYS_ADDR
-#define CEC_PHYS_ADDR (0x1000)  // Default to 1.0.0.0
-#endif
-
 typedef struct {
   uint8_t *data;
   uint8_t len;
@@ -50,6 +46,8 @@ typedef struct {
 
 extern TaskHandle_t xCECTask;
 
+uint16_t cec_get_physical_address(void);
+uint8_t cec_get_logical_address(void);
 void cec_task(void *data);
 
 #endif

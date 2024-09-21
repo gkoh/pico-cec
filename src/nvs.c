@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <hardware/flash.h>
+#include <hardware/sync.h>
+
 #include "crc/crc32.h"
-#include "hardware/flash.h"
 
 #include "cec-config.h"
 #include "nvs.h"
@@ -54,16 +56,22 @@ typedef struct __attribute__((aligned(FLASH_PAGE_SIZE))) {
   uint32_t config_crc;
 } pico_cec_nvs_t;
 
-// Symbols are resolved from link script
-extern uint32_t CEC_NVS_LEN;
-extern uint32_t CEC_NVS_BASE_ADDR;
+// Symbols resolved from link script
+extern uint32_t CEC_NVS_BASE_ADDR[];
+extern uint32_t __CEC_NVS_LEN[];
+
+#define CEC_NVS_LEN ((uint32_t)(&__CEC_NVS_LEN))
 
 const uint8_t CEC_CONFIG_VERSION = 0x01;
 const size_t CEC_CONFIG_SIZE = sizeof(cec_config_t);
 
+static uint32_t nvs_get_flash_address(void) {
+  return ((uint32_t)CEC_NVS_BASE_ADDR - XIP_BASE);
+}
+
 void nvs_load_config(cec_config_t *config) {
   // flash is mmapped for read
-  pico_cec_nvs_t *cec_nvs = (pico_cec_nvs_t *)CEC_NVS_BASE_ADDR;
+  pico_cec_nvs_t *cec_nvs = (pico_cec_nvs_t *)(CEC_NVS_BASE_ADDR);
 
   // read and check header/config CRCs
   if ((crc32((unsigned char *)&cec_nvs->header, sizeof(cec_nvs->header)) == cec_nvs->header_crc)
@@ -76,8 +84,8 @@ void nvs_load_config(cec_config_t *config) {
     }
   } else {
     // load default kodi config
-    cec_config_set(CEC_CONFIG_DEFAULT_KODI, config);
-    printf("%lu = %lu\r\n", CEC_NVS_BASE_ADDR, CEC_NVS_LEN);
+    cec_config_set_default(config);
+    cec_config_set_keymap(CEC_CONFIG_DEFAULT_KODI, config);
   }
 
   cec_config_complete(config);
@@ -107,12 +115,17 @@ bool nvs_save_config(const cec_config_t *config) {
 
   // minimum number of flash sectors to erase in bytes
   unsigned int n = sizeof(cec_nvs) / FLASH_SECTOR_SIZE;
-  unsigned int size =
-      n % FLASH_SECTOR_SIZE == 0 ? n * FLASH_SECTOR_SIZE : (n + 1) * FLASH_SECTOR_SIZE;
-  flash_range_erase(CEC_NVS_BASE_ADDR, size);
+  unsigned int size = sizeof(cec_nvs) % FLASH_SECTOR_SIZE == 0 ? n * FLASH_SECTOR_SIZE
+                                                               : (n + 1) * FLASH_SECTOR_SIZE;
+
+  // interrupts must be disabled to safely program flash
+  uint32_t irqs = save_and_disable_interrupts();
+  flash_range_erase(nvs_get_flash_address(), size);
 
   // struct alignment should guarantee flash pages multiples
-  flash_range_program(CEC_NVS_BASE_ADDR, (uint8_t *)&cec_nvs, sizeof(cec_nvs));
+  flash_range_program(nvs_get_flash_address(), (uint8_t *)&cec_nvs, sizeof(cec_nvs));
+
+  restore_interrupts(irqs);
 
   return true;
 }

@@ -23,10 +23,11 @@ typedef struct {
   uint16_t physical_address;
 
   /** User Control key mapping table. */
-  command_t keymap[256];
+  command_t keymap[UINT8_MAX];
 } cec_config_t;
 
-void cec_config_set(cec_config_default_t type, cec_config_t *config);
+void cec_config_set_keymap(cec_config_default_t type, cec_config_t *config);
+void cec_config_set_default(cec_config_t *config);
 
 void cec_config_complete(cec_config_t *config);
 

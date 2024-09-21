@@ -13,9 +13,9 @@
 
 #define USBD_STACK_SIZE (512)
 #define HID_STACK_SIZE (256)
-#define CDC_STACK_SIZE (768)
+#define CDC_STACK_SIZE (1024)
 #define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (512)
+#define CEC_STACK_SIZE (768)
 #define CEC_QUEUE_LENGTH (16)
 
 void blink_task(void *param) {

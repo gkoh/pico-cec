@@ -102,6 +102,9 @@ static const uint8_t address[NUM_ADDRESS] = {0x04, 0x08, 0x0b, 0x0f};
 /* The HDMI address for this device.  Respond to CEC sent to this address. */
 static uint8_t laddr = address[0];
 
+/* The HDMI physical address. */
+static uint16_t paddr = 0x0000;
+
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
 
@@ -505,10 +508,23 @@ static uint8_t allocate_logical_address(void) {
   return a;
 }
 
+uint16_t get_physical_address(const cec_config_t *config) {
+  return (config->physical_address == 0x0000) ? ddc_get_physical_address()
+                                              : config->physical_address;
+}
+
+uint8_t cec_get_logical_address(void) {
+  return laddr;
+}
+
+uint16_t cec_get_physical_address(void) {
+  return paddr;
+}
+
 void cec_task(void *data) {
   QueueHandle_t *q = (QueueHandle_t *)data;
 
-  // load keymap
+  // load configuration
   nvs_load_config(&config);
 
   // pause for EDID to settle
@@ -522,8 +538,7 @@ void cec_task(void *data) {
   irq_set_enabled(IO_IRQ_BANK0, true);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
-  uint16_t paddr =
-      (config.physical_address == 0x0000) ? ddc_get_physical_address() : config.physical_address;
+  paddr = get_physical_address(&config);
   laddr = allocate_logical_address();
 
   while (true) {
@@ -572,7 +587,7 @@ void cec_task(void *data) {
         case CEC_ID_SYSTEM_AUDIO_MODE_STATUS:
           break;
         case CEC_ID_ROUTING_CHANGE:
-          paddr = ddc_get_physical_address();
+          paddr = get_physical_address(&config);
           image_view_on(laddr, 0x00);
           break;
         case CEC_ID_ACTIVE_SOURCE:
@@ -581,7 +596,7 @@ void cec_task(void *data) {
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            paddr = ddc_get_physical_address();
+            paddr = get_physical_address(&config);
             laddr = allocate_logical_address();
             if (paddr != 0x0000) {
               report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);

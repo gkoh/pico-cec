@@ -45,6 +45,7 @@ static const char *cec_user_control_name[UINT8_MAX] = {
     [0x73] = "F3 (Green)",
     [0x74] = "F4 (Yellow)",
     [0x75] = "F5",
+    NULL,
 };
 
 /**
@@ -94,7 +95,15 @@ static const uint8_t default_kodi_user_keymap[UINT8_MAX] = {
     0x00,
 };
 
-void cec_config_set(cec_config_default_t type, cec_config_t *config) {
+void cec_config_set_default(cec_config_t *config) {
+  if (config == NULL) {
+    return;
+  }
+  config->edid_delay_ms = default_edid_delay_ms;
+  config->physical_address = default_physical_addr;
+}
+
+void cec_config_set_keymap(cec_config_default_t type, cec_config_t *config) {
   if (config == NULL) {
     return;
   }
@@ -109,9 +118,6 @@ void cec_config_set(cec_config_default_t type, cec_config_t *config) {
       return;
   }
 
-  config->edid_delay_ms = default_edid_delay_ms;
-  config->physical_address = default_physical_addr;
-
   // set only the keys, keynames are finalised in cec_config_complete()
   for (unsigned int i = 0; i < UINT8_MAX; i++) {
     config->keymap[i].key = default_keymap[i];
@@ -120,7 +126,9 @@ void cec_config_set(cec_config_default_t type, cec_config_t *config) {
 
 void cec_config_complete(cec_config_t *config) {
   for (uint8_t i = 0; i < UINT8_MAX; i++) {
-    const char *name = cec_user_control_name[i];
-    config->keymap[i].name = (name != NULL) ? name : "Unknown";
+    if (config->keymap[i].key != 0x00) {
+      const char *name = cec_user_control_name[i];
+      config->keymap[i].name = name;
+    }
   }
 }
