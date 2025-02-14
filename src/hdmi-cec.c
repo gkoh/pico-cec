@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 
 #include "FreeRTOS.h"
@@ -95,6 +96,7 @@ const char *cec_message[] = {
     [CEC_ID_STANDBY] = "Standby",
     [CEC_ID_USER_CONTROL_PRESSED] = "User Control Pressed",
     [CEC_ID_USER_CONTROL_RELEASED] = "User Control Released",
+    [CEC_ID_GIVE_OSD_NAME] = "Give OSD Name",
     [CEC_ID_SET_OSD_NAME] = "Set OSD Name",
     [CEC_ID_SYSTEM_AUDIO_MODE_REQUEST] = "System Audio Mode Request",
     [CEC_ID_GIVE_AUDIO_STATUS] = "Give Audio Status",
@@ -132,6 +134,36 @@ static uint8_t laddr = address[0];
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
 
 TaskHandle_t xCECTask;
+
+/**
+ * Get milliseconds since boot.
+ */
+static uint64_t uptime_ms(void) {
+  return (time_us_64() / 1000);
+}
+
+/**
+ * Print a timestamped trace log prefix.
+ */
+static void log_prefix(uint8_t initiator, uint8_t destination, bool send) {
+  printf("[%10llu] %02x %s %02x: ", uptime_ms(), send ? initiator : destination, send ? "->" : "<-",
+         send ? destination : initiator);
+}
+
+/**
+ * Print a formatted timestamped trace log.
+ */
+__attribute__((format(printf, 4, 5))) static void log_printf(uint8_t initiator,
+                                                             uint8_t destination,
+                                                             bool send,
+                                                             const char *fmt,
+                                                             ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  log_prefix(initiator, destination, send);
+  vprintf(fmt, ap);
+  va_end(ap);
+}
 
 /**
  * Calculate next offset as time since boot.
@@ -392,14 +424,14 @@ static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t ve
                     (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
   send_frame(5, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_DEVICE_VENDOR_ID]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_DEVICE_VENDOR_ID]);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
   uint8_t pld[3] = {(initiator << 4) | destination, 0x90, power_status};
 
   send_frame(3, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_REPORT_POWER_STATUS]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_REPORT_POWER_STATUS]);
 }
 
 static void set_system_audio_mode(uint8_t initiator,
@@ -412,7 +444,7 @@ static void set_system_audio_mode(uint8_t initiator,
   pld[2] = system_audio_mode;
 
   send_frame(3, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_SET_SYSTEM_AUDIO_MODE]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_SET_SYSTEM_AUDIO_MODE]);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
@@ -423,7 +455,7 @@ static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t 
   pld[2] = audio_status;
 
   send_frame(3, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_REPORT_AUDIO_STATUS]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_REPORT_AUDIO_STATUS]);
 }
 
 static void system_audio_mode_status(uint8_t initiator,
@@ -436,7 +468,7 @@ static void system_audio_mode_status(uint8_t initiator,
   pld[2] = system_audio_mode_status;
 
   send_frame(3, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_SYSTEM_AUDIO_MODE_STATUS]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_SYSTEM_AUDIO_MODE_STATUS]);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
@@ -444,7 +476,7 @@ static void set_osd_name(uint8_t initiator, uint8_t destination) {
       (initiator << 4) | destination, CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
   send_frame(10, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_SET_OSD_NAME]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_SET_OSD_NAME]);
 }
 
 static void report_physical_address(uint8_t initiator,
@@ -455,15 +487,15 @@ static void report_physical_address(uint8_t initiator,
                     (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
   send_frame(5, pld);
-  printf("\n<-- %02x:%02x [%s] %02x%02x", pld[0], pld[1],
-         cec_message[CEC_ID_REPORT_PHYSICAL_ADDRESS], pld[2], pld[3]);
+  log_printf(initiator, destination, false, "[%s] %02x%02x\n",
+             cec_message[CEC_ID_REPORT_PHYSICAL_ADDRESS], pld[2], pld[3]);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
   // 0x04 = 1.3a
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
   send_frame(3, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_CEC_VERSION]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_CEC_VERSION]);
 }
 
 static bool ping(uint8_t destination) {
@@ -476,7 +508,7 @@ static void image_view_on(uint8_t initiator, uint8_t destination) {
   uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
   send_frame(2, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_IMAGE_VIEW_ON]);
+  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_IMAGE_VIEW_ON]);
 }
 
 static void active_source(uint8_t initiator, uint16_t physical_address) {
@@ -484,7 +516,7 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
                     (physical_address >> 0) & 0x0ff};
 
   send_frame(4, pld);
-  printf("\n<-- %02x:%02x [%s]", pld[0], pld[1], cec_message[CEC_ID_ACTIVE_SOURCE]);
+  log_printf(initiator, 0x0f, false, "[%s]\n", cec_message[CEC_ID_ACTIVE_SOURCE]);
 }
 
 static uint8_t allocate_logical_address(void) {
@@ -529,17 +561,23 @@ void cec_task(void *data) {
     pldcntrcvd = pldcnt;
     initiator = (pld[0] & 0xf0) >> 4;
     destination = pld[0] & 0x0f;
-    printf("%02x -> %02x: ", initiator, destination);
+    log_prefix(initiator, destination, true);
 
     if ((pldcnt > 1)) {
-      printf("[%s]", cec_message[pld[1]]);
+      const char *message = cec_message[pld[1]];
+      if (strlen(message) > 0) {
+        printf("[%s]\n", cec_message[pld[1]]);
+      } else {
+        printf("[%x]\n", pld[1]);
+      }
+
       switch (pld[1]) {
         case CEC_ID_IMAGE_VIEW_ON:
           break;
         case CEC_ID_TEXT_VIEW_ON:
           break;
         case CEC_ID_STANDBY:
-          printf("<*> [Turn the display OFF]");
+          printf("<*> [Turn the display OFF]\n");
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
           if (destination == laddr)
@@ -562,10 +600,9 @@ void cec_task(void *data) {
           image_view_on(laddr, 0x00);
           break;
         case CEC_ID_ACTIVE_SOURCE:
-          printf("<*> [Turn the display ON]");
+          printf("<*> [Turn the display ON]\n");
           break;
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
-          printf("  %02x%02x", pld[2], pld[3]);
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
             paddr = ddc_get_physical_address();
@@ -576,7 +613,6 @@ void cec_task(void *data) {
           }
           break;
         case CEC_ID_REQUEST_ACTIVE_SOURCE:
-          break;
         case CEC_ID_SET_STREAM_PATH:
           if (paddr != 0x0000) {
             active_source(laddr, paddr);
@@ -664,10 +700,9 @@ void cec_task(void *data) {
             printf("???: %x", pld[1]);  // undecoded command
           break;
       }
-      printf("\n");
     } else {
       // single byte polling message
-      printf("[Polling Message]: 0x%01x -> 0x%01x\n", initiator, destination);
+      printf("[Polling Message]\n");
     }
   }
 }

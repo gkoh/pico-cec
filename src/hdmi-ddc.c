@@ -139,7 +139,7 @@ uint16_t ddc_get_physical_address(void) {
   // issue a DDC reset
   int ret = i2c_write_timeout_us(i2c_default, EDID_I2C_ADDR, &zero, 1, true, EDID_I2C_TIMEOUT_US);
   if (ret != 1) {
-    printf("Failed to write DDC reset\n");
+    printf("Failed to write DDC reset: %s\n", ret == PICO_ERROR_TIMEOUT ? "timeout" : "generic");
     return 0x0000;
   }
 
