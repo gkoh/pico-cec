@@ -106,6 +106,9 @@ static uint8_t laddr = address[0];
 /* The HDMI physical address. */
 static uint16_t paddr = 0x0000;
 
+/* CEC statistics. */
+static hdmi_cec_stats_t cec_stats;
+
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
 
@@ -114,7 +117,7 @@ TaskHandle_t xCECTask;
 /**
  * Get milliseconds since boot.
  */
-static uint64_t uptime_ms(void) {
+uint64_t cec_get_uptime_ms(void) {
   return (time_us_64() / 1000);
 }
 
@@ -122,8 +125,8 @@ static uint64_t uptime_ms(void) {
  * Print a timestamped trace log prefix.
  */
 static void log_prefix(uint8_t initiator, uint8_t destination, bool send) {
-  printf("[%10llu] %02x %s %02x: ", uptime_ms(), send ? initiator : destination, send ? "->" : "<-",
-         send ? destination : initiator);
+  printf("[%10llu] %02x %s %02x: ", cec_get_uptime_ms(), send ? initiator : destination,
+         send ? "->" : "<-", send ? destination : initiator);
 }
 
 /**
@@ -287,9 +290,11 @@ static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
 
   if (rx_frame.state == HDMI_FRAME_STATE_ABORT) {
     // printf("ABORT\n");
+    cec_stats.rx_abort_frames++;
     return 0;
   }
 
+  cec_stats.rx_frames++;
   return rx_frame.message->len;
 }
 
@@ -386,6 +391,12 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
+  if (frame.ack) {
+    cec_stats.tx_frames++;
+  } else {
+    cec_stats.tx_noack_frames++;
+  }
+
   return frame.ack;
 }
 
@@ -495,6 +506,10 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
   log_printf(initiator, 0x0f, false, "[%s]\n", cec_message[CEC_ID_ACTIVE_SOURCE]);
 }
 
+void cec_get_stats(hdmi_cec_stats_t *stats) {
+  *stats = cec_stats;
+}
+
 static uint8_t allocate_logical_address(void) {
   uint8_t a;
   for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
@@ -514,12 +529,12 @@ uint16_t get_physical_address(const cec_config_t *config) {
                                               : config->physical_address;
 }
 
-uint8_t cec_get_logical_address(void) {
-  return laddr;
-}
-
 uint16_t cec_get_physical_address(void) {
   return paddr;
+}
+
+uint8_t cec_get_logical_address(void) {
+  return laddr;
 }
 
 void cec_task(void *data) {

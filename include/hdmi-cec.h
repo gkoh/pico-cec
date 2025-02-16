@@ -44,8 +44,18 @@ typedef struct {
   hdmi_frame_state_t state;
 } hdmi_frame_t;
 
+/* @todo need atomics for thread sync safety */
+typedef struct {
+  uint32_t rx_frames;
+  uint32_t tx_frames;
+  uint32_t rx_abort_frames;
+  uint32_t tx_noack_frames;
+} hdmi_cec_stats_t;
+
 extern TaskHandle_t xCECTask;
 
+uint64_t cec_get_uptime_ms(void);
+void cec_get_stats(hdmi_cec_stats_t *stats);
 uint16_t cec_get_physical_address(void);
 uint8_t cec_get_logical_address(void);
 void cec_task(void *data);

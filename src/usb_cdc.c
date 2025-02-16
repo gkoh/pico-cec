@@ -67,11 +67,11 @@ static int exec_reboot(void *arg, int argc, const char **argv) {
 }
 
 static void print_edid_delay(void *arg) {
-  cdc_printfln(arg, "EDID delay: %lu ms", config.edid_delay_ms);
+  cdc_printfln(arg, "%-17s: %lu ms", "EDID delay", config.edid_delay_ms);
 }
 
 static void print_physical_address(void *arg, uint16_t address) {
-  cdc_printfln(arg, "Physical address: 0x%04x", address);
+  cdc_printfln(arg, "%-17s: 0x%04x", "Physical address", address);
 }
 
 static int show_config(void *arg) {
@@ -84,9 +84,38 @@ static int show_config(void *arg) {
   return 0;
 }
 
-static int show_info(void *arg) {
-  print_physical_address(arg, cec_get_physical_address());
-  cdc_printfln(arg, "Logical address: 0x%02x", cec_get_logical_address());
+static int show_stats_cec(void *arg) {
+  hdmi_cec_stats_t stats = {0x0};
+  cec_get_stats(&stats);
+  cdc_printfln(arg, "%-13s: %lu frames", "CEC rx", stats.rx_frames);
+  cdc_printfln(arg, "%-13s: %lu frames", "CEC tx", stats.tx_frames);
+  cdc_printfln(arg, "%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);
+  cdc_printfln(arg, "%-13s: %lu frames", "CEC tx noack", stats.tx_noack_frames);
+
+  return 0;
+}
+
+static int show_stats_cpu(void *arg) {
+  UBaseType_t count = uxTaskGetNumberOfTasks();
+  TaskStatus_t status[count];
+  unsigned long total_run_time = 0;
+
+  UBaseType_t n = uxTaskGetSystemState(status, count, &total_run_time);
+
+  uint64_t uptime = cec_get_uptime_ms() / 1000;
+  uint64_t seconds = uptime % 60;
+  uptime /= 60;
+  uint64_t minutes = uptime % 60;
+  uptime /= 60;
+  uint64_t hours = uptime % 24;
+  uint64_t days = uptime / 24;
+
+  cdc_printfln(arg, "%-13s: %llud %lluh %llum %llus", "Uptime", days, hours, minutes, seconds);
+
+  for (UBaseType_t i = 0; i < n; i++) {
+    cdc_printfln(arg, "%-13s: %7.3f %%", status[i].pcTaskName,
+                 (100.0f * status[i].ulRunTimeCounter) / total_run_time);
+  }
 
   return 0;
 }
@@ -95,17 +124,25 @@ static int exec_show(void *arg, int argc, const char **argv) {
   if (argc == 2) {
     if (strcmp(argv[1], "config") == 0) {
       return show_config(arg);
-    } else if (strcmp(argv[1], "info") == 0) {
-      return show_info(arg);
     } else if (strcmp(argv[1], "keymap") == 0) {
-      cdc_printfln(arg, "Keymap:");
       for (uint8_t n = 0; n < UINT8_MAX; n++) {
         if (config.keymap[n].name != NULL) {
           cdc_printfln(arg, " 0x%02x : %02u : %s", n, config.keymap[n].key, config.keymap[n].name);
         }
       }
+    } else if (strcmp(argv[1], "cec") == 0) {
+      print_physical_address(arg, cec_get_physical_address());
+      cdc_printfln(arg, "%-17s: 0x%02x", "Logical address", cec_get_logical_address());
     } else if (strcmp(argv[1], "version") == 0) {
       return show_version(arg);
+    }
+  } else if (argc == 3) {
+    if (strcmp(argv[1], "stats") == 0) {
+      if (strcmp(argv[2], "cec") == 0) {
+        return show_stats_cec(arg);
+      } else if (strcmp(argv[2], "cpu") == 0) {
+        return show_stats_cpu(arg);
+      }
     }
   }
 
@@ -159,7 +196,7 @@ static const tclie_cmd_t cmds[] = {
     {"save", exec_save, "Save configuration.", "save"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config edid_delay_ms|physical_address <value>)|(keymap <value>)}"},
-    {"show", exec_show, "Show information.", "show config"},
+    {"show", exec_show, "Show information.", "show {cec|config|keymap|(stats {cec|cpu})|version}"},
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
 };
 
