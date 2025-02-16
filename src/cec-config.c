@@ -1,4 +1,5 @@
 #include "cec-config.h"
+#include "class/hid/hid.h"
 #include "tusb.h"
 
 /**

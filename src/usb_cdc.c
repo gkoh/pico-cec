@@ -20,6 +20,7 @@ static cec_config_t config = {0x0};
 /** Print string to CDC output. */
 static void print(void *arg, const char *str) {
   tud_cdc_write_str(str);
+  vTaskDelay(pdMS_TO_TICKS(1)); // needed to minimise deadlocking
 }
 
 /** Print formatted string with variadic parameter list. */
@@ -123,25 +124,29 @@ static int exec_save(void *arg, int argc, const char **argv) {
 }
 
 static int exec_set(void *arg, int argc, const char **argv) {
-  if (argc == 3) {
-    if (strcmp(argv[1], "edid_delay_ms") == 0) {
-      config.edid_delay_ms = atoi(argv[2]);
-      print_edid_delay(arg);
-      return 0;
-    } else if (strcmp(argv[1], "keymap") == 0) {
+  if (argc == 4) {
+    if (strcmp(argv[1], "config") == 0) {
+      if (strcmp(argv[2], "edid_delay_ms") == 0) {
+        config.edid_delay_ms = atoi(argv[3]);
+        print_edid_delay(arg);
+        return 0;
+      } else if (strcmp(argv[2], "physical_address") == 0) {
+        if (sscanf(argv[3], "%4hx", &config.physical_address) == 1) {
+          print_physical_address(arg, config.physical_address);
+          return 0;
+        } else {
+          cdc_printfln(arg, "Error parsing physical address");
+          return -1;
+        }
+      }
+    }
+  } else if (argc == 3) {
+    if (strcmp(argv[1], "keymap") == 0) {
       if (strcmp(argv[2], "kodi") == 0) {
         cec_config_set_keymap(CEC_CONFIG_DEFAULT_KODI, &config);
         return 0;
       } else {
         cdc_printfln(arg, "Unknown keymap '%s'", argv[2]);
-        return -1;
-      }
-    } else if (strcmp(argv[1], "physical_address") == 0) {
-      if (sscanf(argv[2], "%4hx", &config.physical_address) == 1) {
-        print_physical_address(arg, config.physical_address);
-        return 0;
-      } else {
-        cdc_printfln(arg, "Error parsing physical address");
         return -1;
       }
     }
@@ -151,10 +156,11 @@ static int exec_set(void *arg, int argc, const char **argv) {
 }
 
 static const tclie_cmd_t cmds[] = {
-    {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
-    {"show", exec_show, "Show information.", "show {config|info|keymap|version}"},
     {"save", exec_save, "Save configuration.", "save"},
-    {"set", exec_set, "Set configuration.", "set {edid_delay_ms|keymap|physical_address} <value>"},
+    {"set", exec_set, "Set configuration parameters.",
+     "set {(config edid_delay_ms|physical_address <value>)|(keymap <value>)}"},
+    {"show", exec_show, "Show information.", "show config"},
+    {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
 };
 
 void cdc_task(void *params) {
@@ -178,9 +184,10 @@ void cdc_task(void *params) {
       }
 
       tud_cdc_write_flush();
+      vTaskDelay(pdMS_TO_TICKS(1));
+    } else {
+      vTaskDelay(pdMS_TO_TICKS(50));
     }
-
-    vTaskDelay(1);
   }
 }
 

@@ -5,6 +5,7 @@
 #include "queue.h"
 #include "task.h"
 
+#include "class/hid/hid.h"
 #include "hardware/timer.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
