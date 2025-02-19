@@ -20,7 +20,7 @@ static cec_config_t config = {0x0};
 /** Print string to CDC output. */
 static void print(void *arg, const char *str) {
   tud_cdc_write_str(str);
-  vTaskDelay(pdMS_TO_TICKS(1));  // needed to minimise deadlocking
+  vTaskDelay(pdMS_TO_TICKS(1));  // needed to avoid garbled output
 }
 
 /** Print formatted string with variadic parameter list. */

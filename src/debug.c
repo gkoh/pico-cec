@@ -52,9 +52,8 @@ int main() {
   xCECTask = xTaskCreateStatic(cec_task, CEC_TASK_NAME, CEC_STACK_SIZE, &cec_q,
                                configMAX_PRIORITIES - 1, &stackCEC[0], &xCECTCB);
 
-  // bind CEC, blink and HID to core 0
-  vTaskCoreAffinitySet(xCECTask, (1 << 0));
-  vTaskCoreAffinitySet(xBlinkTask, (1 << 0));
+  (void)xBlinkTask;
+  (void)xCECTask;
 
   vTaskStartScheduler();
 

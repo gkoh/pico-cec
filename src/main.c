@@ -75,14 +75,11 @@ int main() {
   xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 4,
                                &stackCDC[0], &xCDCTCB);
 
-  // bind CEC, blink, HID and CDC to core 0
-  vTaskCoreAffinitySet(xCECTask, (1 << 0));
-  vTaskCoreAffinitySet(xBlinkTask, (1 << 0));
-  vTaskCoreAffinitySet(xHIDTask, (1 << 0));
-  vTaskCoreAffinitySet(xCDCTask, (1 << 0));
-
-  // bind USBD to core 1
-  vTaskCoreAffinitySet(xUSBDTask, (1 << 1));
+  (void)xCECTask;
+  (void)xBlinkTask;
+  (void)xHIDTask;
+  (void)xCDCTask;
+  (void)xUSBDTask;
 
   vTaskStartScheduler();
 

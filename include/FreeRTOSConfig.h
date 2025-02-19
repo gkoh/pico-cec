@@ -71,11 +71,11 @@
 #define configSUPPORT_STATIC_ALLOCATION 1
 #define configSUPPORT_DYNAMIC_ALLOCATION 0
 
-#define configNUMBER_OF_CORES 2
+#define configNUMBER_OF_CORES 1
 #define configTICK_CORE 0
-#define configUSE_CORE_AFFINITY 1
-#define configSUPPORT_PICO_SYNC_INTEROP 1
-#define configSUPPORT_PICO_TIME_INTEROP 1
+#define configUSE_CORE_AFFINITY 0
+#define configSUPPORT_PICO_SYNC_INTEROP 0
+#define configSUPPORT_PICO_TIME_INTEROP 0
 
 /* Hook function related definitions. */
 #define configUSE_PASSIVE_IDLE_HOOK 0
