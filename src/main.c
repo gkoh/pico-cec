@@ -64,8 +64,8 @@ int main() {
   QueueHandle_t cec_q =
       xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
 
-  xBlinkTask = xTaskCreateStatic(blink_task, "Blink", BLINK_STACK_SIZE, NULL, 1,
-                                 &stackBlink[0], &xBlinkTCB);
+  xBlinkTask =
+      xTaskCreateStatic(blink_task, "Blink", BLINK_STACK_SIZE, NULL, 1, &stackBlink[0], &xBlinkTCB);
   xCECTask = xTaskCreateStatic(cec_task, CEC_TASK_NAME, CEC_STACK_SIZE, &cec_q,
                                configMAX_PRIORITIES - 1, &stackCEC[0], &xCECTCB);
   xHIDTask = xTaskCreateStatic(hid_task, "hid", HID_STACK_SIZE, &cec_q, configMAX_PRIORITIES - 2,

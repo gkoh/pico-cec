@@ -91,7 +91,7 @@
 
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()
 extern uint64_t time_us_64(void);
-#define portGET_RUN_TIME_COUNTER_VALUE() (time_us_64()/1000)
+#define portGET_RUN_TIME_COUNTER_VALUE() (time_us_64() / 1000)
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES 0
