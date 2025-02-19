@@ -73,6 +73,9 @@ this can be written to the Pico as per normal:
 * copy `pico-cec.uf2` to the Pico
 * disconnect
 
+A command line interface over serial port is available, the guide can be found
+here: [Command Line Interface Guide](https://github.com/gkoh/pico-cec/wiki/Command-Line-Interface-Guide)
+
 # Real World Usage
 This is currently working with:
 * a Sharp 60" TV (physical address 0x1000)
