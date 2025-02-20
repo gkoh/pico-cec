@@ -11,9 +11,11 @@
 #include "tusb.h"
 
 #include "cec-config.h"
+#include "cec-log.h"
 #include "hdmi-cec.h"
 #include "hdmi-ddc.h"
 #include "nvs.h"
+#include "usb-cdc.h"
 
 /* Intercept HDMI CEC commands, convert to a keypress and send to HID task
  * handler.
@@ -28,6 +30,7 @@
 #define NOTIFY_TX ((UBaseType_t)1)
 
 typedef enum {
+  CEC_ID_FEATURE_ABORT = 0x00,
   CEC_ID_IMAGE_VIEW_ON = 0x04,
   CEC_ID_TEXT_VIEW_ON = 0x0d,
   CEC_ID_STANDBY = 0x36,
@@ -61,6 +64,7 @@ typedef enum {
 } cec_id_t;
 
 const char *cec_message[] = {
+    [CEC_ID_FEATURE_ABORT] = "Feature Abort",
     [CEC_ID_IMAGE_VIEW_ON] = "Image View On",
     [CEC_ID_TEXT_VIEW_ON] = "Text View On",
     [CEC_ID_STANDBY] = "Standby",
@@ -89,6 +93,14 @@ const char *cec_message[] = {
     [CEC_ID_GET_CEC_VERSION] = "Get CEC Version",
     [CEC_ID_VENDOR_COMMAND_WITH_ID] = "Vendor Command With ID",
     [CEC_ID_ABORT] = "Abort",
+};
+
+const char *cec_feature_abort_reason[] = {
+    [0] = "Unrecognized opcode",
+    [1] = "Not in correct mode to respond",
+    [2] = "Cannot provide source",
+    [3] = "Invalid operand",
+    [4] = "Refused",
 };
 
 /** The running CEC configuration. */
@@ -122,26 +134,85 @@ uint64_t cec_get_uptime_ms(void) {
 }
 
 /**
- * Print a timestamped trace log prefix.
- */
-static void log_prefix(uint8_t initiator, uint8_t destination, bool send) {
-  printf("[%10llu] %02x %s %02x: ", cec_get_uptime_ms(), send ? initiator : destination,
-         send ? "->" : "<-", send ? destination : initiator);
-}
-
-/**
- * Print a formatted timestamped trace log.
+ * Log a timestamped formatted message.
  */
 __attribute__((format(printf, 4, 5))) static void log_printf(uint8_t initiator,
                                                              uint8_t destination,
                                                              bool send,
                                                              const char *fmt,
                                                              ...) {
+  char prefix[64];
+  char buffer[64];
+
   va_list ap;
   va_start(ap, fmt);
-  log_prefix(initiator, destination, send);
-  vprintf(fmt, ap);
+  snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", cec_get_uptime_ms(),
+           send ? initiator : destination, send ? "->" : "<-", send ? destination : initiator);
+  vsnprintf(buffer, sizeof(buffer), fmt, ap);
+  cec_log_submitf("%s: %s"_CDC_BR, prefix, buffer);
   va_end(ap);
+}
+
+/**
+ * Log a CEC frame.
+ *
+ * CEC frame logging function, which includes minor protocol decoding for debug
+ * purposes.
+ */
+static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
+  hdmi_message_t *msg = frame->message;
+  uint8_t initiator = (msg->data[0] & 0xf0) >> 4;
+  uint8_t destination = msg->data[0] & 0x0f;
+
+  if (msg->len > 1) {
+    uint8_t cmd = msg->data[1];
+    switch (cmd) {
+      case CEC_ID_FEATURE_ABORT:
+        if (msg->data[2] < 5) {
+          log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd],
+                     cec_feature_abort_reason[msg->data[2]]);
+        } else {
+          log_printf(initiator, destination, recv, "[%s][%x]", cec_message[cmd], msg->data[2]);
+        }
+        break;
+      case CEC_ID_STANDBY:
+        log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "<*> Display OFF");
+        break;
+      case CEC_ID_ACTIVE_SOURCE:
+        log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "<*> Display ON");
+        break;
+      case CEC_ID_REPORT_PHYSICAL_ADDRESS:
+        log_printf(initiator, destination, recv, "[%s] %02x%02x", cec_message[cmd], msg->data[2],
+                   msg->data[3]);
+        break;
+      case CEC_ID_USER_CONTROL_PRESSED: {
+        uint8_t key = msg->data[2];
+        const char *name = cec_user_control_name[key];
+        if (name != NULL) {
+          log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], name);
+        } else {
+          log_printf(initiator, destination, recv, "[%s] Unknown command: 0x%02x", cec_message[cmd],
+                     key);
+        }
+      } break;
+      case CEC_ID_VENDOR_COMMAND_WITH_ID:
+        log_printf(initiator, destination, recv, "[%s]", cec_message[cmd]);
+        for (int i = 0; i < msg->len; i++) {
+          cec_log_submitf(" %02x"_CDC_BR, msg->data[i]);
+        }
+        break;
+      default: {
+        const char *message = cec_message[cmd];
+        if (strlen(message) > 0) {
+          log_printf(initiator, destination, recv, "[%s]", cec_message[cmd]);
+        } else {
+          log_printf(initiator, destination, recv, "[%x]", cmd);
+        }
+      }
+    }
+  } else {
+    log_printf(initiator, destination, recv, "[%s]", "Polling Message");
+  }
 }
 
 /**
@@ -288,6 +359,8 @@ static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
 
+  log_cec_frame(&rx_frame, true);
+
   if (rx_frame.state == HDMI_FRAME_STATE_ABORT) {
     // printf("ABORT\n");
     cec_stats.rx_abort_frames++;
@@ -391,10 +464,13 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
+  log_cec_frame(&frame, false);
+
   if (frame.ack) {
     cec_stats.tx_frames++;
   } else {
     cec_stats.tx_noack_frames++;
+    cec_log_submitf("  noack"_CDC_BR);
   }
 
   return frame.ack;
@@ -411,14 +487,12 @@ static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t ve
                     (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
   send_frame(5, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_DEVICE_VENDOR_ID]);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
   uint8_t pld[3] = {(initiator << 4) | destination, 0x90, power_status};
 
   send_frame(3, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_REPORT_POWER_STATUS]);
 }
 
 static void set_system_audio_mode(uint8_t initiator,
@@ -431,7 +505,6 @@ static void set_system_audio_mode(uint8_t initiator,
   pld[2] = system_audio_mode;
 
   send_frame(3, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_SET_SYSTEM_AUDIO_MODE]);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
@@ -442,7 +515,6 @@ static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t 
   pld[2] = audio_status;
 
   send_frame(3, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_REPORT_AUDIO_STATUS]);
 }
 
 static void system_audio_mode_status(uint8_t initiator,
@@ -455,7 +527,6 @@ static void system_audio_mode_status(uint8_t initiator,
   pld[2] = system_audio_mode_status;
 
   send_frame(3, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_SYSTEM_AUDIO_MODE_STATUS]);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
@@ -463,7 +534,6 @@ static void set_osd_name(uint8_t initiator, uint8_t destination) {
       (initiator << 4) | destination, CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
   send_frame(10, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_SET_OSD_NAME]);
 }
 
 static void report_physical_address(uint8_t initiator,
@@ -474,15 +544,12 @@ static void report_physical_address(uint8_t initiator,
                     (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
   send_frame(5, pld);
-  log_printf(initiator, destination, false, "[%s] %02x%02x\n",
-             cec_message[CEC_ID_REPORT_PHYSICAL_ADDRESS], pld[2], pld[3]);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
   // 0x04 = 1.3a
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
   send_frame(3, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_CEC_VERSION]);
 }
 
 static bool ping(uint8_t destination) {
@@ -495,7 +562,6 @@ static void image_view_on(uint8_t initiator, uint8_t destination) {
   uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
   send_frame(2, pld);
-  log_printf(initiator, destination, false, "[%s]\n", cec_message[CEC_ID_IMAGE_VIEW_ON]);
 }
 
 static void active_source(uint8_t initiator, uint16_t physical_address) {
@@ -503,7 +569,6 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
                     (physical_address >> 0) & 0x0ff};
 
   send_frame(4, pld);
-  log_printf(initiator, 0x0f, false, "[%s]\n", cec_message[CEC_ID_ACTIVE_SOURCE]);
 }
 
 void cec_get_stats(hdmi_cec_stats_t *stats) {
@@ -514,13 +579,13 @@ static uint8_t allocate_logical_address(void) {
   uint8_t a;
   for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
     a = address[i];
-    printf("\nAttempting to allocate logical address 0x%02x\n", a);
+    cec_log_submitf("Attempting to allocate logical address 0x%02x"_CDC_BR, a);
     if (!ping(a)) {
       break;
     }
   }
 
-  printf("Allocated logical address 0x%02x\n", a);
+  cec_log_submitf("Allocated logical address 0x%02x"_CDC_BR, a);
   return a;
 }
 
@@ -559,32 +624,22 @@ void cec_task(void *data) {
 
   while (true) {
     uint8_t pld[16] = {0x0};
-    uint8_t pldcnt, pldcntrcvd;
+    uint8_t pldcnt;
     uint8_t initiator, destination;
     uint8_t key = HID_KEY_NONE;
 
     pldcnt = recv_frame(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
-    pldcntrcvd = pldcnt;
     initiator = (pld[0] & 0xf0) >> 4;
     destination = pld[0] & 0x0f;
-    log_prefix(initiator, destination, true);
 
     if ((pldcnt > 1)) {
-      const char *message = cec_message[pld[1]];
-      if (strlen(message) > 0) {
-        printf("[%s]\n", cec_message[pld[1]]);
-      } else {
-        printf("[%x]\n", pld[1]);
-      }
-
       switch (pld[1]) {
         case CEC_ID_IMAGE_VIEW_ON:
           break;
         case CEC_ID_TEXT_VIEW_ON:
           break;
         case CEC_ID_STANDBY:
-          printf("<*> [Turn the display OFF]\n");
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
           if (destination == laddr)
@@ -607,7 +662,6 @@ void cec_task(void *data) {
           image_view_on(laddr, 0x00);
           break;
         case CEC_ID_ACTIVE_SOURCE:
-          printf("<*> [Turn the display ON]\n");
           break;
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
           // On broadcast receive, do the same
@@ -667,49 +721,27 @@ void cec_task(void *data) {
           if (destination == laddr && paddr != 0x0000)
             report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
           break;
-        case CEC_ID_USER_CONTROL_PRESSED:
+        case CEC_ID_USER_CONTROL_PRESSED: {
           gpio_put(PICO_DEFAULT_LED_PIN, true);
-          switch (pld[2]) {
-            case 0x41:
-              printf("[User Control Volume Up]");
-              break;
-            case 0x42:
-              printf("[User Control Volume Down]");
-              break;
-            default: {
-              command_t command = config.keymap[pld[2]];
-              if (command.name != NULL) {
-                printf(command.name);
-                xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
-              } else {
-                printf("Unmapped command: 0x%02x\n", pld[2]);
-              }
-            }
+          command_t command = config.keymap[pld[2]];
+          if (command.name != NULL) {
+            xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
           }
-          break;
+        } break;
         case CEC_ID_USER_CONTROL_RELEASED:
           gpio_put(PICO_DEFAULT_LED_PIN, false);
           key = HID_KEY_NONE;
           xQueueSend(*q, &key, pdMS_TO_TICKS(10));
           break;
+        case CEC_ID_FEATURE_ABORT:
         case CEC_ID_ABORT:
-          printf("[Abort]");
           break;
         case CEC_ID_VENDOR_COMMAND_WITH_ID:
-          printf("[Vendor Command with ID]");
-          for (int i = 0; i < pldcnt; i++) {
-            printf(" %02x", pld[i]);
-          }
-          printf("\n");
           break;
         default:
-          if (pldcntrcvd > 1)
-            printf("???: %x", pld[1]);  // undecoded command
+          cec_log_submitf("  (undecoded)"_CDC_BR);
           break;
       }
-    } else {
-      // single byte polling message
-      printf("[Polling Message]\n");
     }
   }
 }

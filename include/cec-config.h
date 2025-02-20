@@ -26,6 +26,8 @@ typedef struct {
   command_t keymap[UINT8_MAX];
 } cec_config_t;
 
+extern const char *cec_user_control_name[UINT8_MAX];
+
 void cec_config_set_keymap(cec_config_default_t type, cec_config_t *config);
 void cec_config_set_default(cec_config_t *config);
 

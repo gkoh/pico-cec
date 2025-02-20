@@ -8,14 +8,16 @@
 #include "hardware/timer.h"
 #include "pico/stdlib.h"
 
+#include "cec-log.h"
 #include "hdmi-cec.h"
+#include "usb-cdc.h"
 #include "usb_hid.h"
 
 #define USBD_STACK_SIZE (512)
 #define HID_STACK_SIZE (256)
-#define CDC_STACK_SIZE (1024)
+#define CDC_STACK_SIZE (2048)
 #define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (768)
+#define CEC_STACK_SIZE (2048)
 #define CEC_QUEUE_LENGTH (16)
 
 void blink_task(void *param) {
@@ -72,7 +74,7 @@ int main() {
                                &stackHID[0], &xHIDTCB);
   xUSBDTask = xTaskCreateStatic(usb_device_task, "usbd", USBD_STACK_SIZE, NULL,
                                 configMAX_PRIORITIES - 3, &stackUSBD[0], &xUSBDTCB);
-  xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 4,
+  xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 5,
                                &stackCDC[0], &xCDCTCB);
 
   (void)xCECTask;
@@ -80,6 +82,8 @@ int main() {
   (void)xHIDTask;
   (void)xCDCTask;
   (void)xUSBDTask;
+
+  cec_log_init();
 
   vTaskStartScheduler();
 

@@ -47,12 +47,13 @@ target_compile_options(tcli PRIVATE
 
 add_executable(${PROJECT}
   src/cec-config.c
+  src/cec-log.c
   src/freertos_hook.c
   src/hdmi-cec.c
   src/hdmi-ddc.c
   src/main.c
   src/nvs.c
-  src/usb_cdc.c
+  src/usb-cdc.c
   src/usb_descriptors.c
   src/usb_hid.c)
 
@@ -66,7 +67,7 @@ set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
 set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
 
-set_source_files_properties(src/usb_cdc.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(src/usb-cdc.c PROPERTIES COMPILE_DEFINITIONS
   "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
 
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h
@@ -91,4 +92,4 @@ pico_set_linker_script(${PROJECT} ${PROJECT_SOURCE_DIR}/src/memmap_ram_nvs.ld)
 pico_enable_stdio_usb(${PROJECT} 0)
 pico_enable_stdio_uart(${PROJECT} 0)
 
-include(debug.cmake)
+#include(debug.cmake)

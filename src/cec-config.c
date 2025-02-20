@@ -10,7 +10,7 @@
  *
  * @note Incomplete.
  */
-static const char *cec_user_control_name[UINT8_MAX] = {
+const char *cec_user_control_name[UINT8_MAX] = {
     [0x00] = "Select",
     [0x01] = "Up",
     [0x02] = "Down",
