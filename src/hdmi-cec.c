@@ -128,6 +128,9 @@ static uint8_t laddr = address[0];
 /* The HDMI physical address. */
 static uint16_t paddr = 0x0000;
 
+/* Audio state. */
+static bool audio_status = false;
+
 /* CEC statistics. */
 static hdmi_cec_stats_t cec_stats;
 
@@ -647,18 +650,20 @@ void cec_task(void *data) {
         case CEC_ID_STANDBY:
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
-          if (destination == laddr)
-            set_system_audio_mode(laddr, 0x0f, 1);
+          if (destination == laddr) {
+            set_system_audio_mode(laddr, initiator, audio_status);
+          }
           break;
         case CEC_ID_GIVE_AUDIO_STATUS:
           if (destination == laddr)
             report_audio_status(laddr, initiator, 0x32);  // volume 50%, mute off
           break;
         case CEC_ID_SET_SYSTEM_AUDIO_MODE:
+          audio_status = (pld[2] == 1);
           break;
         case CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS:
           if (destination == laddr)
-            system_audio_mode_status(laddr, initiator, 1);
+            system_audio_mode_status(laddr, initiator, audio_status);
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_STATUS:
           break;
