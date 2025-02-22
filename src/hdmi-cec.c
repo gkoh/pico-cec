@@ -215,6 +215,9 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
           cec_log_submitf(" %02x"_CDC_BR, msg->data[i]);
         }
         break;
+      case CEC_ID_REPORT_POWER_STATUS:
+        log_printf(initiator, destination, recv, "[%s][%02x]", cec_message[cmd], msg->data[2]);
+        break;
       default: {
         const char *message = cec_message[cmd];
         if (strlen(message) > 0) {
@@ -718,10 +721,12 @@ void cec_task(void *data) {
           break;
         case CEC_ID_GIVE_DEVICE_POWER_STATUS:
           if (destination == laddr)
-            report_power_status(laddr, initiator, 0x00);
+            report_power_status(laddr, initiator, active_addr != paddr);
+#if 0
           /* Hack for Google Chromecast to force it sending V+/V- if no CEC TV is present */
           if (destination == 0)
             report_power_status(0, initiator, 0x00);
+#endif
           break;
         case CEC_ID_REPORT_POWER_STATUS:
           break;
