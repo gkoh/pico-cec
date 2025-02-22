@@ -95,12 +95,22 @@ const char *cec_message[] = {
     [CEC_ID_ABORT] = "Abort",
 };
 
+typedef enum {
+  CEC_ABORT_UNRECOGNIZED = 0,
+  CEC_ABORT_INCORRECT_MODE = 1,
+  CEC_ABORT_NO_SOURCE = 2,
+  CEC_ABORT_INVALID = 3,
+  CEC_ABORT_REFUSED = 4,
+  CEC_ABORT_UNDETERMINED = 5,
+} cec_abort_t;
+
 const char *cec_feature_abort_reason[] = {
-    [0] = "Unrecognized opcode",
-    [1] = "Not in correct mode to respond",
-    [2] = "Cannot provide source",
-    [3] = "Invalid operand",
-    [4] = "Refused",
+    [CEC_ABORT_UNRECOGNIZED] = "Unrecognized opcode",
+    [CEC_ABORT_INCORRECT_MODE] = "Not in correct mode to respond",
+    [CEC_ABORT_NO_SOURCE] = "Cannot provide source",
+    [CEC_ABORT_INVALID] = "Invalid operand",
+    [CEC_ABORT_REFUSED] = "Refused",
+    [CEC_ABORT_UNDETERMINED] = "Undetermined",
 };
 
 /** The running CEC configuration. */
@@ -168,12 +178,8 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
     uint8_t cmd = msg->data[1];
     switch (cmd) {
       case CEC_ID_FEATURE_ABORT:
-        if (msg->data[2] < 5) {
-          log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd],
-                     cec_feature_abort_reason[msg->data[2]]);
-        } else {
-          log_printf(initiator, destination, recv, "[%s][%x]", cec_message[cmd], msg->data[2]);
-        }
+        log_printf(initiator, destination, recv, "[%s][%x][%s]", cec_message[cmd], msg->data[2],
+                   cec_feature_abort_reason[msg->data[3]]);
         break;
       case CEC_ID_STANDBY:
         log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "<*> Display OFF");
@@ -482,15 +488,24 @@ static bool send_frame(uint8_t pldcnt, uint8_t *pld) {
   return hdmi_tx_frame(pld, pldcnt);
 }
 
+static void cec_feature_abort(uint8_t initiator,
+                              uint8_t destination,
+                              uint8_t msg,
+                              cec_abort_t reason) {
+  uint8_t pld[4] = {HEADER0(initiator, destination), CEC_ID_FEATURE_ABORT, msg, reason};
+
+  send_frame(4, pld);
+}
+
 static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t vendor_id) {
-  uint8_t pld[5] = {(initiator << 4) | destination, 0x87, (vendor_id >> 16) & 0x0ff,
-                    (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
+  uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_DEVICE_VENDOR_ID,
+                    (vendor_id >> 16) & 0x0ff, (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
   send_frame(5, pld);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
-  uint8_t pld[3] = {(initiator << 4) | destination, 0x90, power_status};
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_POWER_STATUS, power_status};
 
   send_frame(3, pld);
 }
@@ -498,21 +513,14 @@ static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t 
 static void set_system_audio_mode(uint8_t initiator,
                                   uint8_t destination,
                                   uint8_t system_audio_mode) {
-  uint8_t pld[3];
-
-  pld[0] = (initiator << 4) | destination;
-  pld[1] = CEC_ID_SET_SYSTEM_AUDIO_MODE;
-  pld[2] = system_audio_mode;
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SET_SYSTEM_AUDIO_MODE,
+                    system_audio_mode};
 
   send_frame(3, pld);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
-  uint8_t pld[3];
-
-  pld[0] = (initiator << 4) | destination;
-  pld[1] = CEC_ID_REPORT_AUDIO_STATUS;
-  pld[2] = audio_status;
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_AUDIO_STATUS, audio_status};
 
   send_frame(3, pld);
 }
@@ -520,18 +528,15 @@ static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t 
 static void system_audio_mode_status(uint8_t initiator,
                                      uint8_t destination,
                                      uint8_t system_audio_mode_status) {
-  uint8_t pld[3];
-
-  pld[0] = (initiator << 4) | destination;
-  pld[1] = CEC_ID_SYSTEM_AUDIO_MODE_STATUS;
-  pld[2] = system_audio_mode_status;
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SYSTEM_AUDIO_MODE_STATUS,
+                    system_audio_mode_status};
 
   send_frame(3, pld);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
   uint8_t pld[10] = {
-      (initiator << 4) | destination, CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
+      HEADER0(initiator, destination), CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
   send_frame(10, pld);
 }
@@ -540,7 +545,7 @@ static void report_physical_address(uint8_t initiator,
                                     uint8_t destination,
                                     uint16_t physical_address,
                                     uint8_t device_type) {
-  uint8_t pld[5] = {(initiator << 4) | destination, CEC_ID_REPORT_PHYSICAL_ADDRESS,
+  uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_REPORT_PHYSICAL_ADDRESS,
                     (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
   send_frame(5, pld);
@@ -552,7 +557,7 @@ static void report_cec_version(uint8_t initiator, uint8_t destination) {
   send_frame(3, pld);
 }
 
-static bool ping(uint8_t destination) {
+bool cec_ping(uint8_t destination) {
   uint8_t pld[1] = {HEADER0(destination, destination)};
 
   return send_frame(1, pld);
@@ -580,7 +585,7 @@ static uint8_t allocate_logical_address(void) {
   for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
     a = address[i];
     cec_log_submitf("Attempting to allocate logical address 0x%02x"_CDC_BR, a);
-    if (!ping(a)) {
+    if (!cec_ping(a)) {
       break;
     }
   }
@@ -733,13 +738,20 @@ void cec_task(void *data) {
           key = HID_KEY_NONE;
           xQueueSend(*q, &key, pdMS_TO_TICKS(10));
           break;
-        case CEC_ID_FEATURE_ABORT:
         case CEC_ID_ABORT:
+          if (destination == laddr) {
+            cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_REFUSED);
+          }
+          break;
+        case CEC_ID_FEATURE_ABORT:
           break;
         case CEC_ID_VENDOR_COMMAND_WITH_ID:
           break;
         default:
           cec_log_submitf("  (undecoded)"_CDC_BR);
+          if (destination == laddr) {
+            cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_UNRECOGNIZED);
+          }
           break;
       }
     }
