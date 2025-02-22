@@ -89,6 +89,7 @@ const char *cec_message[] = {
     [CEC_ID_GIVE_DEVICE_POWER_STATUS] = "Give Device Power Status",
     [CEC_ID_REPORT_POWER_STATUS] = "Report Power Status",
     [CEC_ID_GET_MENU_LANGUAGE] = "Get Menu Language",
+    [CEC_ID_INACTIVE_SOURCE] = "Inactive Source",
     [CEC_ID_CEC_VERSION] = "CEC Version",
     [CEC_ID_GET_CEC_VERSION] = "Get CEC Version",
     [CEC_ID_VENDOR_COMMAND_WITH_ID] = "Vendor Command With ID",
@@ -127,6 +128,9 @@ static uint8_t laddr = address[0];
 
 /* The HDMI physical address. */
 static uint16_t paddr = 0x0000;
+
+/* Active state. */
+static uint16_t active_addr = 0x0000;
 
 /* Audio state. */
 static bool audio_status = false;
@@ -185,10 +189,11 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
                    cec_feature_abort_reason[msg->data[3]]);
         break;
       case CEC_ID_STANDBY:
-        log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "<*> Display OFF");
+        log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "Display OFF");
         break;
       case CEC_ID_ACTIVE_SOURCE:
-        log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "<*> Display ON");
+        log_printf(initiator, destination, recv, "[%s][%02x%02x Display ON]", cec_message[cmd],
+                   msg->data[2], msg->data[3]);
         break;
       case CEC_ID_REPORT_PHYSICAL_ADDRESS:
         log_printf(initiator, destination, recv, "[%s] %02x%02x", cec_message[cmd], msg->data[2],
@@ -648,6 +653,9 @@ void cec_task(void *data) {
         case CEC_ID_TEXT_VIEW_ON:
           break;
         case CEC_ID_STANDBY:
+          if (destination == laddr) {
+            active_addr = 0x0000;
+          }
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
           if (destination == laddr) {
@@ -670,6 +678,7 @@ void cec_task(void *data) {
         case CEC_ID_ROUTING_CHANGE:
           paddr = get_physical_address(&config);
           image_view_on(laddr, 0x00);
+          active_addr = paddr;
           break;
         case CEC_ID_ACTIVE_SOURCE:
           break;
@@ -684,8 +693,14 @@ void cec_task(void *data) {
           }
           break;
         case CEC_ID_REQUEST_ACTIVE_SOURCE:
+          active_addr = (pld[2] << 8) | pld[3];
+          if (paddr == active_addr) {
+            active_source(laddr, paddr);
+          }
+          break;
         case CEC_ID_SET_STREAM_PATH:
-          if (paddr != 0x0000) {
+          if (paddr == ((pld[2] << 8) | pld[3])) {
+            active_addr = paddr;
             active_source(laddr, paddr);
           }
           break;
