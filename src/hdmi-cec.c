@@ -153,18 +153,34 @@ uint64_t cec_get_uptime_ms(void) {
 /**
  * Log a timestamped formatted message.
  */
-__attribute__((format(printf, 4, 5))) static void log_printf(uint8_t initiator,
+__attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
                                                              uint8_t destination,
                                                              bool send,
+                                                             bool ack,
                                                              const char *fmt,
                                                              ...) {
   char prefix[64];
   char buffer[64];
+  char *arrow = "??";
+
+  if (send) {
+    if (ack) {
+      arrow = "->";
+    } else {
+      arrow = "~>";
+    }
+  } else {
+    if (ack) {
+      arrow = "<-";
+    } else {
+      arrow = "<~";
+    }
+  }
 
   va_list ap;
   va_start(ap, fmt);
   snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", cec_get_uptime_ms(),
-           send ? initiator : destination, send ? "->" : "<-", send ? destination : initiator);
+           send ? initiator : destination, arrow, send ? destination : initiator);
   vsnprintf(buffer, sizeof(buffer), fmt, ap);
   cec_log_submitf("%s: %s"_CDC_BR, prefix, buffer);
   va_end(ap);
@@ -185,50 +201,52 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
     uint8_t cmd = msg->data[1];
     switch (cmd) {
       case CEC_ID_FEATURE_ABORT:
-        log_printf(initiator, destination, recv, "[%s][%x][%s]", cec_message[cmd], msg->data[2],
-                   cec_feature_abort_reason[msg->data[3]]);
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%x][%s]", cec_message[cmd],
+                   msg->data[2], cec_feature_abort_reason[msg->data[3]]);
         break;
       case CEC_ID_STANDBY:
-        log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], "Display OFF");
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd],
+                   "Display OFF");
         break;
       case CEC_ID_ACTIVE_SOURCE:
-        log_printf(initiator, destination, recv, "[%s][%02x%02x Display ON]", cec_message[cmd],
-                   msg->data[2], msg->data[3]);
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%02x%02x Display ON]",
+                   cec_message[cmd], msg->data[2], msg->data[3]);
         break;
       case CEC_ID_REPORT_PHYSICAL_ADDRESS:
-        log_printf(initiator, destination, recv, "[%s] %02x%02x", cec_message[cmd], msg->data[2],
-                   msg->data[3]);
+        log_printf(initiator, destination, recv, frame->ack, "[%s] %02x%02x", cec_message[cmd],
+                   msg->data[2], msg->data[3]);
         break;
       case CEC_ID_USER_CONTROL_PRESSED: {
         uint8_t key = msg->data[2];
         const char *name = cec_user_control_name[key];
         if (name != NULL) {
-          log_printf(initiator, destination, recv, "[%s][%s]", cec_message[cmd], name);
+          log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], name);
         } else {
-          log_printf(initiator, destination, recv, "[%s] Unknown command: 0x%02x", cec_message[cmd],
-                     key);
+          log_printf(initiator, destination, recv, frame->ack, "[%s] Unknown command: 0x%02x",
+                     cec_message[cmd], key);
         }
       } break;
       case CEC_ID_VENDOR_COMMAND_WITH_ID:
-        log_printf(initiator, destination, recv, "[%s]", cec_message[cmd]);
+        log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         for (int i = 0; i < msg->len; i++) {
           cec_log_submitf(" %02x"_CDC_BR, msg->data[i]);
         }
         break;
       case CEC_ID_REPORT_POWER_STATUS:
-        log_printf(initiator, destination, recv, "[%s][%02x]", cec_message[cmd], msg->data[2]);
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%02x]", cec_message[cmd],
+                   msg->data[2]);
         break;
       default: {
         const char *message = cec_message[cmd];
         if (strlen(message) > 0) {
-          log_printf(initiator, destination, recv, "[%s]", cec_message[cmd]);
+          log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         } else {
-          log_printf(initiator, destination, recv, "[%x]", cmd);
+          log_printf(initiator, destination, recv, frame->ack, "[%x]", cmd);
         }
       }
     }
   } else {
-    log_printf(initiator, destination, recv, "[%s]", "Polling Message");
+    log_printf(initiator, destination, recv, frame->ack, "[%s]", "Polling Message");
   }
 }
 
@@ -487,7 +505,6 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
     cec_stats.tx_frames++;
   } else {
     cec_stats.tx_noack_frames++;
-    cec_log_submitf("  noack"_CDC_BR);
   }
 
   return frame.ack;

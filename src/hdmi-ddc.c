@@ -40,8 +40,21 @@ const uint8_t vsbhdr[3] = {0x03, 0x0c, 0x00};
 static int verify(uint8_t *edid, size_t len) {
   uint16_t cksum = 0x0000;
 
+  // log the data
+  if ((len % 8) == 0) {
+    for (size_t i = 0; i < len; i += 8) {
+      cec_log_submitf("[%d] %02x %02x %02x %02x %02x %02x %02x %02x"_CDC_BR, i, edid[i],
+                      edid[i + 1], edid[i + 2], edid[i + 3], edid[i + 4], edid[i + 5], edid[i + 6],
+                      edid[i + 7]);
+    }
+  } else {
+    for (size_t i = 0; i < len; i++) {
+      cec_log_submitf("[%d] %02x"_CDC_BR, i, edid[i]);
+    }
+  }
+
+  // calculate the checksum
   for (size_t i = 0; i < len; i++) {
-    cec_log_submitf("[%d] %02x"_CDC_BR, i, edid[i]);
     cksum += edid[i];
   }
 
