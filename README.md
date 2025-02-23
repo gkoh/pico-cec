@@ -164,9 +164,11 @@ examples.
 
 ## Dependencies
 This project uses:
-* FreeRTOS
-* pico-sdk
-   * tinyusb
+* [crc](https://github.com/gityf/crc)
+* [FreeRTOS-Kernel](https://github.com/FreeRTOS/FreeRTOS-Kernel)
+* [pico-sdk](https://github.com/raspberrypi/pico-sdk)
+   * [tinyusb](https://github.com/hathach/tinyusb)
+* [tcli](https://github.com/dpse/tcli)
 
 # Hardware
 * Seeed Studio XIAO RP2040 (chosen for form factor)
@@ -192,16 +194,29 @@ This project uses:
 | Umpteen hours of engineering | 1 | priceless |
 | Total | | 16.13 |
 
-## Future
+# cec-compliance
+As of v0.2.2, `pico-cec` now passes the cec-compliance test suite found in the
+Linux `v4l-utils` package.
+More details can be found in the wiki entry:
+https://github.com/gkoh/pico-cec/wiki/CEC-Compliance-Testing
+
+Furthermore, `pico-cec` has been able to survive one hour of cec-compliance fuzz
+testing.
+
+# Debugging
+A command line terminal over serial port is supported.
+Details can be found in the wiki entry:
+https://github.com/gkoh/pico-cec/wiki/Command-Line-Interface-Guide
+
+In particular, `debug on` will log all CEC traffic to the terminal.
+
+# Future
 * more blinken LEDs
    * most Pico boards appear to have an RGB LED, use it
    * perhaps:
       * R - FreeRTOS crash handlers?
       * G - HDMI message received?
       * B - HID keyboard message sent?
-* pass cec-compliance
-   * https://docs.kernel.org/userspace-api/media/cec/cec-intro.html
-* survive cec-compliance fuzzing
 * port to ESP32?
 
 # References
