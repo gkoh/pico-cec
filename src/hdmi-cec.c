@@ -10,6 +10,7 @@
 #include "pico/stdlib.h"
 #include "tusb.h"
 
+#include "blink.h"
 #include "cec-config.h"
 #include "cec-log.h"
 #include "hdmi-cec.h"
@@ -241,7 +242,7 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
         if (strlen(message) > 0) {
           log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         } else {
-          log_printf(initiator, destination, recv, frame->ack, "[%x]", cmd);
+          log_printf(initiator, destination, recv, frame->ack, "[%x] (undecoded)", cmd);
         }
       }
     }
@@ -673,8 +674,9 @@ void cec_task(void *data) {
         case CEC_ID_TEXT_VIEW_ON:
           break;
         case CEC_ID_STANDBY:
-          if (destination == laddr) {
+          if (destination == laddr || destination == 0x0f) {
             active_addr = 0x0000;
+            blink_set_blink(BLINK_STATE_BLUE_2HZ);
           }
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
@@ -722,6 +724,7 @@ void cec_task(void *data) {
           if (paddr == ((pld[2] << 8) | pld[3])) {
             active_addr = paddr;
             active_source(laddr, paddr);
+            blink_set_blink(BLINK_STATE_GREEN_2HZ);
           }
           break;
         case CEC_ID_DEVICE_VENDOR_ID:
@@ -769,14 +772,14 @@ void cec_task(void *data) {
             report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
           break;
         case CEC_ID_USER_CONTROL_PRESSED: {
-          gpio_put(PICO_DEFAULT_LED_PIN, true);
+          blink_set(BLINK_STATE_GREEN_ON);
           command_t command = config.keymap[pld[2]];
           if (command.name != NULL) {
             xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
           }
         } break;
         case CEC_ID_USER_CONTROL_RELEASED:
-          gpio_put(PICO_DEFAULT_LED_PIN, false);
+          blink_set(BLINK_STATE_OFF);
           key = HID_KEY_NONE;
           xQueueSend(*q, &key, pdMS_TO_TICKS(10));
           break;
@@ -790,7 +793,6 @@ void cec_task(void *data) {
         case CEC_ID_VENDOR_COMMAND_WITH_ID:
           break;
         default:
-          cec_log_submitf("  (undecoded)"_CDC_BR);
           if (destination == laddr) {
             cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_UNRECOGNIZED);
           }

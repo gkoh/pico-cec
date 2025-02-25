@@ -30,9 +30,14 @@
 #include "common/tusb_common.h"
 #include "task.h"
 
+#include "ws2812.h"
+
 void vApplicationStackOverflowHook(xTaskHandle pxTask, char *pcTaskName) {
   (void)pxTask;
   (void)pcTaskName;
+
+  // solid red on RGB to indicate overflow
+  ws2812_put_rgb(0x78, 0, 0);
 
   taskDISABLE_INTERRUPTS();
   TU_ASSERT(false, );

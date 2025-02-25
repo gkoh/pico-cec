@@ -8,7 +8,7 @@
 #include "cec-log.h"
 #include "usb-cdc.h"
 
-#define LOG_TASK_STACK_SIZE (2048)
+#define LOG_TASK_STACK_SIZE (1024)
 #define LOG_LINE_LENGTH (64)
 #define LOG_QUEUE_LENGTH (16)
 #define LOG_MB_SIZE (LOG_LINE_LENGTH * LOG_QUEUE_LENGTH)

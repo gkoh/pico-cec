@@ -109,7 +109,7 @@ static int show_config(void) {
   return 0;
 }
 
-static int show_stats_cec(void *arg) {
+static int show_stats_cec(void) {
   hdmi_cec_stats_t stats = {0x0};
   cec_get_stats(&stats);
   cdc_printfln("%-13s: %lu frames", "CEC rx", stats.rx_frames);
@@ -120,7 +120,7 @@ static int show_stats_cec(void *arg) {
   return 0;
 }
 
-static int show_stats_cpu(void *arg) {
+static int show_stats_cpu(void) {
   UBaseType_t count = uxTaskGetNumberOfTasks();
   TaskStatus_t status[count];
   unsigned long total_run_time = 0;
@@ -145,6 +145,22 @@ static int show_stats_cpu(void *arg) {
   return 0;
 }
 
+static int show_stats_tasks(void) {
+  UBaseType_t count = uxTaskGetNumberOfTasks();
+  TaskStatus_t status[count];
+
+  UBaseType_t n = uxTaskGetSystemState(status, count, NULL);
+
+  cdc_printfln("%-13s | %-10s | %-10s", "task", "priority", "stack (min)");
+
+  for (UBaseType_t i = 0; i < n; i++) {
+    cdc_printfln("%-13s | %-10lu | %-10lu", status[i].pcTaskName, status[i].uxCurrentPriority,
+                 status[i].usStackHighWaterMark);
+  }
+
+  return 0;
+}
+
 static int exec_show(void *arg, int argc, const char **argv) {
   if (argc == 2) {
     if (strcmp(argv[1], "config") == 0) {
@@ -164,9 +180,11 @@ static int exec_show(void *arg, int argc, const char **argv) {
   } else if (argc == 3) {
     if (strcmp(argv[1], "stats") == 0) {
       if (strcmp(argv[2], "cec") == 0) {
-        return show_stats_cec(arg);
+        return show_stats_cec();
       } else if (strcmp(argv[2], "cpu") == 0) {
-        return show_stats_cpu(arg);
+        return show_stats_cpu();
+      } else if (strcmp(argv[2], "tasks") == 0) {
+        return show_stats_tasks();
       }
     }
   }
@@ -234,7 +252,8 @@ static const tclie_cmd_t cmds[] = {
     {"save", exec_save, "Save configuration.", "save"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config edid_delay_ms|physical_address <value>)|(keymap <value>)}"},
-    {"show", exec_show, "Show information.", "show {cec|config|keymap|(stats {cec|cpu})|version}"},
+    {"show", exec_show, "Show information.",
+     "show {cec|config|keymap|(stats {cec|cpu|tasks})|version}"},
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
 };
 

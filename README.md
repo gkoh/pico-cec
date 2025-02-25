@@ -76,6 +76,16 @@ this can be written to the Pico as per normal:
 A command line interface over serial port is available, the guide can be found
 here: [Command Line Interface Guide](https://github.com/gkoh/pico-cec/wiki/Command-Line-Interface-Guide)
 
+## Blinking Lights
+The RGB LED provides basic functional diagnosis:
+* blue 2Hz: idle, CEC standby
+* green 2Hz: CEC active
+* green flash: CEC user button pressed
+* red: crash
+
+If there are no lights, something is very wrong.
+If this occurs, please consider raising an issue.
+
 # Real World Usage
 This is currently working with:
 * a Sharp 60" TV (physical address 0x1000)
@@ -211,13 +221,8 @@ https://github.com/gkoh/pico-cec/wiki/Command-Line-Interface-Guide
 In particular, `debug on` will log all CEC traffic to the terminal.
 
 # Future
-* more blinken LEDs
-   * most Pico boards appear to have an RGB LED, use it
-   * perhaps:
-      * R - FreeRTOS crash handlers?
-      * G - HDMI message received?
-      * B - HID keyboard message sent?
 * port to ESP32?
+   * WS2812 driver will need platform support, perhaps to RMT
 
 # References
 Inspiration and/or ground work was obtained from the following:

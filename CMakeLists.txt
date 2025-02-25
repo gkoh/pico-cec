@@ -4,6 +4,7 @@ set(PROJECT pico-cec)
 set(FAMILY rp2040)
 set(BOARD "pico_sdk") # Configure TinyUSB use pico-sdk board configuration
 set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
+#set(PICO_BOARD "waveshare_rp3040_zero" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "pico" CACHE STRING "Raspberry Pi Pico board type.")
 
 # Include pico-sdk and tinyusb (must be before project)
@@ -46,6 +47,7 @@ target_compile_options(tcli PRIVATE
   -Wno-stringop-truncation)
 
 add_executable(${PROJECT}
+  src/blink.c
   src/cec-config.c
   src/cec-log.c
   src/freertos_hook.c
@@ -55,11 +57,18 @@ add_executable(${PROJECT}
   src/nvs.c
   src/usb-cdc.c
   src/usb_descriptors.c
-  src/usb_hid.c)
+  src/usb_hid.c
+  src/ws2812.c
+  src/ws2812.pio)
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
+pico_generate_pio_header(${PROJECT} ${PROJECT_SOURCE_DIR}/src/ws2812.pio OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/include/tusb)
+  ${PROJECT_SOURCE_DIR}/include/tusb
+  ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
 set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
@@ -79,6 +88,7 @@ target_link_libraries(${PROJECT}
   pico_stdlib
   pico_unique_id
   hardware_i2c
+  hardware_pio
   tinyusb_device
   tinyusb_board
   FreeRTOS-Kernel

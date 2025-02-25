@@ -8,28 +8,19 @@
 #include "hardware/timer.h"
 #include "pico/stdlib.h"
 
+#include "blink.h"
 #include "cec-log.h"
 #include "hdmi-cec.h"
 #include "usb-cdc.h"
 #include "usb_hid.h"
+#include "ws2812.h"
 
 #define USBD_STACK_SIZE (512)
 #define HID_STACK_SIZE (256)
-#define CDC_STACK_SIZE (2048)
+#define CDC_STACK_SIZE (1024)
 #define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (2048)
+#define CEC_STACK_SIZE (1024)
 #define CEC_QUEUE_LENGTH (16)
-
-void blink_task(void *param) {
-  static uint32_t blink_delay = 1000;
-  static bool state = true;
-
-  while (true) {
-    gpio_put(PICO_DEFAULT_LED_PIN, state);
-    state = !state;
-    vTaskDelay(pdMS_TO_TICKS(blink_delay));
-  }
-}
 
 void cdc_task(void *param);
 
@@ -49,18 +40,16 @@ int main() {
   static StaticTask_t xUSBDTCB;
   static StaticTask_t xCDCTCB;
 
-  static TaskHandle_t xBlinkTask;
   static TaskHandle_t xUSBDTask;
   static TaskHandle_t xHIDTask;
   static TaskHandle_t xCDCTask;
+
+  blink_init();
 
   stdio_init_all();
   board_init();
 
   alarm_pool_init_default();
-
-  gpio_init(PICO_DEFAULT_LED_PIN);
-  gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
   // HID key queue
   QueueHandle_t cec_q =
