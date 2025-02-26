@@ -11,6 +11,7 @@ on:
 env:
   BUILD_TYPE: Release
   RELEASE_ZIP: pico-cec-${{github.ref_name}}.zip
+  RELEASE_BOARD: seeed_xiao_rp2040
 
 jobs:
   format:
@@ -30,6 +31,14 @@ jobs:
     needs: format
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        pico_board:
+          - seeed_xiao_rp2040
+          - waveshare_rp2040_zero
+          - vcc_gnd_yd_2040
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -46,10 +55,10 @@ jobs:
         sudo apt install --no-install-recommends -y gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib openscad
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPICO_CEC_VERSION=${{github.ref_name}}
+      run: cmake -B ${{github.workspace}}/${{matrix.pico_board}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPICO_CEC_VERSION=${{github.ref_name}}
 
     - name: Build Pico-CEC
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/${{matrix.pico_board}} --config ${{env.BUILD_TYPE}}
 
     - name: Export to STL
       run: |
@@ -58,14 +67,20 @@ jobs:
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: pico-cec-${{ github.run_id }}
+        name: pico-cec-${{matrix.pico_board}}-${{ github.run_id }}
         path: |
-          ${{github.workspace}}/build/pico-cec.uf2
+          ${{github.workspace}}/${{matrix.pico_board}}/pico-cec.uf2
           ${{github.workspace}}/openscad/*.stl
         if-no-files-found: error
 
-  release:
+  success:
+    runs-on: ubuntu-latest
     needs: build
+    steps:
+      - run: echo "Success!"
+
+  release:
+    needs: success
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
 
@@ -81,7 +96,7 @@ jobs:
     - name: Generate release hashes
       run: |
         ls -lR
-        mv build/pico-cec.uf2 .
+        mv ${{env.RELEASE_BOARD}}/pico-cec.uf2 .
         mv openscad/*.stl .
         sha256sum pico-cec.uf2 *.stl > sha256sum.txt
 
