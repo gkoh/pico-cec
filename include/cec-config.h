@@ -28,6 +28,9 @@ typedef struct {
   /** CEC logical address. */
   uint8_t logical_address;
 
+  /** CEC device type. */
+  uint8_t device_type;
+
   /** Keymap configuration. */
   cec_config_keymap_t keymap_type;
 

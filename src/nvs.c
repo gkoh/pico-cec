@@ -49,8 +49,11 @@ typedef struct __attribute__((packed)) {
   /** CEC physical address. */
   uint16_t physical_address;
 
-  /** CEC logical address. */
+  /** CEC logical address (unused). */
   uint8_t logical_address;
+
+  /** CEC device type (unused). */
+  uint8_t device_type;
 
   /** Keymap. */
   cec_config_keymap_t keymap_type;
@@ -120,6 +123,7 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
     config->edid_delay_ms = nvs->config.edid_delay_ms;
     config->physical_address = nvs->config.physical_address;
     config->logical_address = nvs->config.logical_address;
+    config->device_type = nvs->config.device_type;
     config->keymap_type = nvs->config.keymap_type;
     for (uint8_t n = 0; n < UINT8_MAX; n++) {
       config->keymap[n].key = nvs->config.keymap[n];

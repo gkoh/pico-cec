@@ -140,6 +140,7 @@ void cec_config_set_default(cec_config_t *config) {
   config->edid_delay_ms = default_edid_delay_ms;
   config->physical_address = default_physical_addr;
   config->logical_address = default_logical_addr;
+  config->device_type = 0;
 #if KEYMAP_DEFAULT_KODI
   config->keymap_type = CEC_CONFIG_KEYMAP_KODI;
 #elif KEYMAP_DEFAULT_MISTER
