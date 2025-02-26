@@ -5,7 +5,7 @@ set(FAMILY rp2040)
 set(BOARD "pico_sdk") # Configure TinyUSB use pico-sdk board configuration
 set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
 
-#set(PICO_BOARD "waveshare_rp3040_zero" CACHE STRING "Raspberry Pi Pico board type.")
+#set(PICO_BOARD "waveshare_rp2040_zero" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "vcc_gnd_yd_2040" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "pico" CACHE STRING "Raspberry Pi Pico board type.")
 
