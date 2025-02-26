@@ -8,44 +8,44 @@
  * From "High-Definition Multimedia Interface Specification Version 1.3, CEC
  * Table 23, User Control Codes, p. 62"
  *
- * @note Incomplete.
+ * @note Incomplete, add as required.
  */
 const char *cec_user_control_name[UINT8_MAX] = {
-    [0x00] = "Select",
-    [0x01] = "Up",
-    [0x02] = "Down",
-    [0x03] = "Left",
-    [0x04] = "Right",
-    [0x05] = "Right-Up",
-    [0x06] = "Right-Down",
-    [0x07] = "Left-Up",
-    [0x08] = "Left-Down",
-    [0x0a] = "Options",
-    [0x0d] = "Exit",
-    [0x20] = "0",
-    [0x21] = "1",
-    [0x22] = "2",
-    [0x23] = "3",
-    [0x24] = "4",
-    [0x25] = "5",
-    [0x26] = "6",
-    [0x27] = "7",
-    [0x28] = "8",
-    [0x29] = "9",
-    [0x35] = "Display Information",
-    [0x41] = "Volume Up",
-    [0x42] = "Volume Down",
-    [0x44] = "Play",
-    [0x45] = "Stop",
-    [0x46] = "Pause",
-    [0x48] = "Rewind",
-    [0x49] = "Fast Forward",
-    [0x51] = "Sub Picture",
-    [0x71] = "F1 (Blue)",
-    [0x72] = "F2 (Red)",
-    [0x73] = "F3 (Green)",
-    [0x74] = "F4 (Yellow)",
-    [0x75] = "F5",
+    [CEC_USER_SELECT] = "Select",
+    [CEC_USER_UP] = "Up",
+    [CEC_USER_DOWN] = "Down",
+    [CEC_USER_LEFT] = "Left",
+    [CEC_USER_RIGHT] = "Right",
+    [CEC_USER_RIGHT_UP] = "Right-Up",
+    [CEC_USER_RIGHT_DOWN] = "Right-Down",
+    [CEC_USER_LEFT_UP] = "Left-Up",
+    [CEC_USER_LEFT_DOWN] = "Left-Down",
+    [CEC_USER_OPTIONS] = "Options",
+    [CEC_USER_EXIT] = "Exit",
+    [CEC_USER_0] = "0",
+    [CEC_USER_1] = "1",
+    [CEC_USER_2] = "2",
+    [CEC_USER_3] = "3",
+    [CEC_USER_4] = "4",
+    [CEC_USER_5] = "5",
+    [CEC_USER_6] = "6",
+    [CEC_USER_7] = "7",
+    [CEC_USER_8] = "8",
+    [CEC_USER_9] = "9",
+    [CEC_USER_DISPLAY_INFO] = "Display Information",
+    [CEC_USER_VOLUME_UP] = "Volume Up",
+    [CEC_USER_VOLUME_DOWN] = "Volume Down",
+    [CEC_USER_PLAY] = "Play",
+    [CEC_USER_STOP] = "Stop",
+    [CEC_USER_PAUSE] = "Pause",
+    [CEC_USER_REWIND] = "Rewind",
+    [CEC_USER_FAST_FWD] = "Fast Forward",
+    [CEC_USER_SUB_PICTURE] = "Sub Picture",
+    [CEC_USER_F1_BLUE] = "F1 (Blue)",
+    [CEC_USER_F2_RED] = "F2 (Red)",
+    [CEC_USER_F3_GREEN] = "F3 (Green)",
+    [CEC_USER_F4_YELLOW] = "F4 (Yellow)",
+    [CEC_USER_F5] = "F5",
     NULL,
 };
 
@@ -65,36 +65,73 @@ static const uint32_t default_edid_delay_ms = 5000;
  */
 static const uint16_t default_physical_addr = 0x0000;
 
-/*
+/**
+ * Default logical address.
+ *
+ * @note Currently unused.
+ */
+static const uint8_t default_logical_addr = 0x00;
+
+/**
  * Default (Kodi) key mapping from HDMI user control to HID keyboard entry.
  */
 static const uint8_t default_kodi_user_keymap[UINT8_MAX] = {
-    [0x00] = HID_KEY_ENTER,
-    [0x01] = HID_KEY_ARROW_UP,
-    [0x02] = HID_KEY_ARROW_DOWN,
-    [0x03] = HID_KEY_ARROW_LEFT,
-    [0x04] = HID_KEY_ARROW_RIGHT,
-    [0x0a] = HID_KEY_C,
-    [0x0d] = HID_KEY_BACKSPACE,
-    [0x20] = HID_KEY_0,
-    [0x21] = HID_KEY_1,
-    [0x22] = HID_KEY_2,
-    [0x23] = HID_KEY_3,
-    [0x24] = HID_KEY_4,
-    [0x25] = HID_KEY_5,
-    [0x26] = HID_KEY_6,
-    [0x27] = HID_KEY_7,
-    [0x28] = HID_KEY_8,
-    [0x29] = HID_KEY_9,
-    [0x35] = HID_KEY_I,
-    [0x44] = HID_KEY_P,
-    [0x45] = HID_KEY_X,
-    [0x46] = HID_KEY_SPACE,
-    [0x48] = HID_KEY_R,
-    [0x49] = HID_KEY_F,
-    [0x51] = HID_KEY_L,
+    [CEC_USER_SELECT] = HID_KEY_ENTER,
+    [CEC_USER_UP] = HID_KEY_ARROW_UP,
+    [CEC_USER_DOWN] = HID_KEY_ARROW_DOWN,
+    [CEC_USER_LEFT] = HID_KEY_ARROW_LEFT,
+    [CEC_USER_RIGHT] = HID_KEY_ARROW_RIGHT,
+    [CEC_USER_OPTIONS] = HID_KEY_C,
+    [CEC_USER_EXIT] = HID_KEY_BACKSPACE,
+    [CEC_USER_0] = HID_KEY_0,
+    [CEC_USER_1] = HID_KEY_1,
+    [CEC_USER_2] = HID_KEY_2,
+    [CEC_USER_3] = HID_KEY_3,
+    [CEC_USER_4] = HID_KEY_4,
+    [CEC_USER_5] = HID_KEY_5,
+    [CEC_USER_6] = HID_KEY_6,
+    [CEC_USER_7] = HID_KEY_7,
+    [CEC_USER_8] = HID_KEY_8,
+    [CEC_USER_9] = HID_KEY_9,
+    [CEC_USER_DISPLAY_INFO] = HID_KEY_I,
+    [CEC_USER_PLAY] = HID_KEY_P,
+    [CEC_USER_STOP] = HID_KEY_X,
+    [CEC_USER_PAUSE] = HID_KEY_SPACE,
+    [CEC_USER_REWIND] = HID_KEY_R,
+    [CEC_USER_FAST_FWD] = HID_KEY_F,
+    [CEC_USER_SUB_PICTURE] = HID_KEY_L,
     0x00,
 };
+
+/**
+ * Key mapping for MiSTer integration, from LaserBearIndustries.
+ */
+static const uint8_t default_mister_user_keymap[UINT8_MAX] = {
+    [CEC_USER_SELECT] = HID_KEY_ENTER,
+    [CEC_USER_UP] = HID_KEY_ARROW_UP,
+    [CEC_USER_DOWN] = HID_KEY_ARROW_DOWN,
+    [CEC_USER_LEFT] = HID_KEY_ARROW_LEFT,
+    [CEC_USER_RIGHT] = HID_KEY_ARROW_RIGHT,
+    [CEC_USER_OPTIONS] = HID_KEY_F12,
+    [CEC_USER_EXIT] = HID_KEY_F12,
+    [CEC_USER_0] = HID_KEY_0,
+    [CEC_USER_1] = HID_KEY_1,
+    [CEC_USER_2] = HID_KEY_2,
+    [CEC_USER_3] = HID_KEY_3,
+    [CEC_USER_4] = HID_KEY_4,
+    [CEC_USER_5] = HID_KEY_5,
+    [CEC_USER_6] = HID_KEY_6,
+    [CEC_USER_7] = HID_KEY_7,
+    [CEC_USER_8] = HID_KEY_8,
+    [CEC_USER_9] = HID_KEY_9,
+    [CEC_USER_DISPLAY_INFO] = HID_KEY_I,
+    [CEC_USER_PLAY] = HID_KEY_F12,
+    [CEC_USER_STOP] = HID_KEY_F12,
+    [CEC_USER_PAUSE] = HID_KEY_F12,
+    [CEC_USER_REWIND] = HID_KEY_F12,
+    [CEC_USER_FAST_FWD] = HID_KEY_F12,
+    [CEC_USER_SUB_PICTURE] = HID_KEY_L,
+    0x00};
 
 void cec_config_set_default(cec_config_t *config) {
   if (config == NULL) {
@@ -102,18 +139,31 @@ void cec_config_set_default(cec_config_t *config) {
   }
   config->edid_delay_ms = default_edid_delay_ms;
   config->physical_address = default_physical_addr;
+  config->logical_address = default_logical_addr;
+#if KEYMAP_DEFAULT_KODI
+  config->keymap_type = CEC_CONFIG_KEYMAP_KODI;
+#elif KEYMAP_DEFAULT_MISTER
+  config->keymap_type = CEC_CONFIG_KEYMAP_MISTER;
+#else
+#error "Unknown default keymap."
+#endif
 }
 
-void cec_config_set_keymap(cec_config_default_t type, cec_config_t *config) {
+void cec_config_set_keymap(cec_config_t *config) {
   if (config == NULL) {
     return;
   }
 
   const uint8_t *default_keymap = NULL;
 
-  switch (type) {
-    case CEC_CONFIG_DEFAULT_KODI:
+  switch (config->keymap_type) {
+    case CEC_CONFIG_KEYMAP_CUSTOM:
+      break;
+    case CEC_CONFIG_KEYMAP_KODI:
       default_keymap = &default_kodi_user_keymap[0];
+      break;
+    case CEC_CONFIG_KEYMAP_MISTER:
+      default_keymap = &default_mister_user_keymap[0];
       break;
     default:
       return;

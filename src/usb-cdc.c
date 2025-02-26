@@ -91,20 +91,34 @@ static int exec_reboot(void *arg, int argc, const char **argv) {
   return -1;
 }
 
-static void print_edid_delay(void) {
-  cdc_printfln("%-17s: %lu ms", "EDID delay", config.edid_delay_ms);
+static void print_edid_delay(uint32_t delay) {
+  cdc_printfln("%-17s: %lu ms", "EDID delay", delay);
 }
 
 static void print_physical_address(uint16_t address) {
   cdc_printfln("%-17s: 0x%04x", "Physical address", address);
 }
 
-static int show_config(void) {
+static int show_config(cec_config_t *config) {
   // UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   // cdc_printfln("StackHighWaterMark = %lu", uxHighWaterMark);
 
-  print_edid_delay();
-  print_physical_address(config.physical_address);
+  print_edid_delay(config->edid_delay_ms);
+  print_physical_address(config->physical_address);
+
+  const char *keymap = "unknown";
+  switch (config->keymap_type) {
+    case CEC_CONFIG_KEYMAP_CUSTOM:
+      keymap = "custom";
+      break;
+    case CEC_CONFIG_KEYMAP_KODI:
+      keymap = "Kodi";
+      break;
+    case CEC_CONFIG_KEYMAP_MISTER:
+      keymap = "MiSTer";
+      break;
+  }
+  cdc_printfln("%-17s: %s", "Keymap", keymap);
 
   return 0;
 }
@@ -164,7 +178,7 @@ static int show_stats_tasks(void) {
 static int exec_show(void *arg, int argc, const char **argv) {
   if (argc == 2) {
     if (strcmp(argv[1], "config") == 0) {
-      return show_config();
+      return show_config(&config);
     } else if (strcmp(argv[1], "keymap") == 0) {
       for (uint8_t n = 0; n < UINT8_MAX; n++) {
         if (config.keymap[n].name != NULL) {
@@ -176,6 +190,14 @@ static int exec_show(void *arg, int argc, const char **argv) {
       cdc_printfln("%-17s: 0x%02x", "Logical address", cec_get_logical_address());
     } else if (strcmp(argv[1], "version") == 0) {
       return show_version(arg);
+    } else if (strcmp(argv[1], "nvs") == 0) {
+      cec_config_t nvs_config;
+      if (nvs_read_config(&nvs_config)) {
+        return show_config(&nvs_config);
+      } else {
+        cdc_printfln("Failed to read configuration from NVS.");
+        return -1;
+      }
     }
   } else if (argc == 3) {
     if (strcmp(argv[1], "stats") == 0) {
@@ -219,7 +241,7 @@ static int exec_set(void *arg, int argc, const char **argv) {
     if (strcmp(argv[1], "config") == 0) {
       if (strcmp(argv[2], "edid_delay_ms") == 0) {
         config.edid_delay_ms = atoi(argv[3]);
-        print_edid_delay();
+        print_edid_delay(config.edid_delay_ms);
         return 0;
       } else if (strcmp(argv[2], "physical_address") == 0) {
         if (sscanf(argv[3], "%4hx", &config.physical_address) == 1) {
@@ -234,7 +256,12 @@ static int exec_set(void *arg, int argc, const char **argv) {
   } else if (argc == 3) {
     if (strcmp(argv[1], "keymap") == 0) {
       if (strcmp(argv[2], "kodi") == 0) {
-        cec_config_set_keymap(CEC_CONFIG_DEFAULT_KODI, &config);
+        config.keymap_type = CEC_CONFIG_KEYMAP_KODI;
+        cec_config_set_keymap(&config);
+        return 0;
+      } else if (strcmp(argv[2], "mister") == 0) {
+        config.keymap_type = CEC_CONFIG_KEYMAP_MISTER;
+        cec_config_set_keymap(&config);
         return 0;
       } else {
         cdc_printfln("Unknown keymap '%s'", argv[2]);
@@ -253,7 +280,7 @@ static const tclie_cmd_t cmds[] = {
     {"set", exec_set, "Set configuration parameters.",
      "set {(config edid_delay_ms|physical_address <value>)|(keymap <value>)}"},
     {"show", exec_show, "Show information.",
-     "show {cec|config|keymap|(stats {cec|cpu|tasks})|version}"},
+     "show {cec|config|keymap|nvs|(stats {cec|cpu|tasks})|version}"},
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
 };
 
