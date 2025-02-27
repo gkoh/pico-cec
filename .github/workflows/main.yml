@@ -52,7 +52,7 @@ jobs:
     - name: Install required packages
       shell: bash
       run: |
-        sudo apt install --no-install-recommends -y gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib openscad
+        sudo apt install --no-install-recommends -y gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
 
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/${{matrix.pico_board}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPICO_CEC_VERSION=${{github.ref_name}}
@@ -60,22 +60,43 @@ jobs:
     - name: Build Pico-CEC
       run: cmake --build ${{github.workspace}}/${{matrix.pico_board}} --config ${{env.BUILD_TYPE}}
 
-    - name: Export to STL
-      run: |
-        cd ${{github.workspace}}/openscad && make
-
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
       with:
         name: pico-cec-${{matrix.pico_board}}-${{ github.run_id }}
         path: |
           ${{github.workspace}}/${{matrix.pico_board}}/pico-cec.uf2
+        if-no-files-found: error
+
+  build-stl:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'false'
+
+    - name: Install OpenSCAD
+      shell: bash
+      run: |
+        sudo apt install --no-install-recommends -y openscad
+
+    - name: Export to STL
+      run: |
+        cd ${{github.workspace}}/openscad && make
+
+    - name: Upload STL release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pico-cec-stl-${{ github.run_id }}
+        path: |
           ${{github.workspace}}/openscad/*.stl
         if-no-files-found: error
 
   success:
     runs-on: ubuntu-latest
-    needs: build
+    needs:
+      - build
+      - build-stl
     steps:
       - run: echo "Success!"
 
