@@ -18,8 +18,10 @@ void blink_init(void) {
   ws2812_init(PICO_DEFAULT_WS2812_PIN);
   ws2812_put_rgb(0, 0x78, 0);
 
+#ifdef PICO_DEFAULT_LED_PIN
   gpio_init(PICO_DEFAULT_LED_PIN);
   gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+#endif
 }
 
 void blink_set(blink_state_t state) {
@@ -53,8 +55,10 @@ void blink_task(void *param) {
       rgb_state = new_rgb;
     }
 
+#ifdef PICO_DEFAULT_LED_PIN
     // heartbeat
     gpio_put(PICO_DEFAULT_LED_PIN, state);
+#endif
 
     // RGB
     if (state) {

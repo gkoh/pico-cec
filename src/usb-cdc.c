@@ -82,7 +82,12 @@ static int exec_debug(void *arg, int argc, const char *argv[]) {
 static int exec_reboot(void *arg, int argc, const char **argv) {
   if ((argc == 2) && (strcmp(argv[1], "bootsel") == 0)) {
     // reboot into USB bootloader
-    reset_usb_boot(PICO_DEFAULT_LED_PIN, 0);
+#ifdef PICO_DEFAULT_LED_PIN
+    uint32_t activity_mask = PICO_DEFAULT_LED_PIN;
+#else
+    uint32_t activity_mask = 0;
+#endif
+    reset_usb_boot(activity_mask, 0);
   } else {
     // normal reboot
     watchdog_reboot(0, 0, 0);

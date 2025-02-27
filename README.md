@@ -183,8 +183,8 @@ This project uses:
 # Hardware
 * Seeed Studio XIAO RP2040 (chosen for form factor)
    * https://www.seeedstudio.com/XIAO-RP2040-v1-0-p-5026.html
-   * Originally prototyped on the Raspberry Pi Pico board (still works with
-     minor build time tweaks)
+   * Originally prototyped on the Raspberry Pi Pico board (still works but
+     requires RGB unhacking)
 * HDMI male/female passthrough adapter
    * Listed as 'HDMI Male and Female Test Board MINI Connector with Board PCB
      2.54mm pitch 19/20pin DP HD A Female To Male Adapter Board'
