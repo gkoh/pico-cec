@@ -112,7 +112,7 @@ jobs:
     - name: Download release artifacts
       uses: actions/download-artifact@v4
       with:
-        merge-multiple: true
+        merge-multiple: false
 
     - name: Generate release hashes
       run: |
