@@ -771,17 +771,21 @@ void cec_task(void *data) {
           if (destination == laddr && paddr != 0x0000)
             report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
           break;
-        case CEC_ID_USER_CONTROL_PRESSED: {
-          blink_set(BLINK_STATE_GREEN_ON);
-          command_t command = config.keymap[pld[2]];
-          if (command.name != NULL) {
-            xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
+        case CEC_ID_USER_CONTROL_PRESSED:
+          if (destination == laddr) {
+            blink_set(BLINK_STATE_GREEN_ON);
+            command_t command = config.keymap[pld[2]];
+            if (command.name != NULL) {
+              xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
+            }
           }
-        } break;
+          break;
         case CEC_ID_USER_CONTROL_RELEASED:
-          blink_set(BLINK_STATE_OFF);
-          key = HID_KEY_NONE;
-          xQueueSend(*q, &key, pdMS_TO_TICKS(10));
+          if (destination == laddr) {
+            blink_set(BLINK_STATE_OFF);
+            key = HID_KEY_NONE;
+            xQueueSend(*q, &key, pdMS_TO_TICKS(10));
+          }
           break;
         case CEC_ID_ABORT:
           if (destination == laddr) {
