@@ -61,6 +61,7 @@ typedef enum {
   CEC_ID_CEC_VERSION = 0x9e,
   CEC_ID_GET_CEC_VERSION = 0x9f,
   CEC_ID_VENDOR_COMMAND_WITH_ID = 0xa0,
+  CEC_ID_REQUEST_ARC_INITIATION = 0xc3,
   CEC_ID_ABORT = 0xff,
 } cec_id_t;
 
@@ -78,6 +79,7 @@ const char *cec_message[] = {
     [CEC_ID_SET_SYSTEM_AUDIO_MODE] = "Set System Audio Mode",
     [CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS] = "Give System Audio Mode",
     [CEC_ID_SYSTEM_AUDIO_MODE_STATUS] = "System Audio Mode Status",
+    [CEC_ID_REPORT_AUDIO_STATUS] = "Report Audio Status",
     [CEC_ID_ROUTING_CHANGE] = "Routing Change",
     [CEC_ID_ACTIVE_SOURCE] = "Active Source",
     [CEC_ID_GIVE_PHYSICAL_ADDRESS] = "Give Physical Address",
@@ -94,6 +96,7 @@ const char *cec_message[] = {
     [CEC_ID_CEC_VERSION] = "CEC Version",
     [CEC_ID_GET_CEC_VERSION] = "Get CEC Version",
     [CEC_ID_VENDOR_COMMAND_WITH_ID] = "Vendor Command With ID",
+    [CEC_ID_REQUEST_ARC_INITIATION] = "Request ARC Initiation",
     [CEC_ID_ABORT] = "Abort",
 };
 
