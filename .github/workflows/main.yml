@@ -117,8 +117,8 @@ jobs:
     - name: Generate release hashes
       run: |
         ls -lR
-        mv ${{env.RELEASE_BOARD}}/pico-cec.uf2 .
-        mv openscad/*.stl .
+        mv pico-cec-${{env.RELEASE_BOARD}}-${{github.run_id}}/pico-cec.uf2 .
+        mv pico-cec-${{github.run_id}}/*.stl .
         sha256sum pico-cec.uf2 *.stl > sha256sum.txt
 
     - name: Compress release assets
