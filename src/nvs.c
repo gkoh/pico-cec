@@ -124,6 +124,10 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
     config->physical_address = nvs->config.physical_address;
     config->logical_address = nvs->config.logical_address;
     config->device_type = nvs->config.device_type;
+    // hack to support previous unused setting
+    if (config->device_type == CEC_CONFIG_DEVICE_TYPE_TV) {
+      config->device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
+    }
     config->keymap_type = nvs->config.keymap_type;
     for (uint8_t n = 0; n < UINT8_MAX; n++) {
       config->keymap[n].key = nvs->config.keymap[n];
@@ -192,6 +196,7 @@ bool nvs_save_config(const cec_config_t *config) {
   cec_nvs.config.edid_delay_ms = config->edid_delay_ms;
   cec_nvs.config.physical_address = config->physical_address;
   cec_nvs.config.logical_address = config->logical_address;
+  cec_nvs.config.device_type = config->device_type;
   cec_nvs.config.keymap_type = config->keymap_type;
 
   for (unsigned int n = 0; n < UINT8_MAX; n++) {

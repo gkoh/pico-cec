@@ -121,14 +121,22 @@ const char *cec_feature_abort_reason[] = {
 /** The running CEC configuration. */
 static cec_config_t config = {0x0};
 
-#define DEFAULT_TYPE 0x04  // HDMI Playback 1
-
-// HDMI Playback logical addresses
-#define NUM_ADDRESS 4
-static const uint8_t address[NUM_ADDRESS] = {0x04, 0x08, 0x0b, 0x0f};
+// HDMI logical addresses
+// 2 dimensional array of valid logical addresses for playback and recording
+// only.
+#define NUM_LADDRESS 4
+#define NUM_TYPES 6
+static const uint8_t laddress[NUM_TYPES][NUM_LADDRESS] = {
+    {0x0f, 0x0f, 0x0f, 0x0f},  // TV
+    {0x01, 0x02, 0x09, 0x0f},  // Recording Device
+    {0x0f, 0x0f, 0x0f, 0x0f},  // Reserved
+    {0x0f, 0x0f, 0x0f, 0x0f},  // Tuner
+    {0x04, 0x08, 0x0b, 0x0f},  // Playback Device
+    {0x0f, 0x0f, 0x0f, 0x0f},  // Audio System
+};
 
 /* The HDMI address for this device.  Respond to CEC sent to this address. */
-static uint8_t laddr = address[0];
+static uint8_t laddr = 0x0f;
 
 /* The HDMI physical address. */
 static uint16_t paddr = 0x0000;
@@ -212,6 +220,10 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
         log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd],
                    "Display OFF");
         break;
+      case CEC_ID_ROUTING_CHANGE:
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%02x%02x -> %02x%02x]",
+                   cec_message[cmd], msg->data[2], msg->data[3], msg->data[4], msg->data[5]);
+        break;
       case CEC_ID_ACTIVE_SOURCE:
         log_printf(initiator, destination, recv, frame->ack, "[%s][%02x%02x Display ON]",
                    cec_message[cmd], msg->data[2], msg->data[3]);
@@ -237,8 +249,22 @@ static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
         }
         break;
       case CEC_ID_REPORT_POWER_STATUS:
-        log_printf(initiator, destination, recv, frame->ack, "[%s][%02x]", cec_message[cmd],
-                   msg->data[2]);
+        const char *status = "unknown";
+        switch (msg->data[2]) {
+          case 0x00:
+            status = "On";
+            break;
+          case 0x01:
+            status = "Standby";
+            break;
+          case 0x02:
+            status = "In transition Standby to On";
+            break;
+          case 0x03:
+            status = "In transition On to Standby";
+            break;
+        }
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], status);
         break;
       default: {
         const char *message = cec_message[cmd];
@@ -612,11 +638,16 @@ void cec_get_stats(hdmi_cec_stats_t *stats) {
   *stats = cec_stats;
 }
 
-static uint8_t allocate_logical_address(void) {
+static uint8_t allocate_logical_address(cec_config_t *config) {
+  if (config->logical_address != 0x00 && config->logical_address != 0x0f) {
+    return config->logical_address;
+  }
+
+  // Treat 0x00 or 0x0f as auto-allocate
   uint8_t a;
-  for (unsigned int i = 0; i < NUM_ADDRESS; i++) {
-    a = address[i];
-    cec_log_submitf("Attempting to allocate logical address 0x%02x"_CDC_BR, a);
+  for (unsigned int i = 0; i < NUM_LADDRESS; i++) {
+    a = laddress[config->device_type][i];
+    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_CDC_BR, a);
     if (!cec_ping(a)) {
       break;
     }
@@ -657,7 +688,7 @@ void cec_task(void *data) {
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
   paddr = get_physical_address(&config);
-  laddr = allocate_logical_address();
+  laddr = allocate_logical_address(&config);
 
   while (true) {
     uint8_t pld[16] = {0x0};
@@ -688,11 +719,14 @@ void cec_task(void *data) {
           }
           break;
         case CEC_ID_GIVE_AUDIO_STATUS:
-          if (destination == laddr)
+          if (destination == laddr) {
             report_audio_status(laddr, initiator, 0x32);  // volume 50%, mute off
+          }
           break;
         case CEC_ID_SET_SYSTEM_AUDIO_MODE:
-          audio_status = (pld[2] == 1);
+          if (destination == laddr || destination == 0x0f) {
+            audio_status = (pld[2] == 1);
+          }
           break;
         case CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS:
           if (destination == laddr)
@@ -701,31 +735,38 @@ void cec_task(void *data) {
         case CEC_ID_SYSTEM_AUDIO_MODE_STATUS:
           break;
         case CEC_ID_ROUTING_CHANGE:
+          // uint16_t old_addr = (pld[2] << 8) | pld[3];
+          active_addr = (pld[4] << 8) | pld[5];
           paddr = get_physical_address(&config);
-          image_view_on(laddr, 0x00);
-          active_addr = paddr;
+          laddr = allocate_logical_address(&config);
+          if (paddr == active_addr) {
+            image_view_on(laddr, 0x00);
+            active_source(laddr, paddr);
+          }
           break;
         case CEC_ID_ACTIVE_SOURCE:
+          active_addr = (pld[2] << 8) | pld[3];
           break;
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
             paddr = get_physical_address(&config);
-            laddr = allocate_logical_address();
+            laddr = allocate_logical_address(&config);
             if (paddr != 0x0000) {
-              report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
+              report_physical_address(laddr, 0x0f, paddr, config.device_type);
             }
           }
           break;
         case CEC_ID_REQUEST_ACTIVE_SOURCE:
-          active_addr = (pld[2] << 8) | pld[3];
           if (paddr == active_addr) {
+            image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
           }
           break;
         case CEC_ID_SET_STREAM_PATH:
           if (paddr == ((pld[2] << 8) | pld[3])) {
             active_addr = paddr;
+            image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
             blink_set_blink(BLINK_STATE_GREEN_2HZ);
           }
@@ -772,7 +813,7 @@ void cec_task(void *data) {
           break;
         case CEC_ID_GIVE_PHYSICAL_ADDRESS:
           if (destination == laddr && paddr != 0x0000)
-            report_physical_address(laddr, 0x0f, paddr, DEFAULT_TYPE);
+            report_physical_address(laddr, 0x0f, paddr, config.device_type);
           break;
         case CEC_ID_USER_CONTROL_PRESSED:
           if (destination == laddr) {

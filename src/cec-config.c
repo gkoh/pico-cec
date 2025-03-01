@@ -68,9 +68,18 @@ static const uint16_t default_physical_addr = 0x0000;
 /**
  * Default logical address.
  *
- * @note Currently unused.
+ * Valid values are 0x00 through to 0x0f.
+ * 0x00 is the TV, 0x0f is unregistered, both are treated as 'auto-allocate'.
+ * Anything else is treated as 'hardcoded'.
  */
-static const uint8_t default_logical_addr = 0x00;
+static const uint8_t default_logical_addr = 0x0f;
+
+/**
+ * Default device type.
+ *
+ * One of "playback" or "recording" enumeration.
+ */
+static const uint8_t default_device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
 
 /**
  * Default (Kodi) key mapping from HDMI user control to HID keyboard entry.
@@ -140,7 +149,7 @@ void cec_config_set_default(cec_config_t *config) {
   config->edid_delay_ms = default_edid_delay_ms;
   config->physical_address = default_physical_addr;
   config->logical_address = default_logical_addr;
-  config->device_type = 0;
+  config->device_type = default_device_type;
 #if KEYMAP_DEFAULT_KODI
   config->keymap_type = CEC_CONFIG_KEYMAP_KODI;
 #elif KEYMAP_DEFAULT_MISTER

@@ -104,12 +104,39 @@ static void print_physical_address(uint16_t address) {
   cdc_printfln("%-17s: 0x%04x", "Physical address", address);
 }
 
+static void print_logical_address(uint8_t address) {
+  cdc_printfln("%-17s: 0x%02x", "Logical address", address);
+}
+
 static int show_config(cec_config_t *config) {
   // UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   // cdc_printfln("StackHighWaterMark = %lu", uxHighWaterMark);
 
   print_edid_delay(config->edid_delay_ms);
   print_physical_address(config->physical_address);
+  print_logical_address(config->logical_address);
+  const char *type = "unknown";
+  switch ((cec_config_device_type_t)config->device_type) {
+    case CEC_CONFIG_DEVICE_TYPE_TV:
+      type = "TV";
+      break;
+    case CEC_CONFIG_DEVICE_TYPE_RECORDING:
+      type = "recording";
+      break;
+    case CEC_CONFIG_DEVICE_TYPE_RESERVED:
+      type = "reserved";
+      break;
+    case CEC_CONFIG_DEVICE_TYPE_PLAYBACK:
+      type = "playback";
+      break;
+    case CEC_CONFIG_DEVICE_TYPE_TUNER:
+      type = "tuner";
+      break;
+    case CEC_CONFIG_DEVICE_TYPE_AUDIO_SYSTEM:
+      type = "audio";
+      break;
+  }
+  cdc_printfln("%-17s: %s", "Device type", type);
 
   const char *keymap = "unknown";
   switch (config->keymap_type) {
@@ -192,7 +219,7 @@ static int exec_show(void *arg, int argc, const char **argv) {
       }
     } else if (strcmp(argv[1], "cec") == 0) {
       print_physical_address(cec_get_physical_address());
-      cdc_printfln("%-17s: 0x%02x", "Logical address", cec_get_logical_address());
+      print_logical_address(cec_get_logical_address());
     } else if (strcmp(argv[1], "version") == 0) {
       return show_version(arg);
     } else if (strcmp(argv[1], "nvs") == 0) {
@@ -256,6 +283,26 @@ static int exec_set(void *arg, int argc, const char **argv) {
           cdc_printfln("Error parsing physical address");
           return -1;
         }
+      } else if (strcmp(argv[2], "logical_address") == 0) {
+        if (sscanf(argv[3], "%hhx", &config.logical_address) == 1) {
+          config.logical_address &= 0x0f;  // valid is 00 to 0f
+          print_logical_address(config.logical_address);
+          return 0;
+        } else {
+          cdc_printfln("Error parsing logical address");
+          return -1;
+        }
+      } else if (strcmp(argv[2], "device_type") == 0) {
+        if (strcmp(argv[3], "playback") == 0) {
+          config.device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
+          return 0;
+        } else if (strcmp(argv[3], "recording") == 0) {
+          config.device_type = CEC_CONFIG_DEVICE_TYPE_RECORDING;
+          return 0;
+        } else {
+          cdc_printfln("Unknown device type \'%s\'", argv[3]);
+          return -1;
+        }
       }
     }
   } else if (argc == 3) {
@@ -283,7 +330,8 @@ static const tclie_cmd_t cmds[] = {
     {"query", exec_query, "Query information.", "query {edid}"},
     {"save", exec_save, "Save configuration.", "save"},
     {"set", exec_set, "Set configuration parameters.",
-     "set {(config edid_delay_ms|physical_address <value>)|(keymap <value>)}"},
+     "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
+     "{playback|recording}))|(keymap <value>)}"},
     {"show", exec_show, "Show information.",
      "show {cec|config|keymap|nvs|(stats {cec|cpu|tasks})|version}"},
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},

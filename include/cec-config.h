@@ -15,6 +15,15 @@ typedef enum {
   CEC_CONFIG_KEYMAP_MISTER = 2,
 } cec_config_keymap_t;
 
+typedef enum {
+  CEC_CONFIG_DEVICE_TYPE_TV = 0,
+  CEC_CONFIG_DEVICE_TYPE_RECORDING = 1,
+  CEC_CONFIG_DEVICE_TYPE_RESERVED = 2,
+  CEC_CONFIG_DEVICE_TYPE_TUNER = 3,
+  CEC_CONFIG_DEVICE_TYPE_PLAYBACK = 4,
+  CEC_CONFIG_DEVICE_TYPE_AUDIO_SYSTEM = 5,
+} cec_config_device_type_t;
+
 /**
  * CEC configuration in-memory.
  */
