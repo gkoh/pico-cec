@@ -695,6 +695,7 @@ void cec_task(void *data) {
     uint8_t pldcnt;
     uint8_t initiator, destination;
     uint8_t key = HID_KEY_NONE;
+    uint8_t no_active = 0;
 
     pldcnt = recv_frame(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
@@ -742,10 +743,12 @@ void cec_task(void *data) {
           if (paddr == active_addr) {
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
+            no_active = 0;
           }
           break;
         case CEC_ID_ACTIVE_SOURCE:
           active_addr = (pld[2] << 8) | pld[3];
+          no_active = 0;
           break;
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
           // On broadcast receive, do the same
@@ -758,9 +761,11 @@ void cec_task(void *data) {
           }
           break;
         case CEC_ID_REQUEST_ACTIVE_SOURCE:
-          if (paddr == active_addr) {
+          no_active++;
+          if (paddr == active_addr || no_active > 2) {
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
+            no_active = 0;
           }
           break;
         case CEC_ID_SET_STREAM_PATH:
@@ -768,6 +773,7 @@ void cec_task(void *data) {
             active_addr = paddr;
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
+            no_active = 0;
             blink_set_blink(BLINK_STATE_GREEN_2HZ);
           }
           break;
