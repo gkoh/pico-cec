@@ -58,7 +58,7 @@ jobs:
       run: cmake -B ${{github.workspace}}/${{matrix.pico_board}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPICO_CEC_VERSION=${{github.ref_name}}
 
     - name: Build Pico-CEC
-      run: cmake --build ${{github.workspace}}/${{matrix.pico_board}} --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/${{matrix.pico_board}} --config ${{env.BUILD_TYPE}} --parallel
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
