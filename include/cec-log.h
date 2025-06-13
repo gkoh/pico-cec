@@ -1,8 +1,8 @@
 #ifndef CEC_LOG_H
 #define CEC_LOG_H
 
-#include <stdbool.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 void cec_log_init(void);
 bool cec_log_enabled();
