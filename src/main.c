@@ -15,11 +15,15 @@
 #include "usb_hid.h"
 #include "ws2812.h"
 
-#define USBD_STACK_SIZE (512)
-#define HID_STACK_SIZE (256)
-#define CDC_STACK_SIZE (1024)
-#define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (1024)
+#ifndef STACK_WORDSIZE
+#define STACK_WORDSIZE 1
+#endif
+
+#define USBD_STACK_SIZE (512*STACK_WORDSIZE)
+#define HID_STACK_SIZE (256*STACK_WORDSIZE)
+#define CDC_STACK_SIZE (1024*STACK_WORDSIZE)
+#define BLINK_STACK_SIZE (128*STACK_WORDSIZE)
+#define CEC_STACK_SIZE (1024*STACK_WORDSIZE)
 #define CEC_QUEUE_LENGTH (16)
 
 void cdc_task(void *param);
@@ -52,8 +56,8 @@ int main() {
   alarm_pool_init_default();
 
   // HID key queue
-  QueueHandle_t cec_q =
-      xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
+  static QueueHandle_t cec_q;
+  cec_q = xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
 
   xBlinkTask =
       xTaskCreateStatic(blink_task, "Blink", BLINK_STACK_SIZE, NULL, 1, &stackBlink[0], &xBlinkTCB);

@@ -1,3 +1,6 @@
+#ifdef __XTENSA__
+#include <freertos/FreeRTOSConfig.h>
+#else
 /*
  * FreeRTOS Kernel V10.0.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
@@ -146,3 +149,5 @@ extern uint64_t time_us_64(void);
 #define vPortSVCHandler SVC_Handler
 
 #endif /* __FREERTOS_CONFIG__H */
+
+#endif // __XTENSA__

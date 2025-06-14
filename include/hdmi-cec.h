@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "FreeRTOS.h"
 #include "task.h"
 #define CEC_TASK_NAME "cec"
 
