@@ -28,7 +28,7 @@ static void blink_task(void *param) {
   }
 }
 
-#ifdef ESP_SYSTEM_H
+#ifdef __XTENSA__
 int debug_main() {
 #else
 int main() {

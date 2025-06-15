@@ -15,13 +15,15 @@
 #include "usb_hid.h"
 #include "ws2812.h"
 
+// Vanilla FreeRTOS specifies stack sizes in number of words whilst
+// XTENSA FreeRTOS uses number of bytes
 #ifndef STACK_WORDSIZE
-#define STACK_WORDSIZE 1
+#define STACK_WORDSIZE 1 // Needs better name, currently inverted meaning - STACK_BYTES? STACK_WORDBYTES??
 #endif
 
 #define USBD_STACK_SIZE (512*STACK_WORDSIZE)
 #define HID_STACK_SIZE (256*STACK_WORDSIZE)
-#define CDC_STACK_SIZE (1024*STACK_WORDSIZE)
+#define CDC_STACK_SIZE (2048*STACK_WORDSIZE)
 #define BLINK_STACK_SIZE (128*STACK_WORDSIZE)
 #define CEC_STACK_SIZE (1024*STACK_WORDSIZE)
 #define CEC_QUEUE_LENGTH (16)

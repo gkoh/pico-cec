@@ -11,6 +11,7 @@
 static const char *TAG = "port";
 
 #include "driver/gpio.h"
+#include "driver/uart.h"
 #include "driver/gptimer.h"
 
 #include "pico/stdlib.h"
@@ -18,6 +19,33 @@ static const char *TAG = "port";
 
 // For timer support:
 // CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD=y  // sdkconfig
+
+#define UART_TXD (17)
+#define UART_RXD (16)
+#define UART_RTS (UART_PIN_NO_CHANGE)
+#define UART_CTS (UART_PIN_NO_CHANGE)
+
+#define UART_PORT_NUM  (2)
+#define UART_BAUD_RATE (115200)
+#define UART_BUF_SIZE  (128)
+
+static void uart_setup() {
+    uart_config_t uart_config = {
+        .baud_rate  = UART_BAUD_RATE,
+        .data_bits  = UART_DATA_8_BITS,
+        .parity     = UART_PARITY_DISABLE,
+        .stop_bits  = UART_STOP_BITS_1,
+        .flow_ctrl  = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    int intr_alloc_flags = 0;
+#if CONFIG_UART_ISR_IN_IRAM
+    intr_alloc_flags = ESP_INTR_FLAG_IRAM;
+#endif
+    ESP_ERROR_CHECK(uart_driver_install(UART_PORT_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
+    ESP_ERROR_CHECK(uart_param_config(UART_PORT_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, UART_TXD, UART_RXD, UART_RTS, UART_CTS));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR main.c
@@ -34,7 +62,7 @@ static const char *TAG = "port";
 //void blink_init() {}
 
 void vTaskStartScheduler_stub(void) {
-	ESP_LOGI(TAG, "vTaskStartScheduler_stub() invoked");
+    ESP_LOGI(TAG, "vTaskStartScheduler_stub() invoked");
 }
 
 void gpio_setup(void); // currently only in development branch
@@ -42,6 +70,7 @@ void gpio_setup(void); // currently only in development branch
 void stdio_init_all() {}
 void board_init() {
 //	gpio_setup();
+    uart_setup();
 }
 //void alarm_pool_init_default() {}
 //void cec_log_init() {}
@@ -163,7 +192,7 @@ void gpio_set_irq_callback(gpio_irq_callback_t callback) {
 }
 //gpio_function_t gpio_get_function(uint gpio) { return NULL; }
 bool gpio_get(uint gpio) {
-	return gpio_get_level(gpio);
+    return gpio_get_level(gpio);
 }
 void gpio_put(uint gpio, int value) {
     gpio_set_level(gpio, value);
@@ -212,7 +241,7 @@ void alarm_pool_init_default() {
         return;
     }
 
-	ESP_LOGI(TAG, "Create timer handle");
+    ESP_LOGI(TAG, "Create timer handle");
     gptimer_handle_t gptimer = NULL;
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
@@ -239,7 +268,7 @@ alarm_id_t add_alarm_at(absolute_time_t time, alarm_callback_t callback, void *u
 
 
 
-	return 0;
+    return 0;
 }
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -279,7 +308,7 @@ void ws2812_put_pixel(uint32_t pixel_grb) {}
 
 //void cdc_log(const char *str) {}
 uint64_t time_us_64(void) {
-	 return esp_timer_get_time();
+     return esp_timer_get_time();
 }
 //uint32_t crc32(unsigned char *, int size) { return 0; }
 uint32_t CEC_NVS_BASE_ADDR[] = { 0 };
@@ -298,11 +327,29 @@ void tud_hid_keyboard_report(int a, int b, void* c) {}
 int tud_suspended() { return 0; }
 int tud_hid_ready() { return 0; }
 void tud_remote_wakeup() {}
-void tud_cdc_write_str(const char* str) {}
-int tud_cdc_connected() { return 0; }
-int tud_cdc_available() { return 0; }
-uint8_t tud_cdc_read_char() { return 0; }
-void tud_cdc_write_flush() {}
+
+#include <string.h>
+void tud_cdc_write_str(const char* str) {
+    uart_write_bytes(UART_PORT_NUM, str, strlen(str));
+}
+int tud_cdc_connected() {
+    return 1;
+}
+int tud_cdc_available() {
+    size_t size;
+    uart_get_buffered_data_len(UART_PORT_NUM, &size);
+    return size;
+}
+uint8_t tud_cdc_read_char() {
+    uint8_t data;
+    uart_read_bytes(UART_PORT_NUM, &data, 1, 20 / portTICK_PERIOD_MS); // (20 / portTICK_PERIOD_MS) = 2
+    ESP_LOGI(TAG, "Recv char: %c", data);
+    return data;
+}
+void tud_cdc_write_flush() {
+    vTaskDelay(pdMS_TO_TICKS(10));
+//    uart_flush(UART_PORT_NUM);
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 void reset_usb_boot(int mask, int unknown) {}
