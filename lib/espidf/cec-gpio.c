@@ -1,23 +1,64 @@
-#if 0
-/*
- * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include "driver/gpio.h"
-#include "esp_log.h"
 
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
 
-static const char *TAG = "gpio";
+#include "portable.h"
+#include "cec-gpio.h"
 
+// We will need to be careful with how we handle this function as it looks
+// like the gpio_config function is designed to initialise all pins at once
+// so any consequitive calls may overwrite the previous ones - TODO:
+void gpio_init(uint gpio) {
+
+//  gpio_init(CEC_PIN);
+//  gpio_init(PICO_DEFAULT_LED_PIN);
+//  gpio_init(PICO_DEFAULT_WS2812_POWER_PIN);
+
+    // //zero-initialize the config structure.
+    // gpio_config_t io_conf = {};
+    // //disable interrupt
+    // io_conf.intr_type = GPIO_INTR_DISABLE;
+    // //set as output mode
+    // io_conf.mode = GPIO_MODE_OUTPUT;
+    // //bit mask of the pins that you want to set,e.g.GPIO18/19
+    // io_conf.pin_bit_mask = gpio;
+    // //disable pull-down mode
+    // io_conf.pull_down_en = 0;
+    // //disable pull-up mode
+    // io_conf.pull_up_en = 0;
+    // //configure GPIO with the given settings
+    // gpio_config(&io_conf);
+}
+void gpio_disable_pulls(uint gpio) {
+	gpio_pullup_dis(gpio);
+}
+void gpio_set_dir(uint gpio, bool out) {
+//	gpio_reset_pin(gpio);
+	gpio_set_direction(gpio, out == GPIO_OUT ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT);
+}
+bool gpio_get(uint gpio) {
+    return gpio_get_level(gpio);
+}
+void gpio_put(uint gpio, int value) {
+    gpio_set_level(gpio, value);
+}
+void gpio_pull_up(uint gpio) {
+//  gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+//  gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+	gpio_pullup_en(gpio);
+}
+void gpio_set_function(uint gpio, enum gpio_function fn) {
+//  gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+//  gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+}
+
+#if 0
 /**
  * Brief:
  * This test code shows how to configure gpio and how to use gpio interrupt.
@@ -80,7 +121,6 @@ static void gpio_task_example(void* arg)
     }
 }
 
-
 #define GPIO_STACK_SIZE (1024)
 static StackType_t stackGPIO[GPIO_STACK_SIZE];
 static StaticTask_t xGPIOTCB;
@@ -90,7 +130,7 @@ static StaticQueue_t xStaticGPIOQueue;
 static uint8_t storageGPIOQueue[GPIO_QUEUE_LENGTH * sizeof(uint8_t)];
 static TaskHandle_t xGPIOTask;
 
-void gpio_setup(void)
+void gpio_init_all(void)
 {
     //zero-initialize the config structure.
     gpio_config_t io_conf = {};
@@ -120,8 +160,6 @@ void gpio_setup(void)
     //change gpio interrupt type for one pin
     gpio_set_intr_type(GPIO_INPUT_IO_0, GPIO_INTR_ANYEDGE);
 
-//     QueueHandle_t queue = xQueueCreateStatic(10, sizeof(example_queue_element_t), &storageGPIOQueue[0], &xStaticGPIOQueue);
-
     //create a queue to handle gpio event from isr
     gpio_evt_queue = xQueueCreateStatic(10, sizeof(uint32_t), &storageGPIOQueue[0], &xStaticGPIOQueue); // TODO: changed from xQueueCreate to xQueueCreateStatic
     if (!gpio_evt_queue) {
@@ -129,10 +167,8 @@ void gpio_setup(void)
         return;
     }
 
-//      xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
     //start gpio task
-//    xGPIOTask = xTaskCreateStatic(gpio_task_example, "gpio_task_example", GPIO_STACK_SIZE, &gpio_evt_queue, 10, &stackGPIO[0], &xGPIOTCB); // TODO: ditto
-////    xTaskCreateStatic(cec_task, CEC_TASK_NAME, CEC_STACK_SIZE, &cec_q, configMAX_PRIORITIES - 1, &stackCEC[0], &xCECTCB);
+    xGPIOTask = xTaskCreateStatic(gpio_task_example, "gpio_task_example", GPIO_STACK_SIZE, &gpio_evt_queue, 10, &stackGPIO[0], &xGPIOTCB); // TODO: ditto
     (void)xGPIOTask;
 
     //install gpio isr service

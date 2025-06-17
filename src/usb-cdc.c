@@ -11,6 +11,8 @@
 #include "tclie.h"
 #include "usb-cdc.h"
 
+#include "pico/stdlib.h" // added to improve code portability (locally customised outside of core codebase)
+
 #ifndef PICO_CEC_VERSION
 #define PICO_CEC_VERSION "unknown"
 #endif
