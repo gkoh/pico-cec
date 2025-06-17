@@ -9,7 +9,7 @@
 #include "task.h"
 
 #include "portable.h"
-#include "cec-gpio.h"
+#include "esp-gpio.h"
 
 // We will need to be careful with how we handle this function as it looks
 // like the gpio_config function is designed to initialise all pins at once

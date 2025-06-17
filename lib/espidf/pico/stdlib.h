@@ -1,5 +1,5 @@
 
 #include "../portable.h"
-#include "../cec-gpio.h"
-#include "../cec-int.h"
+#include "../esp-gpio.h"
+#include "../esp-int.h"
 

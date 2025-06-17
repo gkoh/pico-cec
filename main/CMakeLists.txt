@@ -16,8 +16,8 @@ idf_component_register(SRCS
 #                    "../src/ws2812.pio"
                     "../tcli/source/tcli.c"
                     "../tcli/source/tclie.c"
-                    "../lib/espidf/cec-int.c"
-                    "../lib/espidf/cec-gpio.c"
+                    "../lib/espidf/esp-int.c"
+                    "../lib/espidf/esp-gpio.c"
                     "../lib/espidf/portable.c"
                     "../lib/espidf/crc/crc32.c"
                     PRIV_REQUIRES spi_flash esp_timer

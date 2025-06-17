@@ -14,7 +14,7 @@
 
 #include "pico/stdlib.h"
 #include "portable.h"
-#include "cec-gpio.h"
+#include "esp-gpio.h"
 
 const char *TAG = "nil";  // global tag for reference from multiple modules
 

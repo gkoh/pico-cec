@@ -15,8 +15,8 @@
 
 #include "pico/stdlib.h"
 #include "portable.h"
-#include "cec-gpio.h"
-#include "cec-int.h"
+#include "esp-gpio.h"
+#include "esp-int.h"
 
 // For timer support:
 // CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD=y  // sdkconfig
