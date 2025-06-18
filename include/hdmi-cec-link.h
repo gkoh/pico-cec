@@ -5,8 +5,7 @@
 #include "task.h"
 
 #ifndef CEC_PIN
-//#define CEC_PIN 3  // GPIO3 == D10 (Seeed Studio XIAO RP2040)
-#define CEC_PIN 4  // GPIO4 == D? (esp32)
+#define CEC_PIN 3  // GPIO3 == D10 (Seeed Studio XIAO RP2040)
 #endif
 
 extern TaskHandle_t xCECTask;
