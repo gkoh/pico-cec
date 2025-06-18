@@ -32,7 +32,7 @@
 
 #include "ws2812.h"
 
-void vApplicationStackOverflowHook(xTaskHandle pxTask, char *pcTaskName) {
+void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName) {
   (void)pxTask;
   (void)pcTaskName;
 

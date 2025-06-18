@@ -6,6 +6,7 @@
 
 #include "cec-log.h"
 #include "hdmi-cec.h"
+#include "hdmi-cec-link.h"
 #include "hdmi-ddc.h"
 #include "nvs.h"
 #include "tclie.h"

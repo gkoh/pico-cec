@@ -8,12 +8,13 @@
 #include "pico/stdlib.h"
 
 #include "hdmi-cec.h"
+#include "hdmi-cec-link.h"
 
 #define BLINK_STACK_SIZE (128)
 #define CEC_STACK_SIZE (512)
 #define CEC_QUEUE_LENGTH (16)
 
-void blink_task(void *param) {
+static void blink_task(void *param) {
   static uint32_t blink_delay = 1000;
   static bool state = true;
 

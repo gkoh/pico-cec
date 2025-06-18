@@ -56,6 +56,8 @@ add_executable(${PROJECT}
   src/cec-log.c
   src/freertos_hook.c
   src/hdmi-cec.c
+  src/hdmi-cec-link.c
+  src/hdmi-cec-log.c
   src/hdmi-ddc.c
   src/main.c
   src/nvs.c

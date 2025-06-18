@@ -11,6 +11,7 @@
 #include "blink.h"
 #include "cec-log.h"
 #include "hdmi-cec.h"
+#include "hdmi-cec-link.h"
 #include "usb-cdc.h"
 #include "usb_hid.h"
 #include "ws2812.h"
@@ -21,8 +22,6 @@
 #define BLINK_STACK_SIZE (128)
 #define CEC_STACK_SIZE (1024)
 #define CEC_QUEUE_LENGTH (16)
-
-void cdc_task(void *param);
 
 int main() {
   static StaticQueue_t xStaticCECQueue;
