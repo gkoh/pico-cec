@@ -1,32 +1,6 @@
 #ifndef HDMI_LINK_H
 #define HDMI_LINK_H
 
-/*
-Minor refactoring of module hdmi-cec to encapsulate interrupt handling routines
-in a single unit, and while at it separated out function log_cec_frame and its
-supporting string table.
-
-Choosen name for new module being hdmi-cec-link as its functionality somewhat
-represents the link layer in the osi network model whilst still being clearly
-related to hdmi-cec which it serves. Similar rationale with the log module.
-
-The inherent modularity achieved as a result of this change will be apparent
-via inspection of the respective header files.
-
-This should also aid future porting to other devices, as it certainly helped me
-with the effort towards supporting the esp family of targets. (using esp-idf)
-
-As always with these things the pros'vs'cons are forever debatable, but this at
-least reduces the size of the hdmi-cec module to a more manageable <400 lines.
-
-hdmi-cec-link handles the cec packets (frames)
-hdmi-cec handles the cec protocol (transactions)
-
-Build tested for pi-pico and esp32, however not as yet passed a run-time check.
-
-Further improvement may be possible.
-*/
-
 #include "FreeRTOS.h"
 #include "task.h"
 
