@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "usb-cdc.h"
 #include "cec-config.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
-#include "hdmi-cec-link.h"
 #include "hdmi-cec-id.h"
+#include "hdmi-cec-link.h"
 #include "hdmi-cec-log.h"
+#include "hdmi-cec.h"
+#include "usb-cdc.h"
 
 const char *cec_message[] = {
     [CEC_ID_FEATURE_ABORT] = "Feature Abort",
@@ -170,4 +170,3 @@ void log_cec_frame(hdmi_frame_t *frame, bool recv) {
     log_printf(initiator, destination, recv, frame->ack, "[%s]", "Polling Message");
   }
 }
-

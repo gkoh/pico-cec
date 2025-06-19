@@ -7,8 +7,8 @@
 #include "hardware/timer.h"
 #include "pico/stdlib.h"
 
-#include "hdmi-cec.h"
 #include "hdmi-cec-link.h"
+#include "hdmi-cec.h"
 
 #define BLINK_STACK_SIZE (128)
 #define CEC_STACK_SIZE (512)

@@ -10,8 +10,8 @@
 
 #include "blink.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
 #include "hdmi-cec-link.h"
+#include "hdmi-cec.h"
 #include "usb-cdc.h"
 #include "usb_hid.h"
 #include "ws2812.h"

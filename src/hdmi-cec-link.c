@@ -2,10 +2,10 @@
 #include <stdio.h>
 
 #include "pico/stdlib.h"
-#include "tusb.h" // required for memset on target pico
+#include "tusb.h"  // required for memset on target pico
 
-#include "hdmi-cec-log.h"
 #include "hdmi-cec-link.h"
+#include "hdmi-cec-log.h"
 
 #define NOTIFY_RX ((UBaseType_t)0)
 #define NOTIFY_TX ((UBaseType_t)1)
@@ -40,7 +40,7 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
   gpio_acknowledge_irq(gpio, events);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
-//  printf("state = %d, byte = %d, bit = %d\n", rx_frame.state, rx_frame.byte, rx_frame.bit);
+  //  printf("state = %d, byte = %d, bit = %d\n", rx_frame.state, rx_frame.byte, rx_frame.bit);
 
   switch (rx_frame.state) {
     case HDMI_FRAME_STATE_START_LOW:
@@ -152,7 +152,6 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
 
 uint8_t recv_frame(uint8_t *pld, uint8_t address) {
   // printf("recv_frame\n");
-  //ESP_LOGI(TAG, "recv_frame");
   rx_frame.address = address;
   rx_frame.state = HDMI_FRAME_STATE_START_LOW;
   rx_frame.ack = false;
@@ -161,7 +160,6 @@ uint8_t recv_frame(uint8_t *pld, uint8_t address) {
   ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, portMAX_DELAY);
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
-  //ESP_LOGI(TAG, "high water mark = %lu", (long unsigned int)uxTaskGetStackHighWaterMark(xCECTask));
 
   log_cec_frame(&rx_frame, true);
 
@@ -246,9 +244,6 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
 
 static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
-  uint32_t result;
-
-  ESP_LOGI(TAG, "hdmi_tx_frame %d", len);
 
   // wait 7 bit times of idle before sending
   while (i < 7) {
@@ -269,12 +264,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
                         .ack = false,
                         .state = HDMI_FRAME_STATE_START_LOW};
   add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
-//  ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
-  result = ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
-//  result = ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, pdMS_TO_TICKS(100));
-  if (pdTRUE != result) {
-    ESP_LOGI(TAG, "ulTaskNotifyTakeIndexed(NOTIFY_TX) timed out %ld", result);
-  }
+  ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
   log_cec_frame(&frame, false);
 
@@ -305,4 +295,3 @@ void hdmi_link_init(void) {
   irq_set_enabled(IO_IRQ_BANK0, true);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 }
-

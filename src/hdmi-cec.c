@@ -4,14 +4,14 @@
 
 #include "class/hid/hid.h"
 #include "pico/stdlib.h"
-#include "tusb.h" // required for HID_KEY_NONE, despite above inclusion of class/hid/hid.h where it is defined?
+#include "tusb.h"  // required for HID_KEY_NONE, despite above inclusion of class/hid/hid.h where it is defined?
 
 #include "blink.h"
 #include "cec-config.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
-#include "hdmi-cec-link.h"
 #include "hdmi-cec-id.h"
+#include "hdmi-cec-link.h"
+#include "hdmi-cec.h"
 #include "hdmi-ddc.h"
 #include "nvs.h"
 #include "usb-cdc.h"
