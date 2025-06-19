@@ -1,8 +1,8 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "pico/stdlib.h"
-#include "tusb.h" // required for memset on target pico
 
 #include "hdmi-cec-log.h"
 #include "hdmi-cec-link.h"
@@ -248,7 +248,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
   uint32_t result;
 
-  ESP_LOGI(TAG, "hdmi_tx_frame %d", len);
+  //ESP_LOGI(TAG, "hdmi_tx_frame %d", len);
 
   // wait 7 bit times of idle before sending
   while (i < 7) {
@@ -273,7 +273,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   result = ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
 //  result = ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, pdMS_TO_TICKS(100));
   if (pdTRUE != result) {
-    ESP_LOGI(TAG, "ulTaskNotifyTakeIndexed(NOTIFY_TX) timed out %ld", result);
+    //ESP_LOGI(TAG, "ulTaskNotifyTakeIndexed(NOTIFY_TX) timed out %ld", result);
   }
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
   log_cec_frame(&frame, false);
