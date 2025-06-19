@@ -244,9 +244,6 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
 
 static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
-  uint32_t result;
-
-  //ESP_LOGI(TAG, "hdmi_tx_frame %d", len);
 
   // wait 7 bit times of idle before sending
   while (i < 7) {
