@@ -12,59 +12,56 @@
 #include "driver/gpio.h"
 #include "driver/uart.h"
 
-#include "pico/stdlib.h"
+#include "esp-port.h"
 #include "portable.h"
-#include "esp-gpio.h"
 
 const char *TAG = "nil";  // global tag for reference from multiple modules
 
-#define UART_TXD (17)
-#define UART_RXD (16)
-#define UART_RTS (UART_PIN_NO_CHANGE)
-#define UART_CTS (UART_PIN_NO_CHANGE)
-
-#define UART_PORT_NUM  (2)
-#define UART_BAUD_RATE (115200)
-#define UART_BUF_SIZE  (128)
-
-static void uart_init() {
-    uart_config_t uart_config = {
-        .baud_rate  = UART_BAUD_RATE,
-        .data_bits  = UART_DATA_8_BITS,
-        .parity     = UART_PARITY_DISABLE,
-        .stop_bits  = UART_STOP_BITS_1,
-        .flow_ctrl  = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-    int intr_alloc_flags = 0;
-#if CONFIG_UART_ISR_IN_IRAM
-    intr_alloc_flags = ESP_INTR_FLAG_IRAM;
-#endif
-    ESP_ERROR_CHECK(uart_driver_install(UART_PORT_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
-    ESP_ERROR_CHECK(uart_param_config(UART_PORT_NUM, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, UART_TXD, UART_RXD, UART_RTS, UART_CTS));
+void gpio_init(uint gpio) {}
+void gpio_disable_pulls(uint gpio) {
+//  gpio_pullup_dis(gpio);
+  gpio_pullup_en(gpio);
 }
+void IRAM_ATTR gpio_set_dir(uint gpio, bool out) {
+  //	gpio_reset_pin(gpio);
+  gpio_set_direction(gpio, out == GPIO_OUT ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT);
+}
+bool gpio_get(uint gpio) {
+  return gpio_get_level(gpio);
+}
+void gpio_put(uint gpio, int value) {
+  gpio_set_level(gpio, value);
+}
+void gpio_pull_up(uint gpio) {
+  //  gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+  //  gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+  gpio_pullup_en(gpio);
+}
+void gpio_set_function(uint gpio, enum gpio_function fn) {
+  //  gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+  //  gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR main.c
 void vTaskStartScheduler_stub(void) {
     // Vanilla FreeRTOS never returns, but with esp32 we wouldn't even call this so don't block
-    ESP_LOGI(TAG, "vTaskStartScheduler_stub() invoked");
+    //ESP_LOGI(TAG, "vTaskStartScheduler_stub() invoked");
 }
 void stdio_init_all() {}
 void board_init() {
-//	gpio_init_all();
-    uart_init();
+  esp_log_level_set("*", ESP_LOG_DEBUG);
+  uart_init();
 }
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR hdmi-cec.c
-// #define GPIO_IN 0
-// #define GPIO_OUT 0
+// REQUIRED FOR hdmi-cdc.c
 void reset_usb_boot(uint32_t usb_activity_gpio_pin_mask, uint32_t disable_interface_mask) {}
-void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms) {}
-
+void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms) {
+	esp_restart();
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +112,7 @@ void tud_task(void) {
 bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, const uint8_t keycode[6]) { return 0; }
 bool tud_suspended(void) { return 0; }
 bool tud_hid_ready(void) { return 0; }
-void tud_remote_wakeup(void) {}
+bool tud_remote_wakeup(void) { return false; }
 uint32_t tud_cdc_write_str(const char* str) {
     uart_write_bytes(UART_PORT_NUM, str, strlen(str));
     return 0;
@@ -128,7 +125,7 @@ uint32_t tud_cdc_available(void) {
     uart_get_buffered_data_len(UART_PORT_NUM, &size);
     return size;
 }
-int8_t tud_cdc_read_char(void) {
+uint8_t tud_cdc_read_char(void) {
     uint8_t data;
     uart_read_bytes(UART_PORT_NUM, &data, 1, 20 / portTICK_PERIOD_MS); // (20 / portTICK_PERIOD_MS) = 2
     return data;
@@ -139,4 +136,3 @@ uint32_t tud_cdc_write_flush(void) {
     return 0;
 }
 ////////////////////////////////////////////////////////////////////////////////
-
