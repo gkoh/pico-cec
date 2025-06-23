@@ -4,8 +4,8 @@
 #include <string.h>
 #include <tusb.h>
 
+#include "cec-frame.h"
 #include "cec-log.h"
-#include "hdmi-cec-link.h"
 #include "hdmi-cec.h"
 #include "hdmi-ddc.h"
 #include "nvs.h"
@@ -158,8 +158,8 @@ static int show_config(cec_config_t *config) {
 }
 
 static int show_stats_cec(void) {
-  hdmi_cec_stats_t stats = {0x0};
-  cec_get_stats(&stats);
+  cec_frame_stats_t stats = {0x0};
+  cec_frame_get_stats(&stats);
   cdc_printfln("%-13s: %lu frames", "CEC rx", stats.rx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC tx", stats.tx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);

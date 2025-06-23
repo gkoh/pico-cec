@@ -2,9 +2,8 @@
 #define HDMI_LOG_H
 
 #include <stdbool.h>
+#include "cec-frame.h"
 
-typedef struct hdmi_frame_t hdmi_frame_t;
-
-void log_cec_frame(hdmi_frame_t *frame, bool recv);
+void hdmi_cec_log_frame(cec_frame_t *frame, bool recv);
 
 #endif

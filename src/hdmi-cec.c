@@ -8,9 +8,9 @@
 
 #include "blink.h"
 #include "cec-config.h"
+#include "cec-frame.h"
 #include "cec-log.h"
 #include "hdmi-cec-id.h"
-#include "hdmi-cec-link.h"
 #include "hdmi-cec.h"
 #include "hdmi-ddc.h"
 #include "nvs.h"
@@ -70,20 +70,20 @@ static void cec_feature_abort(uint8_t initiator,
                               cec_abort_t reason) {
   uint8_t pld[4] = {HEADER0(initiator, destination), CEC_ID_FEATURE_ABORT, msg, reason};
 
-  send_frame(4, pld);
+  cec_frame_send(4, pld);
 }
 
 static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t vendor_id) {
   uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_DEVICE_VENDOR_ID,
                     (vendor_id >> 16) & 0x0ff, (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
-  send_frame(5, pld);
+  cec_frame_send(5, pld);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_POWER_STATUS, power_status};
 
-  send_frame(3, pld);
+  cec_frame_send(3, pld);
 }
 
 static void set_system_audio_mode(uint8_t initiator,
@@ -92,13 +92,13 @@ static void set_system_audio_mode(uint8_t initiator,
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SET_SYSTEM_AUDIO_MODE,
                     system_audio_mode};
 
-  send_frame(3, pld);
+  cec_frame_send(3, pld);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_AUDIO_STATUS, audio_status};
 
-  send_frame(3, pld);
+  cec_frame_send(3, pld);
 }
 
 static void system_audio_mode_status(uint8_t initiator,
@@ -107,14 +107,14 @@ static void system_audio_mode_status(uint8_t initiator,
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SYSTEM_AUDIO_MODE_STATUS,
                     system_audio_mode_status};
 
-  send_frame(3, pld);
+  cec_frame_send(3, pld);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
   uint8_t pld[10] = {
       HEADER0(initiator, destination), CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
-  send_frame(10, pld);
+  cec_frame_send(10, pld);
 }
 
 static void report_physical_address(uint8_t initiator,
@@ -124,32 +124,32 @@ static void report_physical_address(uint8_t initiator,
   uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_REPORT_PHYSICAL_ADDRESS,
                     (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
-  send_frame(5, pld);
+  cec_frame_send(5, pld);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
   // 0x04 = 1.3a
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
-  send_frame(3, pld);
+  cec_frame_send(3, pld);
 }
 
 bool cec_ping(uint8_t destination) {
   uint8_t pld[1] = {HEADER0(destination, destination)};
 
-  return send_frame(1, pld);
+  return cec_frame_send(1, pld);
 }
 
 static void image_view_on(uint8_t initiator, uint8_t destination) {
   uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
-  send_frame(2, pld);
+  cec_frame_send(2, pld);
 }
 
 static void active_source(uint8_t initiator, uint16_t physical_address) {
   uint8_t pld[4] = {HEADER0(initiator, 0x0f), CEC_ID_ACTIVE_SOURCE, (physical_address >> 8) & 0x0ff,
                     (physical_address >> 0) & 0x0ff};
 
-  send_frame(4, pld);
+  cec_frame_send(4, pld);
 }
 
 static uint8_t allocate_logical_address(cec_config_t *config) {
@@ -193,7 +193,7 @@ void cec_task(void *param) {
   // pause for EDID to settle
   vTaskDelay(pdMS_TO_TICKS(config.edid_delay_ms));
 
-  hdmi_link_init();
+  cec_frame_init();
 
   paddr = get_physical_address(&config);
   laddr = allocate_logical_address(&config);
@@ -205,7 +205,7 @@ void cec_task(void *param) {
     uint8_t key = HID_KEY_NONE;
     uint8_t no_active = 0;
 
-    pldcnt = recv_frame(pld, laddr);
+    pldcnt = cec_frame_recv(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
     initiator = (pld[0] & 0xf0) >> 4;
     destination = pld[0] & 0x0f;

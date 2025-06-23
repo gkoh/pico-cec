@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "cec-config.h"
+#include "cec-frame.h"
 #include "cec-log.h"
 #include "hdmi-cec-id.h"
-#include "hdmi-cec-link.h"
 #include "hdmi-cec-log.h"
 #include "hdmi-cec.h"
 #include "usb-cdc.h"
@@ -95,8 +95,8 @@ __attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
  * CEC frame logging function, which includes minor protocol decoding for debug
  * purposes.
  */
-void log_cec_frame(hdmi_frame_t *frame, bool recv) {
-  hdmi_message_t *msg = frame->message;
+void hdmi_cec_log_frame(cec_frame_t *frame, bool recv) {
+  cec_message_t *msg = frame->message;
   uint8_t initiator = (msg->data[0] & 0xf0) >> 4;
   uint8_t destination = msg->data[0] & 0x0f;
 
