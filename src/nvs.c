@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef USE_PORTABLE
 #include <hardware/flash.h>
 #include <hardware/sync.h>
+#endif
 
 #include "crc/crc32.h"
+
+#include "portable.h"
 
 #include "cec-config.h"
 #include "nvs.h"

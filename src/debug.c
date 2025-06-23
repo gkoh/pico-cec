@@ -4,17 +4,22 @@
 #include "queue.h"
 #include "task.h"
 
+#ifndef USE_PORTABLE
 #include "hardware/timer.h"
 #include "pico/stdlib.h"
+#endif
 
+#include "portable.h"
+
+#include "cec-frame.h"
 #include "hdmi-cec.h"
 
 #ifndef STACK_WORDSIZE
 #define STACK_WORDSIZE 1
 #endif
 
-#define BLINK_STACK_SIZE (256*STACK_WORDSIZE)
-#define CEC_STACK_SIZE (512*STACK_WORDSIZE)
+#define BLINK_STACK_SIZE (512 * STACK_WORDSIZE)
+#define CEC_STACK_SIZE (512 * STACK_WORDSIZE)
 #define CEC_QUEUE_LENGTH (16)
 
 static void blink_task(void *param) {

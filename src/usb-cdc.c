@@ -1,21 +1,22 @@
+#ifndef USE_PORTABLE
 #include <hardware/watchdog.h>
 #include <pico/bootrom.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <tusb.h>
 
+#include "portable.h"
+#include "config.h"
+
+#include "cec-frame.h"
 #include "cec-log.h"
 #include "hdmi-cec.h"
 #include "hdmi-ddc.h"
 #include "nvs.h"
 #include "tclie.h"
 #include "usb-cdc.h"
-
-#include "pico/stdlib.h" // added to improve code portability (locally customised outside of core codebase)
-
-#ifndef PICO_CEC_VERSION
-#define PICO_CEC_VERSION "unknown"
-#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -44,6 +45,8 @@ static void cdc_vprintf(const char *fmt, va_list ap) {
 
 void cdc_log(const char *str) {
   tclie_log(&tclie, str);
+
+  ESP_LOGI("log", "%s", str);
 }
 
 /** Print formatted string. */
@@ -60,12 +63,35 @@ void cdc_printfln(const char *fmt, ...) {
   va_start(ap, fmt);
   cdc_vprintf(fmt, ap);
   va_end(ap);
-  print(_CDC_BR);
+  // print(_CDC_BR);
+  print("\r\n");
 }
 
 static int show_version(void *arg) {
   cdc_printfln("%s", PICO_CEC_VERSION);
   return 0;
+}
+#if 0
+typedef enum {
+    ESP_LOG_NONE    = 0,    /*!< No log output */
+    ESP_LOG_ERROR   = 1,    /*!< Critical errors, software module can not recover on its own */
+    ESP_LOG_WARN    = 2,    /*!< Error conditions from which recovery measures have been taken */
+    ESP_LOG_INFO    = 3,    /*!< Information messages which describe normal flow of events */
+    ESP_LOG_DEBUG   = 4,    /*!< Extra information which is not necessary for normal use (values, pointers, sizes, etc). */
+    ESP_LOG_VERBOSE = 5,    /*!< Bigger chunks of debugging information, or frequent messages which can potentially flood the output. */
+    ESP_LOG_MAX     = 6,    /*!< Number of levels supported */
+} esp_log_level_t;
+#endif  // 0
+
+static int exec_log(void *arg, int argc, const char *argv[]) {
+#ifdef __XTENSA__
+  if (argc == 2) {
+    int level = atoi(argv[1]);
+    esp_log_level_set("*", level);
+    return 0;
+  }
+#endif  // __XTENSA__
+  return -1;
 }
 
 static int exec_debug(void *arg, int argc, const char *argv[]) {
@@ -159,8 +185,8 @@ static int show_config(cec_config_t *config) {
 }
 
 static int show_stats_cec(void) {
-  hdmi_cec_stats_t stats = {0x0};
-  cec_get_stats(&stats);
+  cec_frame_stats_t stats = {0x0};
+  cec_frame_get_stats(&stats);
   cdc_printfln("%-13s: %lu frames", "CEC rx", stats.rx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC tx", stats.tx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);
@@ -194,18 +220,24 @@ static int show_stats_cpu(void) {
   return 0;
 }
 
+//#ifndef STACK_WORDSIZE
+//#define STACK_WORDSIZE 1
+//#endif
+
 static int show_stats_tasks(void) {
   UBaseType_t count = uxTaskGetNumberOfTasks();
   TaskStatus_t status[count];
 
   UBaseType_t n = uxTaskGetSystemState(status, count, NULL);
 
-  cdc_printfln("%-13s | %-10s | %-10s", "task", "priority", "stack (min)");
+  cdc_printfln("%-13s | %-10s | %-10s", "task", "priority", "stack (min*)");
 
   for (UBaseType_t i = 0; i < n; i++) {
     cdc_printfln("%-13s | %-10lu | %-10lu", status[i].pcTaskName,
-                 (uint32_t)status[i].uxCurrentPriority, (uint32_t)status[i].usStackHighWaterMark);
+                 (uint32_t)status[i].uxCurrentPriority,
+                 (uint32_t)status[i].usStackHighWaterMark / STACK_WORDSIZE);
   }
+  cdc_printfln("* closer to zero is approaching stack overflow");
 
   return 0;
 }
@@ -329,6 +361,7 @@ static int exec_set(void *arg, int argc, const char **argv) {
 }
 
 static const tclie_cmd_t cmds[] = {
+    {"log", exec_log, "Set the ESP_LOGx level.", "log {1|2|3|4|5|6}"},
     {"debug", exec_debug, "Control debug output.", "debug {on|off}"},
     {"query", exec_query, "Query information.", "query {edid}"},
     {"save", exec_save, "Save configuration.", "save"},

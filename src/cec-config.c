@@ -1,6 +1,11 @@
-#include "cec-config.h"
+#ifndef USE_PORTABLE
 #include "class/hid/hid.h"
 #include "tusb.h"
+#endif
+
+#include "portable.h"
+
+#include "cec-config.h"
 
 /**
  * Official table of CEC User Control codes to human-readable names.

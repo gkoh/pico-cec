@@ -4,8 +4,12 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#ifndef USE_PORTABLE
 #include "hardware/i2c.h"
 #include "pico/stdlib.h"
+#endif
+
+#include "portable.h"
 
 #include "cec-log.h"
 #include "hdmi-ddc.h"

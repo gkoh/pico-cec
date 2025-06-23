@@ -32,16 +32,20 @@
 #include "semphr.h"
 #include "task.h"
 
+#ifndef USE_PORTABLE
 #include "bsp/board.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
-#include "usb_descriptors.h"
+#endif
 
+#include "portable.h"
+
+#include "usb_descriptors.h"
 #include "usb_hid.h"
 
 // USB Device Driver task
 // This top level thread process all usb events and invoke callbacks
-void usb_device_task(void *param) {
+void usb_task(void *param) {
   (void)param;
 
   // init device stack on configured roothub port

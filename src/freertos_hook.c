@@ -26,9 +26,14 @@
 //--------------------------------------------------------------------+
 // INCLUDE
 //--------------------------------------------------------------------+
-#include "FreeRTOS.h"
+#ifndef USE_PORTABLE
 #include "common/tusb_common.h"
+#endif
+
+#include "FreeRTOS.h"
 #include "task.h"
+
+#include "portable.h"
 
 #include "ws2812.h"
 

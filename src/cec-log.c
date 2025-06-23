@@ -5,16 +5,18 @@
 #include "message_buffer.h"
 #include "task.h"
 
+#include "portable.h"
+
 #include "cec-log.h"
+#include "config.h"
 #include "usb-cdc.h"
 
-#define LOG_TASK_STACK_SIZE (1024)
 #define LOG_LINE_LENGTH (64)
 #define LOG_QUEUE_LENGTH (16)
 #define LOG_MB_SIZE (LOG_LINE_LENGTH * LOG_QUEUE_LENGTH)
 
 static StaticTask_t log_task_static;
-static StackType_t log_stack[LOG_TASK_STACK_SIZE];
+static StackType_t log_stack[LOG_STACK_SIZE];
 
 static StaticMessageBuffer_t log_mb_static;
 static MessageBufferHandle_t log_mb;
@@ -23,11 +25,15 @@ static uint8_t log_mb_storage[LOG_MB_SIZE];
 static volatile bool enabled = false;
 
 static void cec_log_task(void *param) {
+  MessageBufferHandle_t *mb = (MessageBufferHandle_t *)param;  // yes, this is already a local just
+                                                               // above, but for design consistency
+
   while (true) {
     char buffer[LOG_LINE_LENGTH];
 
-    size_t bytes = xMessageBufferReceive(log_mb, buffer, sizeof(buffer), pdMS_TO_TICKS(10));
+    size_t bytes = xMessageBufferReceive(*mb, buffer, sizeof(buffer), pdMS_TO_TICKS(10));
     if (bytes > 0) {
+      // ESP_LOGI(TAG, "cec_log_task() %u", bytes);
       cdc_log(buffer);
     }
   }
@@ -37,8 +43,9 @@ void cec_log_init(void) {
   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
   enabled = false;
 
-  xTaskCreateStatic(cec_log_task, "log", LOG_TASK_STACK_SIZE, NULL, configMAX_PRIORITIES - 4,
-                    &log_stack[0], &log_task_static);
+  xTaskCreateStatic(cec_log_task, "log", LOG_STACK_SIZE, &log_mb, LOG_PRIORITY, &log_stack[0],
+                    &log_task_static);
+  ESP_LOGI(TAG, "cec_log_init()");
 }
 
 bool cec_log_enabled(void) {
@@ -47,10 +54,12 @@ bool cec_log_enabled(void) {
 
 void cec_log_enable(void) {
   enabled = true;
+  ESP_LOGI(TAG, "cec_log_enable()");
 }
 
 void cec_log_disable(void) {
   enabled = false;
+  ESP_LOGI(TAG, "cec_log_disable()");
 }
 
 void cec_log_vsubmitf(const char *fmt, va_list ap) {
