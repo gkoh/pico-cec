@@ -68,7 +68,7 @@ static gpio_irq_callback_t hdmi_rx_frame_callback;
 uint64_t prev_edge_time;
 
 //#define USE_GPIO_TASK_HANDLER // enable this to get the tx frame handling out of the interrupt
-//context (for debugging)
+// context (for debugging)
 #ifdef USE_GPIO_TASK_HANDLER
 #define GPIO_STACK_SIZE (8096)
 static StackType_t stackGPIO[GPIO_STACK_SIZE];

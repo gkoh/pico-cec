@@ -120,12 +120,14 @@ void gpio_put(uint gpio, int value);
 //
 typedef uint64_t absolute_time_t;
 
-/*
- update_us_since_boot(): update an absolute_time_t value to represent a given number of microseconds since boot
-    static void update_us_since_boot(absolute_time_t *t, uint64_t us_since_boot)
-        t               the absolute time value to update
-        us_since_boot   the number of microseconds since boot to represent. Note this should be representable as a signed 64 bit integer
-*/
+// /*
+//  update_us_since_boot(): update an absolute_time_t value to represent a given number of
+//  microseconds since boot
+//     static void update_us_since_boot(absolute_time_t *t, uint64_t us_since_boot)
+//       t              the absolute time value to update
+//       us_since_boot  the number of microseconds since boot to represent. Note this should be
+//       representable as a signed 64 bit integer
+// */
 // static inline void update_us_since_boot(absolute_time_t *t, uint64_t us_since_boot) {
 // //    *t = esp_timer_get_time() + us_since_boot;
 //     *t = time_us_64() + us_since_boot;

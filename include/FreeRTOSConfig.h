@@ -150,4 +150,4 @@ extern uint64_t time_us_64(void);
 
 #endif /* __FREERTOS_CONFIG__H */
 
-#endif // __XTENSA__
+#endif  // __XTENSA__

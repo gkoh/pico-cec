@@ -34,7 +34,6 @@ static void cec_log_task(void *param) {
 
     size_t bytes = xMessageBufferReceive(*mb, buffer, sizeof(buffer) - 2, pdMS_TO_TICKS(100));
     if (bytes > 0) {
-
       ESP_LOGI("log", "%s", buffer);
 
       strcat(buffer, "\r\n");

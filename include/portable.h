@@ -91,7 +91,7 @@
 // for nvs.c
 #include <hardware/flash.h>
 #include <hardware/sync.h>
-//#include "crc/crc32.h"
+// #include "crc/crc32.h"
 
 // for usb-cdc.c
 #include <hardware/watchdog.h>

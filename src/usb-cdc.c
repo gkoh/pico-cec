@@ -7,8 +7,8 @@
 #include <string.h>
 #include <tusb.h>
 
-#include "portable.h"
 #include "config.h"
+#include "portable.h"
 
 #include "cec-frame.h"
 #include "cec-log.h"

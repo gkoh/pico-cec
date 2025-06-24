@@ -10,8 +10,8 @@
 #include "pico/stdlib.h"
 #endif
 
-#include "portable.h"
 #include "config.h"
+#include "portable.h"
 
 #include "blink.h"
 #include "cec-frame.h"
