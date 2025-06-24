@@ -218,9 +218,9 @@ static int show_stats_cpu(void) {
   return 0;
 }
 
-//#ifndef STACK_WORDSIZE
-//#define STACK_WORDSIZE 1
-//#endif
+// #ifndef STACK_WORDSIZE
+// #define STACK_WORDSIZE 1
+// #endif
 
 static int show_stats_tasks(void) {
   UBaseType_t count = uxTaskGetNumberOfTasks();
