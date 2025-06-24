@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "message_buffer.h"
@@ -31,9 +32,12 @@ static void cec_log_task(void *param) {
   while (true) {
     char buffer[LOG_LINE_LENGTH];
 
-    size_t bytes = xMessageBufferReceive(*mb, buffer, sizeof(buffer), pdMS_TO_TICKS(10));
+    size_t bytes = xMessageBufferReceive(*mb, buffer, sizeof(buffer) - 2, pdMS_TO_TICKS(100));
     if (bytes > 0) {
-      // ESP_LOGI(TAG, "cec_log_task() %u", bytes);
+
+      ESP_LOGI("log", "%s", buffer);
+
+      strcat(buffer, "\r\n");
       cdc_log(buffer);
     }
   }

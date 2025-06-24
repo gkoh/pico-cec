@@ -45,8 +45,6 @@ static void cdc_vprintf(const char *fmt, va_list ap) {
 
 void cdc_log(const char *str) {
   tclie_log(&tclie, str);
-
-  ESP_LOGI("log", "%s", str);
 }
 
 /** Print formatted string. */
