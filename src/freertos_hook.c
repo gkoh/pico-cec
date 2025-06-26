@@ -34,6 +34,7 @@
 #include "task.h"
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "ws2812.h"
 

@@ -37,6 +37,9 @@
 #define PICO_CEC_VERSION "unknown"
 #endif
 
+#define IRAM_ATTR
+#define DECLARE_TAG()
+
 #define ESP_LOGE(tag, fmt, ...) \
   do {                          \
   } while (0)

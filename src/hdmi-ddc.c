@@ -10,13 +10,33 @@
 #endif
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "cec-log.h"
 #include "hdmi-ddc.h"
 #include "usb-cdc.h"
 
+#define EDID_BLOCK_SIZE (128)
+#define EDID_I2C_TIMEOUT_US (100 * 1000)
+#define EDID_I2C_ADDR (0x50)
+#define EDID_I2C_READ_SIZE (EDID_BLOCK_SIZE * 2)
+#define EDID_CTA_DTD_START (0x02)
+#define EDID_CTA_DBC_OFFSET (0x04)
+
+#ifndef MASTER_FREQUENCY
+#define MASTER_FREQUENCY (100 * 1000)
+#endif
+
+const uint8_t header[8] = {0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00};
+const uint8_t ctahdr[2] = {0x02, 0x03};
+const uint8_t vsbhdr[3] = {0x03, 0x0c, 0x00};
+
 static void ddc_init() {
-  i2c_init(i2c_default, 100 * 1000);
+#ifdef USE_NEW_I2C_DRIVER
+  i2c_init(i2c_default, MASTER_FREQUENCY, EDID_I2C_ADDR);
+#else
+  i2c_init(i2c_default, MASTER_FREQUENCY);
+#endif
   gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
   gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
   gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
@@ -26,17 +46,6 @@ static void ddc_init() {
 static void ddc_exit() {
   i2c_deinit(i2c_default);
 }
-
-#define EDID_BLOCK_SIZE (128)
-#define EDID_I2C_TIMEOUT_US (100 * 1000)
-#define EDID_I2C_ADDR (0x50)
-#define EDID_I2C_READ_SIZE (EDID_BLOCK_SIZE * 2)
-#define EDID_CTA_DTD_START (0x02)
-#define EDID_CTA_DBC_OFFSET (0x04)
-
-const uint8_t header[8] = {0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00};
-const uint8_t ctahdr[2] = {0x02, 0x03};
-const uint8_t vsbhdr[3] = {0x03, 0x0c, 0x00};
 
 /**
  * Calculate and verify EDID checksum.

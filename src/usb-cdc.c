@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "portable.h"
+DECLARE_TAG()
 
 #include "cec-frame.h"
 #include "cec-log.h"
@@ -117,6 +118,7 @@ static int exec_reboot(void *arg, int argc, const char **argv) {
     reset_usb_boot(activity_mask, 0);
   } else {
     // normal reboot
+    ESP_LOGI(TAG, "exec_reboot()");
     watchdog_reboot(0, 0, 0);
   }
 
@@ -217,10 +219,6 @@ static int show_stats_cpu(void) {
 
   return 0;
 }
-
-// #ifndef STACK_WORDSIZE
-// #define STACK_WORDSIZE 1
-// #endif
 
 static int show_stats_tasks(void) {
   UBaseType_t count = uxTaskGetNumberOfTasks();

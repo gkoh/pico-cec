@@ -39,6 +39,7 @@
 #endif
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "usb_descriptors.h"
 #include "usb_hid.h"

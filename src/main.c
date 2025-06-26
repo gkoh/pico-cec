@@ -12,6 +12,7 @@
 
 #include "config.h"
 #include "portable.h"
+DECLARE_TAG()
 
 #include "blink.h"
 #include "cec-frame.h"

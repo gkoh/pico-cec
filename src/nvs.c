@@ -9,6 +9,7 @@
 #include "crc/crc32.h"
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "cec-config.h"
 #include "nvs.h"

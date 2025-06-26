@@ -10,6 +10,7 @@
 #endif
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "blink.h"
 #include "cec-config.h"
@@ -75,7 +76,7 @@ static void cec_feature_abort(uint8_t initiator,
                               cec_abort_t reason) {
   uint8_t pld[4] = {HEADER0(initiator, destination), CEC_ID_FEATURE_ABORT, msg, reason};
 
-  ESP_LOGD(TAG, "cec_feature_abort(%d, %d, %d, %d)", initiator, destination, msg, reason);
+  ESP_LOGI(TAG, "cec_feature_abort(%d, %d, %d, %d)", initiator, destination, msg, reason);
   cec_frame_send(4, pld);
 }
 
@@ -83,14 +84,14 @@ static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t ve
   uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_DEVICE_VENDOR_ID,
                     (vendor_id >> 16) & 0x0ff, (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
-  ESP_LOGD(TAG, "device_vendor_id(%d, %d, %ld)", initiator, destination, vendor_id);
+  ESP_LOGI(TAG, "device_vendor_id(%d, %d, %ld)", initiator, destination, vendor_id);
   cec_frame_send(5, pld);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_POWER_STATUS, power_status};
 
-  ESP_LOGD(TAG, "report_power_status(%d, %d, %d)", initiator, destination, power_status);
+  ESP_LOGI(TAG, "report_power_status(%d, %d, %d)", initiator, destination, power_status);
   cec_frame_send(3, pld);
 }
 
@@ -100,14 +101,14 @@ static void set_system_audio_mode(uint8_t initiator,
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SET_SYSTEM_AUDIO_MODE,
                     system_audio_mode};
 
-  ESP_LOGD(TAG, "set_system_audio_mode(%d, %d, %d)", initiator, destination, system_audio_mode);
+  ESP_LOGI(TAG, "set_system_audio_mode(%d, %d, %d)", initiator, destination, system_audio_mode);
   cec_frame_send(3, pld);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_AUDIO_STATUS, audio_status};
 
-  ESP_LOGD(TAG, "report_audio_status(%d, %d, %d)", initiator, destination, audio_status);
+  ESP_LOGI(TAG, "report_audio_status(%d, %d, %d)", initiator, destination, audio_status);
   cec_frame_send(3, pld);
 }
 
@@ -117,7 +118,7 @@ static void system_audio_mode_status(uint8_t initiator,
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SYSTEM_AUDIO_MODE_STATUS,
                     system_audio_mode_status};
 
-  ESP_LOGD(TAG, "system_audio_mode_status(%d, %d, %d)", initiator, destination,
+  ESP_LOGI(TAG, "system_audio_mode_status(%d, %d, %d)", initiator, destination,
            system_audio_mode_status);
   cec_frame_send(3, pld);
 }
@@ -126,7 +127,7 @@ static void set_osd_name(uint8_t initiator, uint8_t destination) {
   uint8_t pld[10] = {
       HEADER0(initiator, destination), CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
-  ESP_LOGD(TAG, "set_osd_name(%d, %d)", initiator, destination);
+  ESP_LOGI(TAG, "set_osd_name(%d, %d)", initiator, destination);
   cec_frame_send(10, pld);
 }
 
@@ -137,7 +138,7 @@ static void report_physical_address(uint8_t initiator,
   uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_REPORT_PHYSICAL_ADDRESS,
                     (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
-  ESP_LOGD(TAG, "report_physical_address(%d, %d, %d, %d)", initiator, destination, physical_address,
+  ESP_LOGI(TAG, "report_physical_address(%d, %d, %d, %d)", initiator, destination, physical_address,
            device_type);
   cec_frame_send(5, pld);
 }
@@ -146,7 +147,7 @@ static void report_cec_version(uint8_t initiator, uint8_t destination) {
   // 0x04 = 1.3a
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
 
-  ESP_LOGD(TAG, "report_cec_version(%d, %d)", initiator, destination);
+  ESP_LOGI(TAG, "report_cec_version(%d, %d)", initiator, destination);
   cec_frame_send(3, pld);
 }
 
@@ -160,7 +161,7 @@ bool cec_ping(uint8_t destination) {
 static void image_view_on(uint8_t initiator, uint8_t destination) {
   uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
-  ESP_LOGD(TAG, "image_view_on(%d, %d)", initiator, destination);
+  ESP_LOGI(TAG, "image_view_on(%d, %d)", initiator, destination);
   cec_frame_send(2, pld);
 }
 
@@ -168,7 +169,7 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
   uint8_t pld[4] = {HEADER0(initiator, 0x0f), CEC_ID_ACTIVE_SOURCE, (physical_address >> 8) & 0x0ff,
                     (physical_address >> 0) & 0x0ff};
 
-  ESP_LOGD(TAG, "active_source(%d, %d)", initiator, physical_address);
+  ESP_LOGI(TAG, "active_source(%d, %d)", initiator, physical_address);
   cec_frame_send(4, pld);
 }
 
@@ -182,7 +183,7 @@ static uint8_t allocate_logical_address(cec_config_t *config) {
   for (unsigned int i = 0; i < NUM_LADDRESS; i++) {
     a = laddress[config->device_type][i];
     cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_CDC_BR, a);
-    ESP_LOGI(TAG, "Attempting to allocate logical address 0x%01hhx", a);
+    ESP_LOGD(TAG, "Attempting to allocate logical address 0x%01hhx", a);
     if (!cec_ping(a)) {
       break;
     }
@@ -218,9 +219,9 @@ void cec_task(void *param) {
   cec_frame_init();
 
   paddr = get_physical_address(&config);
-  ESP_LOGD(TAG, "physical address: %d", paddr);
+  ESP_LOGI(TAG, "physical address: %d", paddr);
   laddr = allocate_logical_address(&config);
-  ESP_LOGD(TAG, "logical address: %d", laddr);
+  ESP_LOGI(TAG, "logical address: %d", laddr);
 
   while (true) {
     uint8_t pld[16] = {0x0};
@@ -236,7 +237,7 @@ void cec_task(void *param) {
     destination = pld[0] & 0x0f;
 
     if ((pldcnt > 1)) {
-      // ESP_LOGI(TAG, "pldcnt = %u, pld[1] = %u", pldcnt, pld[1]);
+      ESP_LOGD(TAG, "pldcnt = %u, pld[1] = %u", pldcnt, pld[1]);
       switch (pld[1]) {
         case CEC_ID_IMAGE_VIEW_ON:
           break;

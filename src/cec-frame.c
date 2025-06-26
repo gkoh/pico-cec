@@ -7,6 +7,7 @@
 #endif
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "cec-frame.h"
 #include "hdmi-cec-log.h"

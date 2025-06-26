@@ -14,10 +14,17 @@
 
 #include "esp-port.h"
 #include "portable.h"
+DECLARE_TAG()
+
+#ifdef USE_NEW_I2C_DRIVER
+#include "driver/i2c_master.h"  // new driver model
+#else
+#include "driver/i2c.h"  // legacy driver
+#endif // USE_NEW_I2C_DRIVER
 
 #include "sdkconfig.h"
 
-const char *TAG = "nil";  // global tag for reference from multiple modules
+// const char *TAG = "nil";  // global tag for reference from multiple modules
 
 void gpio_init(uint gpio) {}
 void gpio_disable_pulls(uint gpio) {
@@ -67,24 +74,100 @@ void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR hdmi-ddc.c
-// #define PICO_ERROR_NONE 0
-// #define PICO_ERROR_TIMEOUT 0
-// #define PICO_ERROR_GENERIC 0
-// #define i2c_default 0
-// #define PICO_DEFAULT_I2C_SDA_PIN 0
-// #define PICO_DEFAULT_I2C_SCL_PIN 0
-uint i2c_init(i2c_inst_t *i2c, uint baudrate) {
-  return baudrate;  // Returns: Actual set baudrate
+#ifdef USE_NEW_I2C_DRIVER
+// https://docs.espressif.com/projects/esp-idf/en/stable/esp32/migration-guides/release-5.x/5.2/peripherals.html
+i2c_master_bus_handle_t bus_handle;
+i2c_master_dev_handle_t dev_handle;
+
+uint i2c_init(i2c_inst_t *i2c, uint i2c_frequency, uint16_t chip_addr) {
+  (void)i2c;
+  esp_err_t ret;
+  i2c_master_bus_config_t i2c_bus_config = {
+      .clk_source = I2C_CLK_SRC_DEFAULT,
+      .i2c_port = I2C_NUM_0,
+      .scl_io_num = SCL_IO_PIN,
+      .sda_io_num = SDA_IO_PIN,
+      .glitch_ignore_cnt = 7,
+  };
+//  ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_config, &bus_handle));
+  ret = i2c_new_master_bus(&i2c_bus_config, &bus_handle);
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_master_bus_add_device(..) failed %u", ret);
+  }
+  i2c_device_config_t i2c_dev_conf = {
+    .scl_speed_hz = i2c_frequency,
+    .device_address = chip_addr,
+  };
+  ret = i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &dev_handle);
+//  *      - ESP_OK: Create I2C master device successfully.
+//  *      - ESP_ERR_INVALID_ARG: I2C bus initialization failed because of invalid argument.
+//  *      - ESP_ERR_NO_MEM: Create I2C bus failed because of out of memory.
+  // if (ret != ESP_OK) {
+  //   ESP_LOGE(TAG, "i2c_master_bus_add_device(..) failed %u", ret);
+  // }
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_INVALID_ARG:
+    ESP_LOGE(TAG, "I2C bus initialization failed because of invalid argument");
+    break;
+  case ESP_ERR_NO_MEM:
+    ESP_LOGE(TAG, "Create I2C bus failed because of out of memory");
+    break;
+  default:
+    ESP_LOGE(TAG, "i2c_master_bus_add_device(..) failed %u", ret);
+    break;
+  }
+//    if (i2c_new_master_bus(&i2c_bus_config, &tool_bus_handle) != ESP_OK) {
+//        return 1;
+//    }
+//  return baudrate;  // Returns: Actual set baudrate
+  return i2c_frequency;  // unused
 }
-void i2c_deinit(i2c_inst_t *i2c) {}
+void i2c_deinit(i2c_inst_t *i2c) {
+  (void)i2c;
+  esp_err_t ret;
+  ret = i2c_master_bus_rm_device(dev_handle);
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_deinit(..) failed %u", ret);
+  } else dev_handle = 0;
+  ret = i2c_del_master_bus(bus_handle);
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_del_master_bus(..) failed %u", ret);
+  } else bus_handle = 0;
+}
+//  int ret = i2c_read_timeout_us(i2c_default, EDID_I2C_ADDR, edid, len, false, EDID_I2C_TIMEOUT_US);
 int i2c_read_timeout_us(i2c_inst_t *i2c,
                         uint8_t addr,
                         uint8_t *dst,
                         size_t len,
                         bool nostop,
                         uint timeout_us) {
-  return 0;  // Returns: Number of bytes read, or PICO_ERROR_GENERIC if address not acknowledged, no
-             // device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
+  (void)i2c;
+// esp_err_t i2c_master_receive(i2c_master_dev_handle_t i2c_dev, uint8_t *read_buffer, size_t read_size, int xfer_timeout_ms);
+  esp_err_t ret = i2c_master_receive(dev_handle, dst, len, timeout_us / 1000);
+// *      - ESP_OK: I2C master receive success
+// *      - ESP_ERR_INVALID_ARG: I2C master receive parameter invalid.
+// *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
+  // if (ret != ESP_OK) {
+  //   ESP_LOGE(TAG, "i2c_master_receive(..) failed %u", ret);
+  // }
+  switch (ret) {
+  case ESP_OK:
+    ret = len;
+    break;
+  case ESP_ERR_INVALID_ARG:
+    ret = PICO_ERROR_GENERIC;
+    break;
+  case ESP_ERR_TIMEOUT:
+    ret = PICO_ERROR_TIMEOUT;
+    break;
+  default:
+    ESP_LOGE(TAG, "i2c_master_receive(..) failed %u", ret);
+    break;
+  }
+  return ret;  // Returns: Number of bytes read, or PICO_ERROR_GENERIC if address not acknowledged, no
+               // device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
 }
 int i2c_write_timeout_us(i2c_inst_t *i2c,
                          uint8_t addr,
@@ -92,9 +175,160 @@ int i2c_write_timeout_us(i2c_inst_t *i2c,
                          size_t len,
                          bool nostop,
                          uint timeout_us) {
-  return 0;  // Returns: Number of bytes written, or PICO_ERROR_GENERIC if address not acknowledged,
-             // no device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
+  (void)i2c;
+// esp_err_t i2c_master_transmit(i2c_master_dev_handle_t i2c_dev, const uint8_t *write_buffer, size_t write_size, int xfer_timeout_ms);
+  esp_err_t ret = i2c_master_transmit(dev_handle, src, len, timeout_us / 1000);
+// *      - ESP_OK: I2C master transmit success
+// *      - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid.
+// *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
+  // if (ret != ESP_OK) {
+  //     ESP_LOGE(TAG, "i2c_master_transmit(..) failed %u", ret);
+  // }
+  switch (ret) {
+  case ESP_OK:
+    ret = len;
+    break;
+  case ESP_ERR_INVALID_ARG:
+    ret = PICO_ERROR_GENERIC;
+    break;
+  case ESP_ERR_TIMEOUT:
+    ret = PICO_ERROR_TIMEOUT;
+    break;
+  default:
+    ESP_LOGE(TAG, "i2c_master_transmit(..) failed %u", ret);
+    break;
+  }
+//  ESP_LOGE(TAG, "i2c_master_transmit(..) returning %u", ret);
+  return ret;  // Returns: Number of bytes written, or PICO_ERROR_GENERIC if address not acknowledged,
+               // no device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
 }
+
+#else
+
+uint i2c_init(i2c_inst_t *i2c, uint i2c_frequency) {
+  (void)i2c;
+  esp_err_t ret;
+  i2c_config_t i2c_config = {
+      .mode = I2C_MODE_MASTER,
+      .scl_io_num = SCL_IO_PIN,
+      .sda_io_num = SDA_IO_PIN,
+      .sda_pullup_en = GPIO_PULLUP_ENABLE,
+      .scl_pullup_en = GPIO_PULLUP_ENABLE,
+      .master.clk_speed = i2c_frequency,
+      // .clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL
+  };
+//  esp_err_t i2c_param_config(i2c_port_t i2c_num, const i2c_config_t *i2c_conf);
+  ret = i2c_param_config(I2C_PORT, &i2c_config);
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_param_config(..) failed %d", ret);
+  }
+//esp_err_t i2c_driver_install(i2c_port_t i2c_num, i2c_mode_t mode, size_t slv_rx_buf_len, size_t slv_tx_buf_len, int intr_alloc_flags);
+  ret = i2c_driver_install(I2C_PORT, I2C_MODE_MASTER, 0, 0, 0);
+//  *     - ESP_OK   Success
+//  *     - ESP_ERR_INVALID_ARG Parameter error
+//  *     - ESP_FAIL Driver installation error
+  // if (ret != ESP_OK) {
+  //     ESP_LOGE(TAG, "i2c_driver_install(..) failed %d", ret);
+  // }
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_INVALID_ARG:
+    ESP_LOGE(TAG, "i2c_init(..) Parameter error");
+    break;
+  case ESP_FAIL:
+    ESP_LOGE(TAG, "i2c_init(..) Driver installation error");
+    break;
+  default:
+    ESP_LOGE(TAG, "i2c_driver_install(..) failed %d", ret);
+    break;
+  }
+  return i2c_frequency;  // unused
+}
+void i2c_deinit(i2c_inst_t *i2c) {
+  (void)i2c;
+//esp_err_t i2c_driver_delete(i2c_port_t i2c_num);
+  esp_err_t ret = i2c_driver_delete(I2C_PORT);
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_driver_delete(..) failed %d", ret);
+  }
+}
+int i2c_read_timeout_us(i2c_inst_t *i2c,
+                        uint8_t addr,
+                        uint8_t *dst,
+                        size_t len,
+                        bool nostop,
+                        uint timeout_us) {
+  (void)i2c;
+//  esp_err_t ret = i2c_master_read_from_device(I2C_PORT, addr, dst, len, timeout_us);
+  esp_err_t ret = i2c_master_read_from_device(I2C_PORT, addr, dst, len, timeout_us / 1000);
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_master_read_from_device(..) failed %d", ret);
+  }
+  switch (ret) {
+  case ESP_OK:
+    ret = len;
+    break;
+  case ESP_ERR_INVALID_ARG:
+    ret = PICO_ERROR_GENERIC;
+    break;
+  case ESP_ERR_TIMEOUT:
+    ret = PICO_ERROR_TIMEOUT;
+    break;
+  default:
+    ret = PICO_ERROR_GENERIC;
+    ESP_LOGE(TAG, "i2c_master_read_from_device(..) failed %d", ret);
+    break;
+  }
+  return ret;  // Returns: Number of bytes read, or PICO_ERROR_GENERIC if address not acknowledged, no
+               // device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
+}
+int i2c_write_timeout_us(i2c_inst_t *i2c,
+                         uint8_t addr,
+                         const uint8_t *src,
+                         size_t len,
+                         bool nostop,
+                         uint timeout_us) {
+  (void)i2c;
+//  esp_err_t ret = i2c_master_write_to_device(I2C_PORT, addr, src, len, timeout_us / 1000);
+  esp_err_t ret = i2c_master_write_to_device(I2C_PORT, addr, src, len, timeout_us);
+//  *     - ESP_OK Success
+//  *     - ESP_ERR_INVALID_ARG Parameter error
+//  *     - ESP_FAIL Sending command error, slave hasn't ACK the transfer.
+//  *     - ESP_ERR_INVALID_STATE I2C driver not installed or not in master mode.
+//  *     - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.
+  if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "i2c_master_write_to_device(..) failed %d", ret);
+  }
+  switch (ret) {
+  case ESP_OK:
+    ret = len;
+    break;
+  case ESP_ERR_INVALID_ARG:
+    ESP_LOGE(TAG, "i2c_master_write_to_device(..) Parameter error");
+    ret = PICO_ERROR_GENERIC;
+    break;
+  case ESP_FAIL:
+    ESP_LOGE(TAG, "i2c_master_write_to_device(..) Sending command error, slave hasn't ACK the transfer");
+    ret = PICO_ERROR_GENERIC;
+    break;
+  case ESP_ERR_INVALID_STATE:
+    ESP_LOGE(TAG, "i2c_master_write_to_device(..) I2C driver not installed or not in master mode");
+    ret = PICO_ERROR_GENERIC;
+    break;
+  case ESP_ERR_TIMEOUT:
+    ESP_LOGE(TAG, "i2c_master_write_to_device(..) Operation timeout because the bus is busy");
+    ret = PICO_ERROR_TIMEOUT;
+    break;
+  default:
+    ret = PICO_ERROR_GENERIC;
+    ESP_LOGE(TAG, "i2c_master_write_to_device(..) failed %d", ret);
+    break;
+  }
+  return ret;  // Returns: Number of bytes written, or PICO_ERROR_GENERIC if address not acknowledged,
+               // no device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
+}
+#endif // USE_NEW_I2C_DRIVER
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////

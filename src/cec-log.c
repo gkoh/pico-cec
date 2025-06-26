@@ -7,6 +7,7 @@
 #include "task.h"
 
 #include "portable.h"
+DECLARE_TAG()
 
 #include "cec-log.h"
 #include "config.h"

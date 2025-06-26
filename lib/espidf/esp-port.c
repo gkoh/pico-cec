@@ -11,6 +11,7 @@
 
 #include "esp-port.h"
 #include "portable.h"
+DECLARE_TAG()
 
 #define UART_TXD (CONFIG_UART_TXD)
 #define UART_RXD (CONFIG_UART_RXD)
