@@ -16,11 +16,13 @@ typedef unsigned int uint;
 #include "esp_log.h"
 
 // https://gcc.gnu.org/onlinedocs/gcc/Diagnostic-Pragmas.html
-#define DECLARE_TAG()            /*    silly method of curtailing clang-format behaviour    */ \
-  _Pragma("GCC diagnostic push") /*                                                         */ \
-      _Pragma("GCC diagnostic ignored \"-Wunused-variable\"") /*                            */ \
-      static const char *TAG = __FILE_NAME__; /*                                            */ \
+// clang-format off
+#define DECLARE_TAG() \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wunused-variable\"") \
+  static const char *TAG = __FILE_NAME__; \
   _Pragma("GCC diagnostic pop")
+// clang-format on
 
 #define IO_IRQ_BANK0 0
 //#define GPIO_IRQ_EDGE_RISE 1
