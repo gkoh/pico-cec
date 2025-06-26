@@ -12,12 +12,12 @@
 #include "esp-port.h"
 #include "portable.h"
 
-#define UART_TXD (17)
-#define UART_RXD (16)
+#define UART_TXD (CONFIG_UART_TXD)
+#define UART_RXD (CONFIG_UART_RXD)
 #define UART_RTS (UART_PIN_NO_CHANGE)
 #define UART_CTS (UART_PIN_NO_CHANGE)
 
-#define UART_BAUD_RATE (115200)
+#define UART_BAUD_RATE (CONFIG_UART_BAUD_RATE)
 #define UART_BUF_SIZE (128)
 
 void uart_init(void) {
