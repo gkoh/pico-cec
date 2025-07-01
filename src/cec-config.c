@@ -1,6 +1,7 @@
-#include "cec-config.h"
 #include "class/hid/hid.h"
 #include "tusb.h"
+
+#include "cec-config.h"
 
 /**
  * Official table of CEC User Control codes to human-readable names.

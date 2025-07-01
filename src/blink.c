@@ -1,9 +1,8 @@
 #include "bsp/board.h"
 #include "pico/stdlib.h"
 
-#include "ws2812.h"
-
 #include "blink.h"
+#include "ws2812.h"
 
 TaskHandle_t xBlinkTask;
 

@@ -12,9 +12,11 @@
 
 #include "blink.h"
 #include "cec-config.h"
+#include "cec-frame.h"
+#include "cec-id.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
-#include "hdmi-ddc.h"
+#include "cec-task.h"
+#include "ddc.h"
 #include "nvs.h"
 #include "usb-cdc.h"
 
@@ -148,7 +150,7 @@ static uint16_t active_addr = 0x0000;
 static bool audio_status = false;
 
 /* CEC statistics. */
-static hdmi_cec_stats_t cec_stats;
+static cec_frame_stats_t cec_stats;
 
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
@@ -204,8 +206,8 @@ __attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
  * CEC frame logging function, which includes minor protocol decoding for debug
  * purposes.
  */
-static void log_cec_frame(hdmi_frame_t *frame, bool recv) {
-  hdmi_message_t *msg = frame->message;
+static void log_cec_frame(cec_frame_t *frame, bool recv) {
+  cec_message_t *msg = frame->message;
   uint8_t initiator = (msg->data[0] & 0xf0) >> 4;
   uint8_t destination = msg->data[0] & 0x0f;
 
@@ -297,10 +299,10 @@ static int64_t ack_high(alarm_id_t alarm, void *user_data) {
 }
 
 uint8_t rx_buffer[16] = {0x0};
-hdmi_message_t rx_message = {.data = &rx_buffer[0], .len = 0};
-hdmi_frame_t rx_frame = {.message = &rx_message};
+cec_message_t rx_message = {.data = &rx_buffer[0], .len = 0};
+cec_frame_t rx_frame = {.message = &rx_message};
 
-static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
+static void cec_frame_rx_isr(uint gpio, uint32_t events) {
   uint64_t low_time = 0;
   gpio_acknowledge_irq(gpio, events);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
@@ -413,8 +415,8 @@ static void hdmi_rx_frame_isr(uint gpio, uint32_t events) {
   }
 }
 
-static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
-  // printf("recv_frame\n");
+static uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
+  // printf("cec_frame_recv\n");
   rx_frame.address = address;
   rx_frame.state = HDMI_FRAME_STATE_START_LOW;
   rx_frame.ack = false;
@@ -436,8 +438,8 @@ static uint8_t recv_frame(uint8_t *pld, uint8_t address) {
   return rx_frame.message->len;
 }
 
-static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
-  hdmi_frame_t *frame = (hdmi_frame_t *)user_data;
+static int64_t cec_frame_tx_callback(alarm_id_t alarm, void *user_data) {
+  cec_frame_t *frame = (cec_frame_t *)user_data;
 
   uint64_t low_time = 0;
   switch (frame->state) {
@@ -505,7 +507,7 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
   }
 }
 
-static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
+static bool cec_frame_tx(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
 
   // wait 7 bit times of idle before sending
@@ -519,14 +521,14 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
     }
   }
 
-  hdmi_message_t message = {data, len};
-  hdmi_frame_t frame = {.message = &message,
+  cec_message_t message = {data, len};
+  cec_frame_t frame = {.message = &message,
                         .bit = 7,
                         .byte = 0,
                         .start = 0,
                         .ack = false,
                         .state = HDMI_FRAME_STATE_START_LOW};
-  add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
+  add_alarm_at(from_us_since_boot(time_us_64()), cec_frame_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
   log_cec_frame(&frame, false);
@@ -543,7 +545,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
 static bool send_frame(uint8_t pldcnt, uint8_t *pld) {
   // disable GPIO ISR for sending
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
-  return hdmi_tx_frame(pld, pldcnt);
+  return cec_frame_tx(pld, pldcnt);
 }
 
 static void cec_feature_abort(uint8_t initiator,
@@ -634,7 +636,7 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
   send_frame(4, pld);
 }
 
-void cec_get_stats(hdmi_cec_stats_t *stats) {
+void cec_frame_get_stats(cec_frame_stats_t *stats) {
   *stats = cec_stats;
 }
 
@@ -670,8 +672,8 @@ uint8_t cec_get_logical_address(void) {
   return laddr;
 }
 
-void cec_task(void *data) {
-  QueueHandle_t *q = (QueueHandle_t *)data;
+void cec_task(void *param) {
+  QueueHandle_t *q = (QueueHandle_t *)param;
 
   // load configuration
   nvs_load_config(&config);
@@ -683,7 +685,7 @@ void cec_task(void *data) {
   gpio_disable_pulls(CEC_PIN);
   gpio_set_dir(CEC_PIN, GPIO_IN);
 
-  gpio_set_irq_callback(&hdmi_rx_frame_isr);
+  gpio_set_irq_callback(&cec_frame_rx_isr);
   irq_set_enabled(IO_IRQ_BANK0, true);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
 
@@ -697,7 +699,7 @@ void cec_task(void *data) {
     uint8_t key = HID_KEY_NONE;
     uint8_t no_active = 0;
 
-    pldcnt = recv_frame(pld, laddr);
+    pldcnt = cec_frame_recv(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
     initiator = (pld[0] & 0xf0) >> 4;
     destination = pld[0] & 0x0f;

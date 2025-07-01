@@ -10,5 +10,6 @@ __attribute__((format(printf, 1, 2))) void cdc_printf(const char *fmt, ...);
 __attribute__((format(printf, 1, 2))) void cdc_printfln(const char *fmt, ...);
 
 void cdc_log(const char *str);
+void cdc_task(void *param);
 
 #endif

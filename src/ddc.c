@@ -8,11 +8,24 @@
 #include "pico/stdlib.h"
 
 #include "cec-log.h"
-#include "hdmi-ddc.h"
+#include "ddc.h"
 #include "usb-cdc.h"
 
+#define EDID_BLOCK_SIZE (128)
+#define EDID_I2C_TIMEOUT_US (100 * 1000)
+#define EDID_I2C_ADDR (0x50)
+#define EDID_I2C_READ_SIZE (EDID_BLOCK_SIZE * 2)
+#define EDID_CTA_DTD_START (0x02)
+#define EDID_CTA_DBC_OFFSET (0x04)
+
+#define I2C_MASTER_FREQUENCY (100 * 1000)
+
+const uint8_t header[8] = {0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00};
+const uint8_t ctahdr[2] = {0x02, 0x03};
+const uint8_t vsbhdr[3] = {0x03, 0x0c, 0x00};
+
 static void ddc_init() {
-  i2c_init(i2c_default, 100 * 1000);
+  i2c_init(i2c_default, I2C_MASTER_FREQUENCY);
   gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
   gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
   gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
@@ -22,17 +35,6 @@ static void ddc_init() {
 static void ddc_exit() {
   i2c_deinit(i2c_default);
 }
-
-#define EDID_BLOCK_SIZE (128)
-#define EDID_I2C_TIMEOUT_US (100 * 1000)
-#define EDID_I2C_ADDR (0x50)
-#define EDID_I2C_READ_SIZE (EDID_BLOCK_SIZE * 2)
-#define EDID_CTA_DTD_START (0x02)
-#define EDID_CTA_DBC_OFFSET (0x04)
-
-const uint8_t header[8] = {0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00};
-const uint8_t ctahdr[2] = {0x02, 0x03};
-const uint8_t vsbhdr[3] = {0x03, 0x0c, 0x00};
 
 /**
  * Calculate and verify EDID checksum.

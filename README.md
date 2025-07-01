@@ -151,7 +151,7 @@ The software is extremely simple and built on FreeRTOS tasks:
 
 ## cec_task
 The CEC task comprises three major components:
-* `recv_frame`
+* `cec_frame_recv`
    * receives and validates CEC packets from the CEC GPIO pin
    * edge interrupt driven state machine
       * rewritten from busy wait loop to reduce CPU load

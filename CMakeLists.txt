@@ -53,10 +53,11 @@ target_compile_options(tcli PRIVATE
 add_executable(${PROJECT}
   src/blink.c
   src/cec-config.c
+  src/cec-frame.c
   src/cec-log.c
+  src/cec-task.c
+  src/ddc.c
   src/freertos_hook.c
-  src/hdmi-cec.c
-  src/hdmi-ddc.c
   src/main.c
   src/nvs.c
   src/usb-cdc.c

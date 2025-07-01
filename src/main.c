@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
@@ -8,39 +6,33 @@
 #include "hardware/timer.h"
 #include "pico/stdlib.h"
 
+#include "config.h"
+
 #include "blink.h"
+#include "cec-frame.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
+#include "cec-task.h"
 #include "usb-cdc.h"
 #include "usb_hid.h"
 #include "ws2812.h"
 
-#define USBD_STACK_SIZE (512)
-#define HID_STACK_SIZE (256)
-#define CDC_STACK_SIZE (1024)
-#define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (1024)
-#define CEC_QUEUE_LENGTH (16)
-
-void cdc_task(void *param);
-
 int main() {
-  static StaticQueue_t xStaticCECQueue;
+  static StaticQueue_t xCECQueue;
   static uint8_t storageCECQueue[CEC_QUEUE_LENGTH * sizeof(uint8_t)];
 
-  static StackType_t stackBlink[BLINK_STACK_SIZE];
+  static StackType_t stackLED[LED_STACK_SIZE];
   static StackType_t stackCEC[CEC_STACK_SIZE];
   static StackType_t stackHID[HID_STACK_SIZE];
   static StackType_t stackCDC[CDC_STACK_SIZE];
-  static StackType_t stackUSBD[USBD_STACK_SIZE];
+  static StackType_t stackUSB[USB_STACK_SIZE];
 
-  static StaticTask_t xBlinkTCB;
+  static StaticTask_t xLEDTCB;
   static StaticTask_t xCECTCB;
   static StaticTask_t xHIDTCB;
-  static StaticTask_t xUSBDTCB;
+  static StaticTask_t xUSBTCB;
   static StaticTask_t xCDCTCB;
 
-  static TaskHandle_t xUSBDTask;
+  static TaskHandle_t xUSBTask;
   static TaskHandle_t xHIDTask;
   static TaskHandle_t xCDCTask;
 
@@ -52,25 +44,25 @@ int main() {
   alarm_pool_init_default();
 
   // HID key queue
-  QueueHandle_t cec_q =
-      xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
+  QueueHandle_t cec_q;
+  cec_q = xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xCECQueue);
 
-  xBlinkTask =
-      xTaskCreateStatic(blink_task, "Blink", BLINK_STACK_SIZE, NULL, 1, &stackBlink[0], &xBlinkTCB);
-  xCECTask = xTaskCreateStatic(cec_task, CEC_TASK_NAME, CEC_STACK_SIZE, &cec_q,
-                               configMAX_PRIORITIES - 1, &stackCEC[0], &xCECTCB);
-  xHIDTask = xTaskCreateStatic(hid_task, "hid", HID_STACK_SIZE, &cec_q, configMAX_PRIORITIES - 2,
+  xBlinkTask = xTaskCreateStatic(blink_task, LED_TASK_NAME, LED_STACK_SIZE, NULL, LED_PRIORITY,
+                                 &stackLED[0], &xLEDTCB);
+  xCECTask = xTaskCreateStatic(cec_task, CEC_TASK_NAME, CEC_STACK_SIZE, &cec_q, CEC_PRIORITY,
+                               &stackCEC[0], &xCECTCB);
+  xHIDTask = xTaskCreateStatic(hid_task, HID_TASK_NAME, HID_STACK_SIZE, &cec_q, HID_PRIORITY,
                                &stackHID[0], &xHIDTCB);
-  xUSBDTask = xTaskCreateStatic(usb_device_task, "usbd", USBD_STACK_SIZE, NULL,
-                                configMAX_PRIORITIES - 3, &stackUSBD[0], &xUSBDTCB);
-  xCDCTask = xTaskCreateStatic(cdc_task, "cdc", CDC_STACK_SIZE, NULL, configMAX_PRIORITIES - 5,
+  xUSBTask = xTaskCreateStatic(usb_task, USB_TASK_NAME, USB_STACK_SIZE, NULL, USB_PRIORITY,
+                               &stackUSB[0], &xUSBTCB);
+  xCDCTask = xTaskCreateStatic(cdc_task, CDC_TASK_NAME, CDC_STACK_SIZE, NULL, CDC_PRIORITY,
                                &stackCDC[0], &xCDCTCB);
 
-  (void)xCECTask;
   (void)xBlinkTask;
+  (void)xCECTask;
   (void)xHIDTask;
+  (void)xUSBTask;
   (void)xCDCTask;
-  (void)xUSBDTask;
 
   cec_log_init();
 

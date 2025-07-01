@@ -1,19 +1,19 @@
-#include <hardware/watchdog.h>
-#include <pico/bootrom.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tusb.h>
 
+#include <hardware/watchdog.h>
+#include <pico/bootrom.h>
+
+#include "config.h"
+
+#include "cec-frame.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
-#include "hdmi-ddc.h"
+#include "cec-task.h"
+#include "ddc.h"
 #include "nvs.h"
 #include "tclie.h"
 #include "usb-cdc.h"
-
-#ifndef PICO_CEC_VERSION
-#define PICO_CEC_VERSION "unknown"
-#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -157,8 +157,8 @@ static int show_config(cec_config_t *config) {
 }
 
 static int show_stats_cec(void) {
-  hdmi_cec_stats_t stats = {0x0};
-  cec_get_stats(&stats);
+  cec_frame_stats_t stats = {0x0};
+  cec_frame_get_stats(&stats);
   cdc_printfln("%-13s: %lu frames", "CEC rx", stats.rx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC tx", stats.tx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);
@@ -202,7 +202,8 @@ static int show_stats_tasks(void) {
 
   for (UBaseType_t i = 0; i < n; i++) {
     cdc_printfln("%-13s | %-10lu | %-10lu", status[i].pcTaskName,
-                 (uint32_t)status[i].uxCurrentPriority, (uint32_t)status[i].usStackHighWaterMark);
+                 (uint32_t)status[i].uxCurrentPriority,
+                 (uint32_t)status[i].usStackHighWaterMark);
   }
 
   return 0;
