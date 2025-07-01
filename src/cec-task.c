@@ -15,10 +15,10 @@ DECLARE_TAG()
 #include "blink.h"
 #include "cec-config.h"
 #include "cec-frame.h"
+#include "cec-id.h"
 #include "cec-log.h"
-#include "hdmi-cec-id.h"
-#include "hdmi-cec.h"
-#include "hdmi-ddc.h"
+#include "cec-task.h"
+#include "ddc.h"
 #include "nvs.h"
 #include "usb-cdc.h"
 

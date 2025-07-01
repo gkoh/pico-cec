@@ -10,7 +10,7 @@
 DECLARE_TAG()
 
 #include "cec-frame.h"
-#include "hdmi-cec-log.h"
+#include "cec-log.h"
 
 #define NOTIFY_RX ((UBaseType_t)0)
 #define NOTIFY_TX ((UBaseType_t)1)
@@ -20,7 +20,7 @@ static cec_frame_stats_t cec_stats;
 
 /**
  * Calculate next offset as time since boot. (TODO: this comment is misleading as it is not
- * returning a time since boot, at least for the esp32 port)
+ * returning a time since boot, at least not in the case of the esp32 port)
  */
 static uint64_t time_next(uint64_t start, uint64_t next) {
   return (next - (time_us_64() - start));
@@ -31,7 +31,6 @@ static uint64_t time_next(uint64_t start, uint64_t next) {
  */
 static int64_t ack_high(alarm_id_t alarm, void *user_data) {
   gpio_set_dir(CEC_PIN, GPIO_IN);
-
   return 0;
 }
 
@@ -182,7 +181,7 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
   // ESP_LOGI(TAG, "high water mark = %lu", (long unsigned
   // int)uxTaskGetStackHighWaterMark(xCECTask));
 
-  hdmi_cec_log_frame(&rx_frame, true);
+  cec_log_frame(&rx_frame, true);
 
   if (rx_frame.state == CEC_FRAME_STATE_ABORT) {
     // printf("ABORT\n");
@@ -197,10 +196,8 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
 // BEWARE: this is currently being run in an interrupt context
 static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
   cec_frame_t *frame = (cec_frame_t *)user_data;
-
-  //  ESP_LOGI(TAG, "hdmi_tx_callback() state: %d", frame->state);
-
   uint64_t low_time = 0;
+
   switch (frame->state) {
     case CEC_FRAME_STATE_START_LOW:
       gpio_set_dir(CEC_PIN, GPIO_OUT);
@@ -269,9 +266,9 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
 static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
 
-  // ESP_LOGI(TAG, "hdmi_tx_frame(, %d)", len);
-
-  // TODO: this leads to watchdog on esp32 when CEC line (HDMI cable) is not connected
+  // TODO: this leads to watchdog on esp32 when CEC line (HDMI cable) is connected
+  //       to certain devices which are not powered on. Presumable the internal
+  //       pin pullups are not sufficient in this scenario.
   // wait 7 bit times of idle before sending
   while (i < 7) {
     vTaskDelay(pdMS_TO_TICKS(2.4));
@@ -293,7 +290,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
   add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
-  hdmi_cec_log_frame(&frame, false);
+  cec_log_frame(&frame, false);
 
   if (frame.ack) {
     cec_stats.tx_frames++;

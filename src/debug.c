@@ -13,7 +13,7 @@
 DECLARE_TAG()
 
 #include "cec-frame.h"
-#include "hdmi-cec.h"
+#include "cec-task.h"
 
 #ifndef STACK_WORDSIZE
 #define STACK_WORDSIZE 1

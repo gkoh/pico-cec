@@ -13,8 +13,8 @@ DECLARE_TAG()
 
 #include "cec-frame.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
-#include "hdmi-ddc.h"
+#include "cec-task.h"
+#include "ddc.h"
 #include "nvs.h"
 #include "tclie.h"
 #include "usb-cdc.h"
@@ -191,7 +191,10 @@ static int show_stats_cec(void) {
   cdc_printfln("%-13s: %lu frames", "CEC tx", stats.tx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);
   cdc_printfln("%-13s: %lu frames", "CEC tx noack", stats.tx_noack_frames);
-
+  if (stats.rx_frames) {
+    cdc_printfln("%-13s: %u %%", "rx bit aborts",
+                 (unsigned int)(stats.rx_abort_frames * 100 / stats.rx_frames));
+  }
   return 0;
 }
 

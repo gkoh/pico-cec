@@ -13,7 +13,7 @@
 DECLARE_TAG()
 
 #include "cec-log.h"
-#include "hdmi-ddc.h"
+#include "ddc.h"
 #include "usb-cdc.h"
 
 #define EDID_BLOCK_SIZE (128)
@@ -32,7 +32,7 @@ const uint8_t ctahdr[2] = {0x02, 0x03};
 const uint8_t vsbhdr[3] = {0x03, 0x0c, 0x00};
 
 static void ddc_init() {
-#ifdef USE_NEW_I2C_DRIVER
+#ifdef USE_ESPIDF_I2C_DRIVER_V2
   i2c_init(i2c_default, MASTER_FREQUENCY, EDID_I2C_ADDR);
 #else
   i2c_init(i2c_default, MASTER_FREQUENCY);

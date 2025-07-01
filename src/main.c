@@ -17,7 +17,7 @@ DECLARE_TAG()
 #include "blink.h"
 #include "cec-frame.h"
 #include "cec-log.h"
-#include "hdmi-cec.h"
+#include "cec-task.h"
 #include "usb-cdc.h"
 #include "usb_hid.h"
 #include "ws2812.h"

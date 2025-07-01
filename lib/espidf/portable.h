@@ -25,8 +25,6 @@ typedef unsigned int uint;
 // clang-format on
 
 #define IO_IRQ_BANK0 0
-//#define GPIO_IRQ_EDGE_RISE 1
-//#define GPIO_IRQ_EDGE_FALL 2
 
 /*! \brief  GPIO Interrupt level definitions (GPIO events)
  *  \ingroup hardware_gpio
@@ -54,7 +52,7 @@ enum gpio_irq_level {
 };
 
 // uint64_t time_us_64(void);  // normally declared in freertos
-//#define time_us_64 esp_timer_get_time
+// #define time_us_64 esp_timer_get_time
 
 int64_t esp_timer_get_time(void);  // from esp_timer.h
 
@@ -194,10 +192,10 @@ struct i2c_inst {
   bool restart_on_next;
 };
 
-//#define USE_NEW_I2C_DRIVER
+#define USE_ESPIDF_I2C_DRIVER_V2
 
 typedef struct i2c_inst i2c_inst_t;
-#ifdef USE_NEW_I2C_DRIVER
+#ifdef USE_ESPIDF_I2C_DRIVER_V2
 uint i2c_init(i2c_inst_t *i2c,
               uint i2c_frequency,
               uint16_t chip_addr);  // modified for compatibility with esp-idf
@@ -230,7 +228,7 @@ void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms);
 void board_led_write(int state);
 
 #define KEYMAP_DEFAULT_KODI 1
-//#define KEYMAP_DEFAULT_MISTER 1
+// #define KEYMAP_DEFAULT_MISTER 1
 
 typedef enum {
   HID_REPORT_TYPE_RESERVED = 0,
@@ -312,8 +310,8 @@ uint32_t save_and_disable_interrupts();
 #define HID_KEY_L 0
 #define HID_KEY_F12 0
 
-//#define KEYBOARD_LED_CAPSLOCK 0
-//#define HID_REPORT_TYPE_OUTPUT 0
+// #define KEYBOARD_LED_CAPSLOCK 0
+// #define HID_REPORT_TYPE_OUTPUT 0
 ////////////////////////////////////////////////////////////////////////////////
 
 // #define ESP_LOGD(tag, fmt, ...) do {} while (0)

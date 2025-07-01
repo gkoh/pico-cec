@@ -68,8 +68,8 @@ void gpio_acknowledge_irq(uint gpio, uint32_t events) {}
 static gpio_irq_callback_t hdmi_rx_frame_callback;
 uint64_t prev_edge_time;
 
-//#define USE_GPIO_TASK_HANDLER // enable this to get the tx frame handling out of the interrupt
-// context (for debugging)
+// #define USE_GPIO_TASK_HANDLER // enable this to get the tx frame handling out of the interrupt
+//  context (for debugging)
 #ifdef USE_GPIO_TASK_HANDLER
 #define GPIO_STACK_SIZE (8096)
 static StackType_t stackGPIO[GPIO_STACK_SIZE];
@@ -149,6 +149,7 @@ static void oneshot_timer_callback(void *arg) {
     ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, next));
   } else if (next < 0) {
     // TODO: investigate what is going on with negative delay times being returned by the callback
+    // (update: now fixed, so this could be removed)
     ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, 0));
     ESP_LOGE(TAG, "ERROR: timer, next: %lld us", next);
   } else {  // finished a frame tx or frame rx ack
@@ -177,7 +178,7 @@ alarm_id_t IRAM_ATTR add_alarm_at(absolute_time_t time,
   cec_alarm_user_data = user_data;
 
 #ifdef USE_GPIO_TASK_HANDLER
-  ESP_LOGD(TAG, "add_alarm_at(%lld,, %p,)", time, user_data);
+//  ESP_LOGD(TAG, "add_alarm_at(%lu,, %p,)", (uint32_t)time, user_data);
 #endif  // USE_GPIO_TASK_HANDLER
 
   last_timer_value = esp_timer_get_time();
@@ -188,7 +189,7 @@ alarm_id_t IRAM_ATTR add_alarm_at(absolute_time_t time,
     frame_type_str = "TX";
 
     // ESP_LOGD(TAG, "Starting frame tx: %ld", (int32_t)(time - last_timer_value));
-    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, 0));
+    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, 0));  // fires timer immediately
   } else {  // complete the ACK pulse for the RX handler, which passes NULL for the user_data
     // WARNING: we end up here in the gpio interrupt/callback context
     // ESP_LOGD(TAG, "Frame rxack pulse: %ld", (int32_t)(time - last_timer_value));
