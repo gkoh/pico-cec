@@ -40,8 +40,8 @@ void cec_log_init(void) {
   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
   enabled = false;
 
-  xTaskCreateStatic(cec_log_task, LOG_TASK_NAME, LOG_STACK_SIZE, NULL, LOG_PRIORITY,
-                    &log_stack[0], &log_task_static);
+  xTaskCreateStatic(cec_log_task, LOG_TASK_NAME, LOG_STACK_SIZE, NULL, LOG_PRIORITY, &log_stack[0],
+                    &log_task_static);
 }
 
 bool cec_log_enabled(void) {

@@ -523,11 +523,11 @@ static bool cec_frame_tx(uint8_t *data, uint8_t len) {
 
   cec_message_t message = {data, len};
   cec_frame_t frame = {.message = &message,
-                        .bit = 7,
-                        .byte = 0,
-                        .start = 0,
-                        .ack = false,
-                        .state = HDMI_FRAME_STATE_START_LOW};
+                       .bit = 7,
+                       .byte = 0,
+                       .start = 0,
+                       .ack = false,
+                       .state = HDMI_FRAME_STATE_START_LOW};
   add_alarm_at(from_us_since_boot(time_us_64()), cec_frame_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));

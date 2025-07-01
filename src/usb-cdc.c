@@ -202,8 +202,7 @@ static int show_stats_tasks(void) {
 
   for (UBaseType_t i = 0; i < n; i++) {
     cdc_printfln("%-13s | %-10lu | %-10lu", status[i].pcTaskName,
-                 (uint32_t)status[i].uxCurrentPriority,
-                 (uint32_t)status[i].usStackHighWaterMark);
+                 (uint32_t)status[i].uxCurrentPriority, (uint32_t)status[i].usStackHighWaterMark);
   }
 
   return 0;
