@@ -155,7 +155,7 @@ The CEC task comprises three major components:
    * receives and validates CEC packets from the CEC GPIO pin
    * edge interrupt driven state machine
       * rewritten from busy wait loop to reduce CPU load
-* `send_frame`
+* `cec_frame_send`
    * formats and sends CEC packets on the CEC GPIO pin
    * alarm interrupt driven state machine
       * rewritten from busy wait loop to reduce CPU load
