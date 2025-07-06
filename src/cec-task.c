@@ -3,7 +3,6 @@
 #include "task.h"
 
 #include "class/hid/hid.h"
-#include "hardware/timer.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
 
@@ -57,13 +56,6 @@ static bool audio_status = false;
 
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
-
-/**
- * Get milliseconds since boot.
- */
-uint64_t cec_get_uptime_ms(void) {
-  return (time_us_64() / 1000);
-}
 
 static void cec_feature_abort(uint8_t initiator,
                               uint8_t destination,

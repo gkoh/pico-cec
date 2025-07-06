@@ -27,9 +27,9 @@
 // INCLUDE
 //--------------------------------------------------------------------+
 #include "FreeRTOS.h"
+#include "task.h"
 
 #include "common/tusb_common.h"
-#include "task.h"
 
 #include "ws2812.h"
 

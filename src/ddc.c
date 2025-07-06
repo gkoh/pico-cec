@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "FreeRTOS.h"
-#include "task.h"
-
 #include "hardware/i2c.h"
 #include "pico/stdlib.h"
 

@@ -174,7 +174,7 @@ static int show_stats_cpu(void) {
 
   UBaseType_t n = uxTaskGetSystemState(status, count, &total_run_time);
 
-  uint64_t uptime = cec_get_uptime_ms() / 1000;
+  uint64_t uptime = cec_log_uptime_ms() / 1000;
   uint64_t seconds = uptime % 60;
   uptime /= 60;
   uint64_t minutes = uptime % 60;

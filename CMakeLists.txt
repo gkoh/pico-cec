@@ -56,6 +56,7 @@ add_executable(${PROJECT}
   src/cec-frame.c
   src/cec-log.c
   src/cec-task.c
+  src/cec-user.c
   src/ddc.c
   src/freertos_hook.c
   src/main.c

@@ -173,8 +173,8 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
 
 static int64_t frame_tx_callback(alarm_id_t alarm, void *user_data) {
   cec_frame_t *frame = (cec_frame_t *)user_data;
-
   uint64_t low_time = 0;
+
   switch (frame->state) {
     case CEC_FRAME_STATE_START_LOW:
       gpio_set_dir(CEC_PIN, GPIO_OUT);
