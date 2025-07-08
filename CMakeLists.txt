@@ -64,6 +64,7 @@ add_executable(${PROJECT}
   src/usb-cdc.c
   src/usb_descriptors.c
   src/usb_hid.c
+  src/util.c
   src/ws2812.c
   src/ws2812.pio)
 

@@ -5,7 +5,8 @@
 #include <hardware/watchdog.h>
 #include <pico/bootrom.h>
 
-#include "config.h"
+#include "pico-cec/config.h"
+#include "pico-cec/util.h"
 
 #include "cec-frame.h"
 #include "cec-log.h"
@@ -174,7 +175,7 @@ static int show_stats_cpu(void) {
 
   UBaseType_t n = uxTaskGetSystemState(status, count, &total_run_time);
 
-  uint64_t uptime = cec_log_uptime_ms() / 1000;
+  uint64_t uptime = util_uptime_ms() / 1000;
   uint64_t seconds = uptime % 60;
   uptime /= 60;
   uint64_t minutes = uptime % 60;

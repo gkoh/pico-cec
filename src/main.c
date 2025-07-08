@@ -5,7 +5,7 @@
 #include "bsp/board.h"
 #include "pico/stdlib.h"
 
-#include "config.h"
+#include "pico-cec/config.h"
 
 #include "blink.h"
 #include "cec-frame.h"

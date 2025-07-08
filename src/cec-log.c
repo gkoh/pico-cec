@@ -6,7 +6,8 @@
 #include "message_buffer.h"
 #include "task.h"
 
-#include "config.h"
+#include "pico-cec/config.h"
+#include "pico-cec/util.h"
 
 #include "cec-frame.h"
 #include "cec-id.h"
@@ -26,13 +27,6 @@ static MessageBufferHandle_t log_mb;
 static uint8_t log_mb_storage[LOG_MB_SIZE];
 
 static volatile bool enabled = false;
-
-/**
- * Get milliseconds since boot. (~ since the log task started)
- */
-uint64_t cec_log_uptime_ms(void) {
-  return (time_us_64() / 1000);
-}
 
 static void cec_log_task(void *param) {
   log_callback_t log = param;
@@ -114,7 +108,7 @@ __attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
 
   va_list ap;
   va_start(ap, fmt);
-  snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", cec_log_uptime_ms(),
+  snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", util_uptime_ms(),
            send ? initiator : destination, arrow, send ? destination : initiator);
   vsnprintf(buffer, sizeof(buffer), fmt, ap);
   cec_log_submitf("%s: %s"_CDC_BR, prefix, buffer);
