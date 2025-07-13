@@ -14,7 +14,6 @@
 #include "cec-task.h"
 #include "ddc.h"
 #include "nvs.h"
-#include "usb-cdc.h"
 
 /* Intercept HDMI CEC commands, convert to a keypress and send to HID task
  * handler.
@@ -154,13 +153,13 @@ static uint8_t allocate_logical_address(cec_config_t *config) {
   uint8_t a;
   for (unsigned int i = 0; i < NUM_LADDRESS; i++) {
     a = laddress[config->device_type][i];
-    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_CDC_BR, a);
+    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_LOG_BR, a);
     if (!cec_ping(a)) {
       break;
     }
   }
 
-  cec_log_submitf("Allocated logical address 0x%02x"_CDC_BR, a);
+  cec_log_submitf("Allocated logical address 0x%02x"_LOG_BR, a);
   return a;
 }
 

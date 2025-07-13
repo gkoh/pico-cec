@@ -13,7 +13,6 @@
 #include "cec-id.h"
 #include "cec-log.h"
 #include "cec-user.h"
-#include "usb-cdc.h"
 
 #define LOG_LINE_LENGTH (64)
 #define LOG_QUEUE_LENGTH (16)
@@ -111,7 +110,7 @@ __attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
   snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", util_uptime_ms(),
            send ? initiator : destination, arrow, send ? destination : initiator);
   vsnprintf(buffer, sizeof(buffer), fmt, ap);
-  cec_log_submitf("%s: %s"_CDC_BR, prefix, buffer);
+  cec_log_submitf("%s: %s"_LOG_BR, prefix, buffer);
   va_end(ap);
 }
 
@@ -206,7 +205,7 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
       case CEC_ID_VENDOR_COMMAND_WITH_ID:
         log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         for (int i = 0; i < msg->len; i++) {
-          cec_log_submitf(" %02x"_CDC_BR, msg->data[i]);
+          cec_log_submitf(" %02x"_LOG_BR, msg->data[i]);
         }
         break;
       case CEC_ID_REPORT_POWER_STATUS:

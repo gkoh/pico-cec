@@ -4,6 +4,10 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include "usb-cdc.h"
+
+#define _LOG_BR _CDC_BR
+
 typedef struct cec_frame_t cec_frame_t;
 typedef void (*log_callback_t)(const char *str);
 
