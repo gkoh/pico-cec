@@ -60,6 +60,10 @@ void cec_log_disable(void) {
   enabled = false;
 }
 
+void cec_log(const char *buffer, int len) {
+  xMessageBufferSend(log_mb, buffer, len + 1, pdMS_TO_TICKS(20));
+}
+
 void cec_log_vsubmitf(const char *fmt, va_list ap) {
   if (enabled) {
     char buffer[LOG_LINE_LENGTH];
@@ -159,6 +163,27 @@ const char *cec_feature_abort_reason[] = {
 };
 
 /**
+ * Log a raw CEC frame.
+ *
+ * CEC raw frame logging function, formatted suitable for cec-o-matic
+ */
+void cec_log_raw_frame(cec_frame_t *frame) {
+  cec_message_t *msg = frame->message;
+  char buffer[48];
+
+  memset(buffer, 0, sizeof(buffer));
+  if (msg->len > 0) {
+    int j = 0;
+    for (int i = 0; i < msg->len && j < sizeof(buffer); i++, j += 3) {
+      sprintf(&buffer[j], "%02x:", msg->data[i]);
+    }
+    buffer[j - 1] = '\r';
+    buffer[j - 0] = '\n';
+    cec_log(buffer, j + 1);
+  }
+}
+
+/**
  * Log a CEC frame.
  *
  * CEC frame logging function, which includes minor protocol decoding for debug
@@ -227,8 +252,8 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], status);
         break;
       default: {
-        const char *message = cec_message[cmd];
-        if (strlen(message) > 0) {
+        const char *message = cec_message[cmd];  // TODO: seems to be problematic for unknown cmd's
+        if (message != NULL && strlen(message) > 0) {
           log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         } else {
           log_printf(initiator, destination, recv, frame->ack, "[%x] (undecoded)", cmd);

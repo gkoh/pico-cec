@@ -19,6 +19,16 @@ static cec_frame_t rx_frame = {.message = &rx_message};
 /* CEC statistics. */
 static cec_frame_stats_t cec_stats;
 
+static bool monitor_mode = false;
+
+void cec_frame_set_monitor_mode(bool mode) {
+  monitor_mode = mode;
+}
+
+bool cec_frame_get_monitor_mode(void) {
+  return monitor_mode;
+}
+
 /**
  * Calculate next offset as time since boot.
  */
@@ -31,12 +41,12 @@ static uint64_t time_next(uint64_t start, uint64_t next) {
  */
 static int64_t ack_high(alarm_id_t alarm, void *user_data) {
   gpio_set_dir(CEC_PIN, GPIO_IN);
-
   return 0;
 }
 
 static void frame_rx_isr(uint gpio, uint32_t events) {
   uint64_t low_time = 0;
+
   gpio_acknowledge_irq(gpio, events);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
   // printf("state = %d, byte = %d, bit = %d\n", rx_frame.state, rx_frame.byte, rx_frame.bit);
@@ -113,9 +123,9 @@ static void frame_rx_isr(uint gpio, uint32_t events) {
       rx_frame.start = time_us_64();
       // send ack by changing ack from 1 to 0
       uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
-      if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
-        rx_frame.state = CEC_FRAME_STATE_ACK_END;
-        gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
+      if (!monitor_mode && tgt_addr != 0x0f && tgt_addr == rx_frame.address) {
+        rx_frame.state = CEC_FRAME_STATE_ACK_END;  // TODO: remove, gets overwritten below
+        gpio_set_dir(CEC_PIN, GPIO_OUT);           // pull low, then schedule pull high
         add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
         rx_frame.ack = true;
       }
@@ -158,15 +168,16 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
   ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, portMAX_DELAY);
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
-
-  cec_log_frame(&rx_frame, true);
-
+  if (monitor_mode) {
+    cec_log_raw_frame(&rx_frame);
+  } else {
+    cec_log_frame(&rx_frame, true);
+  }
   if (rx_frame.state == CEC_FRAME_STATE_ABORT) {
     // printf("ABORT\n");
     cec_stats.rx_abort_frames++;
     return 0;
   }
-
   cec_stats.rx_frames++;
   return rx_frame.message->len;
 }
@@ -276,9 +287,15 @@ static bool frame_tx(uint8_t *data, uint8_t len) {
 }
 
 bool cec_frame_send(uint8_t pldcnt, uint8_t *pld) {
+  if (monitor_mode)
+    return false;
   // disable GPIO ISR for sending
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
   return frame_tx(pld, pldcnt);
+}
+
+void cec_frame_clear_stats(void) {
+  memset(&cec_stats, 0, sizeof(cec_stats));
 }
 
 void cec_frame_get_stats(cec_frame_stats_t *stats) {

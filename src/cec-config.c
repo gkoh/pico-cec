@@ -13,6 +13,11 @@
 static const uint32_t default_edid_delay_ms = 5000;
 
 /**
+ * Default monitor mode (on/off).
+ */
+static const uint8_t default_monitor_mode = 0;
+
+/**
  * Default physical address.
  *
  * 0x0000 is typically reserved for the television and we never claim it.
@@ -102,6 +107,7 @@ void cec_config_set_default(cec_config_t *config) {
     return;
   }
   config->edid_delay_ms = default_edid_delay_ms;
+  config->monitor_mode = default_monitor_mode;
   config->physical_address = default_physical_addr;
   config->logical_address = default_logical_addr;
   config->device_type = default_device_type;
