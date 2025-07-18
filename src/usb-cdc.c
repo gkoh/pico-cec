@@ -2,8 +2,8 @@
 #include <string.h>
 #include <tusb.h>
 
-#include <hardware/watchdog.h>
-#include <pico/bootrom.h>
+#include "portable.h"
+DECLARE_TAG()
 
 #include "pico-cec/config.h"
 #include "pico-cec/util.h"

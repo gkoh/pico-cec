@@ -29,7 +29,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#include "common/tusb_common.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "ws2812.h"
 

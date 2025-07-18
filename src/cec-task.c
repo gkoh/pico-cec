@@ -2,9 +2,8 @@
 #include "queue.h"
 #include "task.h"
 
-#include "class/hid/hid.h"
-#include "pico/stdlib.h"
-#include "tusb.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "blink.h"
 #include "cec-config.h"

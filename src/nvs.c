@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <hardware/flash.h>
-#include <hardware/sync.h>
+#include "portable.h"
+DECLARE_TAG()
 
 #include "crc/crc32.h"
 

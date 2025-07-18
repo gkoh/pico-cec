@@ -2,8 +2,8 @@
 #include "queue.h"
 #include "task.h"
 
-#include "bsp/board.h"
-#include "pico/stdlib.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "pico-cec/config.h"
 

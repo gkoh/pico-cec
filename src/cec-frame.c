@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "pico/stdlib.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "cec-frame.h"
 #include "cec-log.h"
