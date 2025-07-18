@@ -4,7 +4,9 @@
 
 #include "portable.h"
 DECLARE_TAG()
+#ifdef __XTENSA__
 #include "project_info.h"
+#endif
 
 #include "config.h"
 
