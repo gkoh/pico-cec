@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef USE_PORTABLE
-#include "pico/stdlib.h"
-#endif
-
 #include "portable.h"
 DECLARE_TAG()
 
@@ -15,35 +11,45 @@ DECLARE_TAG()
 #define NOTIFY_RX ((UBaseType_t)0)
 #define NOTIFY_TX ((UBaseType_t)1)
 
+TaskHandle_t xCECTask;
+
+static uint8_t rx_buffer[16] = {0x0};
+static cec_message_t rx_message = {.data = &rx_buffer[0], .len = 0};
+static cec_frame_t rx_frame = {.message = &rx_message};
+
+int64_t frame_time_start;  // temporary for debugging diagnostics only
+char *frame_type_str;      // temporary for debugging diagnostics only
+
 /* CEC statistics. */
 static cec_frame_stats_t cec_stats;
 
+static bool monitor_mode = false;
+
+void cec_frame_set_monitor_mode(bool mode) {
+  monitor_mode = mode;
+}
+
+bool cec_frame_get_monitor_mode(void) {
+  return monitor_mode;
+}
+
 /**
  * Calculate next offset as time since boot. (TODO: this comment is misleading as it is not
- * returning a time since boot, at least not in the case of the esp32 port)
+ * returning a time since boot, at least for the esp32 port)
  */
-static uint64_t time_next(uint64_t start, uint64_t next) {
+static inline uint64_t time_next(uint64_t start, uint64_t next) {
   return (next - (time_us_64() - start));
 }
 
 /**
  * Pull the CEC line high at the specified time.
  */
-static int64_t ack_high(alarm_id_t alarm, void *user_data) {
+static int64_t IRAM_ATTR ack_high(alarm_id_t alarm, void *user_data) {
   gpio_set_dir(CEC_PIN, GPIO_IN);
   return 0;
 }
 
-TaskHandle_t xCECTask;
-
-uint8_t rx_buffer[16] = {0x0};
-cec_message_t rx_message = {.data = &rx_buffer[0], .len = 0};
-cec_frame_t rx_frame = {.message = &rx_message};
-
-int64_t frame_time_start;
-char *frame_type_str;
-
-static void cec_frame_rx_isr(uint64_t edge_time) {
+static void IRAM_ATTR frame_rx_isr(uint64_t edge_time) {
   uint64_t low_time = 0;
 
   switch (rx_frame.state) {
@@ -123,9 +129,9 @@ static void cec_frame_rx_isr(uint64_t edge_time) {
       rx_frame.start = edge_time;
       // send ack by changing ack from 1 to 0
       uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
-      if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
-        rx_frame.state = CEC_FRAME_STATE_ACK_END;
-        gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
+      if (!monitor_mode && tgt_addr != 0x0f && tgt_addr == rx_frame.address) {
+        rx_frame.state = CEC_FRAME_STATE_ACK_END;  // TODO: remove, gets overwritten below?
+        gpio_set_dir(CEC_PIN, GPIO_OUT);           // pull low, then schedule pull high
         add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
         rx_frame.ack = true;
       }
@@ -159,17 +165,16 @@ static void cec_frame_rx_isr(uint64_t edge_time) {
 }
 
 #ifndef __XTENSA__
-static void pico_cec_frame_rx_isr(uint gpio, uint32_t events) {
+static void pico_rx_isr(uint gpio, uint32_t events) {
   gpio_acknowledge_irq(gpio, events);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
   uint64_t edge_time = time_us_64();
-  cec_frame_rx_isr(edge_time);
+  frame_rx_isr(edge_time);
 }
 #endif  // __XTENSA__
 
 uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
-  // printf("recv_frame\n");
-  // ESP_LOGI(TAG, "cec_frame_recv");
+  // printf("cec_frame_recv\n");
   rx_frame.address = address;
   rx_frame.state = CEC_FRAME_STATE_START_LOW;
   rx_frame.ack = false;
@@ -178,11 +183,11 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
   ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, portMAX_DELAY);
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
-  // ESP_LOGI(TAG, "high water mark = %lu", (long unsigned
-  // int)uxTaskGetStackHighWaterMark(xCECTask));
-
+  if (monitor_mode) {
+    cec_log_raw_frame(&rx_frame);
+  } else {
   cec_log_frame(&rx_frame, true);
-
+  }
   if (rx_frame.state == CEC_FRAME_STATE_ABORT) {
     // printf("ABORT\n");
     cec_stats.rx_abort_frames++;
@@ -194,7 +199,7 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
 }
 
 // BEWARE: this is currently being run in an interrupt context
-static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
+static int64_t IRAM_ATTR frame_tx_callback(alarm_id_t alarm, void *user_data) {
   cec_frame_t *frame = (cec_frame_t *)user_data;
   uint64_t low_time = 0;
 
@@ -263,7 +268,7 @@ static int64_t hdmi_tx_callback(alarm_id_t alarm, void *user_data) {
   }
 }
 
-static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
+static bool frame_tx(uint8_t *data, uint8_t len) {
   unsigned char i = 0;
 
   // TODO: this leads to watchdog on esp32 when CEC line (HDMI cable) is connected
@@ -287,7 +292,7 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
                        .start = 0,
                        .ack = false,
                        .state = CEC_FRAME_STATE_START_LOW};
-  add_alarm_at(from_us_since_boot(time_us_64()), hdmi_tx_callback, &frame, true);
+  add_alarm_at(from_us_since_boot(time_us_64()), frame_tx_callback, &frame, true);
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
   cec_log_frame(&frame, false);
@@ -302,9 +307,15 @@ static bool hdmi_tx_frame(uint8_t *data, uint8_t len) {
 }
 
 bool cec_frame_send(uint8_t pldcnt, uint8_t *pld) {
+  if (monitor_mode)
+    return false;
   // disable GPIO ISR for sending
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
-  return hdmi_tx_frame(pld, pldcnt);
+  return frame_tx(pld, pldcnt);
+}
+
+void cec_frame_clear_stats(void) {
+  memset(&cec_stats, 0, sizeof(cec_stats));
 }
 
 void cec_frame_get_stats(cec_frame_stats_t *stats) {
@@ -316,9 +327,9 @@ void cec_frame_init(void) {
   gpio_disable_pulls(CEC_PIN);
   gpio_set_dir(CEC_PIN, GPIO_IN);
 #ifdef __XTENSA__
-  esp_cec_rx_init(CEC_PIN, &cec_frame_rx_isr);
+  esp_cec_rx_init(CEC_PIN, &frame_rx_isr);
 #else
-  gpio_set_irq_callback(&pico_cec_frame_rx_isr);
+  gpio_set_irq_callback(&pico_rx_isr);
   irq_set_enabled(IO_IRQ_BANK0, true);
 #endif  // __XTENSA__
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);

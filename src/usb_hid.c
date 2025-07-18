@@ -32,12 +32,6 @@
 #include "semphr.h"
 #include "task.h"
 
-#ifndef USE_PORTABLE
-#include "bsp/board.h"
-#include "pico/stdlib.h"
-#include "tusb.h"
-#endif
-
 #include "portable.h"
 DECLARE_TAG()
 

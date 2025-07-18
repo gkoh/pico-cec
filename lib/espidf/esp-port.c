@@ -1,17 +1,21 @@
-#include <inttypes.h>
-#include <stdio.h>
-#include "esp_system.h"
-#include "esp_timer.h"
+#include <driver/gpio.h>
+#include <driver/uart.h>
+#include <esp_log.h>
+#include <esp_system.h>
+#include <esp_timer.h>
+
+#include "options.h"
+
+#ifdef USE_GPIO_TASK_HANDLER
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "sdkconfig.h"
-
-#include "driver/gpio.h"
-#include "driver/uart.h"
+#endif
 
 #include "esp-port.h"
 #include "portable.h"
 DECLARE_TAG()
+
+#include "sdkconfig.h"
 
 #define UART_TXD (CONFIG_UART_TXD)
 #define UART_RXD (CONFIG_UART_RXD)
@@ -40,117 +44,125 @@ void uart_init(void) {
   ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, UART_TXD, UART_RXD, UART_RTS, UART_CTS));
 }
 
-void irq_set_enabled(int a, int b) {}
-
-void IRAM_ATTR gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled) {
-  if (enabled) {
-    if (event_mask == (GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL)) {
-      gpio_set_intr_type(gpio, GPIO_INTR_ANYEDGE);
-    }
-    if (event_mask == (GPIO_IRQ_EDGE_RISE)) {
-      gpio_set_intr_type(gpio, GPIO_INTR_POSEDGE);
-    }
-    if (event_mask == (GPIO_IRQ_EDGE_FALL)) {
-      gpio_set_intr_type(gpio, GPIO_INTR_NEGEDGE);
-    }
-  } else {
-    gpio_set_intr_type(gpio, GPIO_INTR_DISABLE);
-  }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // CEC RX interrupt handling
 //
 #define ESP_INTR_FLAG_DEFAULT 0
 
-void gpio_acknowledge_irq(uint gpio, uint32_t events) {}
-
-static gpio_irq_callback_t hdmi_rx_frame_callback;
+static gpio_irq_callback_t gpio_irq_callback;
 uint64_t prev_edge_time;
 
-// #define USE_GPIO_TASK_HANDLER // enable this to get the tx frame handling out of the interrupt
-//  context (for debugging)
+// take the gpio interrupt handling out of the interrupt context (for debugging)
 #ifdef USE_GPIO_TASK_HANDLER
+
+#ifdef USE_GPIO_INTERRUPT_LEVEL_TRIGGERED
+#pragma GCC error "Probably cannot use GPIO task handler with level detect interrupts enabled"
+#endif
+
 #define GPIO_STACK_SIZE (8096)
 static StackType_t stackGPIO[GPIO_STACK_SIZE];
 static StaticTask_t xGPIOTCB;
+
+#ifdef USE_GPIO_TASK_QUEUE
 #define GPIO_QUEUE_LENGTH (2)  // we should only really need the one slot
 static StaticQueue_t xStaticGPIOQueue;
 static QueueHandle_t gpio_evt_queue = NULL;
 static uint8_t storageGPIOQueue[GPIO_QUEUE_LENGTH * sizeof(uint64_t)];
+#else
+#define NOTIFY_GPIO ((UBaseType_t)0)
+#endif  // USE_GPIO_TASK_QUEUE
+
 static TaskHandle_t xGPIOTask;
 
 static void gpio_task(void *arg) {
   uint64_t edge_time;
   for (;;) {
+#ifdef USE_GPIO_TASK_QUEUE
     if (xQueueReceive(gpio_evt_queue, &edge_time, portMAX_DELAY)) {
-      hdmi_rx_frame_callback(edge_time);
+      gpio_irq_callback(edge_time);
     }
+#else
+    edge_time = ulTaskNotifyTakeIndexed(NOTIFY_GPIO, pdTRUE, portMAX_DELAY);
+    if (edge_time > 0) {
+      gpio_irq_callback(edge_time);
+    }
+#endif  // USE_GPIO_TASK_QUEUE
   }
 }
 #endif  // USE_GPIO_TASK_HANDLER
 
 static void IRAM_ATTR gpio_isr_handler(void *arg) {
   uint32_t gpio_num = (uint32_t)arg;
-  uint64_t edge_time = time_us_64();
-
-  if (edge_time - prev_edge_time < 100)
-    return;
-  prev_edge_time = edge_time;
+  uint64_t edge_time = esp_timer_get_time();
 
   gpio_set_intr_type(gpio_num, GPIO_INTR_DISABLE);
 #ifdef USE_GPIO_TASK_HANDLER
-  xQueueSendFromISR(gpio_evt_queue, &edge_time, NULL);
-  portYIELD_FROM_ISR();  // indicate we need to yield at the end of ISR
+  BaseType_t pxHigherPriorityTaskWoken;
+#ifdef USE_GPIO_TASK_QUEUE
+  xQueueSendFromISR(gpio_evt_queue, &edge_time, &pxHigherPriorityTaskWoken);
 #else
-  hdmi_rx_frame_callback(edge_time);
+  xTaskNotifyIndexedFromISR(xGPIOTask, NOTIFY_GPIO, edge_time, eSetValueWithOverwrite,
+                            &pxHigherPriorityTaskWoken);
+#endif  // USE_GPIO_TASK_QUEUE
+  if (pdTRUE == pxHigherPriorityTaskWoken) {
+    portYIELD_FROM_ISR();  // indicate we need to yield at the end of ISR
+  }
+#else
+  gpio_irq_callback(edge_time);
 #endif  // USE_GPIO_TASK_HANDLER
 }
 
-void esp_cec_rx_init(uint gpio, gpio_irq_callback_t callback) {
-  hdmi_rx_frame_callback = callback;
+void gpio_isr_init(unsigned int gpio, gpio_irq_callback_t callback) {
+  gpio_irq_callback = callback;
 
 #ifdef USE_GPIO_TASK_HANDLER
   // Create a queue to handle gpio event from isr (we could have just used a global for the
   // timestamp and an ipc signal)
+#ifdef USE_GPIO_TASK_QUEUE
   gpio_evt_queue = xQueueCreateStatic(
       GPIO_QUEUE_LENGTH, sizeof(uint64_t), &storageGPIOQueue[0],
-      &xStaticGPIOQueue);  // TODO: changed from xQueueCreate to xQueueCreateStatic
+      &xStaticGPIOQueue);
   if (!gpio_evt_queue) {
     ESP_LOGE(TAG, "Creating GPIO queue failed");
     return;
   }
-  // Start gpio task
   xGPIOTask = xTaskCreateStatic(gpio_task, "gpio_task", GPIO_STACK_SIZE, &gpio_evt_queue,
-                                configMAX_PRIORITIES - 1, &stackGPIO[0], &xGPIOTCB);  // TODO: ditto
+                                configMAX_PRIORITIES - 1, &stackGPIO[0], &xGPIOTCB);
+#else
+  xGPIOTask = xTaskCreateStatic(gpio_task, "gpio_task", GPIO_STACK_SIZE, NULL,
+                                configMAX_PRIORITIES - 1, &stackGPIO[0], &xGPIOTCB);
+#endif
   (void)xGPIOTask;
 #endif  // USE_GPIO_TASK_HANDLER
 
-  gpio_set_intr_type(gpio, GPIO_INTR_ANYEDGE);
+  gpio_set_intr_type(gpio, GPIO_INTR_ANYEDGE);  // TODO: seems irrelevant at this time
   gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
   gpio_isr_handler_add(gpio, gpio_isr_handler, (void *)gpio);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// CEC frame tx timer/interrupt handling
+// Support for cec frame tx timer/interrupt handling
 //
-static alarm_callback_t cec_alarm_callback = NULL;
-static void *cec_alarm_user_data = NULL;
+static timer_callback_t timer_callback = NULL;
+static void *timer_user_data = NULL;
 
-static esp_timer_handle_t oneshot_timer;
+static esp_timer_handle_t oneshot_timer_handle;
 static int64_t last_timer_value;
-extern int64_t frame_time_start;
-extern char *frame_type_str;
 
-static void oneshot_timer_callback(void *arg) {
+extern int64_t frame_time_start;  // temporary for debugging diagnostics only
+extern char *frame_type_str;      // temporary for debugging diagnostics only
+
+// This callback is fixed in the timer initialisation, so we use a second callback
+//  pointer to allow the application code to configure which 'alarm' it wants invoked
+static void IRAM_ATTR oneshot_timer_callback(void *arg) {
   int64_t time_since_boot = esp_timer_get_time();
-  int64_t next = cec_alarm_callback(0, cec_alarm_user_data);
-  if (next > 0) {  // delay time for next alarm
-    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, next));
+  int64_t next = timer_callback(0, timer_user_data);  // call down to cec-frame layer
+  if (next > 0) {                                     // delay time for next 'alarm'
+    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, next));
   } else if (next < 0) {
     // TODO: investigate what is going on with negative delay times being returned by the callback
-    // (update: now fixed, so this could be removed)
-    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, 0));
+    // (update: now fixed, so this could be removed) (was caused by calling ESP_LOGx from callback)
+    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, 0));
     ESP_LOGE(TAG, "ERROR: timer, next: %lld us", next);
   } else {  // finished a frame tx or frame rx ack
     ESP_LOGV(TAG, "%s frame complete: %ld us", frame_type_str,
@@ -159,23 +171,21 @@ static void oneshot_timer_callback(void *arg) {
   last_timer_value = time_since_boot;
 }
 
-void alarm_pool_init_default() {
+void timer_init(void) {
   const esp_timer_create_args_t oneshot_timer_args = {
       .callback = &oneshot_timer_callback,
       /* argument specified here will be passed to timer callback function */
       .arg = (void *)NULL,
+      .dispatch_method = ESP_TIMER_ISR,
       .name = "one-shot"};
-  ESP_ERROR_CHECK(esp_timer_create(&oneshot_timer_args, &oneshot_timer));
+  ESP_ERROR_CHECK(esp_timer_create(&oneshot_timer_args, &oneshot_timer_handle));
   /* The timer has been created but is not running yet */
-  ESP_LOGD(TAG, "alarm_pool_init_default() created timer %p", oneshot_timer);
+  ESP_LOGD(TAG, "esp_timer_init() created timer %p", oneshot_timer_handle);
 }
 
-alarm_id_t IRAM_ATTR add_alarm_at(absolute_time_t time,
-                                  alarm_callback_t callback,
-                                  void *user_data,
-                                  bool fire_if_past) {
-  cec_alarm_callback = callback;
-  cec_alarm_user_data = user_data;
+void IRAM_ATTR timer_start(uint64_t time, timer_callback_t callback, void *user_data) {
+  timer_callback = callback;
+  timer_user_data = user_data;
 
 #ifdef USE_GPIO_TASK_HANDLER
 //  ESP_LOGD(TAG, "add_alarm_at(%lu,, %p,)", (uint32_t)time, user_data);
@@ -183,19 +193,18 @@ alarm_id_t IRAM_ATTR add_alarm_at(absolute_time_t time,
 
   last_timer_value = esp_timer_get_time();
 
-  if (user_data) {  // directly invoke the TX handler for start of frame
+  if (user_data) {
 
     frame_time_start = last_timer_value;
     frame_type_str = "TX";
 
     // ESP_LOGD(TAG, "Starting frame tx: %ld", (int32_t)(time - last_timer_value));
-    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, 0));  // fires timer immediately
+    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, 0));  // fires timer immediately
   } else {  // complete the ACK pulse for the RX handler, which passes NULL for the user_data
     // WARNING: we end up here in the gpio interrupt/callback context
     // ESP_LOGD(TAG, "Frame rxack pulse: %ld", (int32_t)(time - last_timer_value));
-    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer, (time - esp_timer_get_time())));
+    ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, (time - esp_timer_get_time())));
   }
-  return 0;  // unused
 }
 
 /* scary tid-bit from the silicon errata

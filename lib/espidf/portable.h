@@ -3,18 +3,20 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
-#include "sdkconfig.h"
+
+#include "options.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // The published interface of the port made visible to the application
 //   everything in here should represent a replacement for pico-sdk stuff
 //
+// This layer provides an interface to the application for the functionality
+//   implemented in the esp-port.c module
+//
 
 typedef unsigned int uint;
 
-#include "esp_log.h"
-
+#include <esp_log.h>
 // https://gcc.gnu.org/onlinedocs/gcc/Diagnostic-Pragmas.html
 // clang-format off
 #define DECLARE_TAG() \
@@ -23,6 +25,10 @@ typedef unsigned int uint;
   static const char *TAG = __FILE_NAME__; \
   _Pragma("GCC diagnostic pop")
 // clang-format on
+
+#if __INTELLISENSE__
+#define __FILE_NAME__ __FILE__
+#endif
 
 #define IO_IRQ_BANK0 0
 
@@ -60,17 +66,9 @@ static inline uint64_t time_us_64(void) {
   return esp_timer_get_time();
 }
 
-typedef void (*gpio_irq_callback_t)(uint64_t edge_time);
-
-void irq_set_enabled(int a, int b);
-
 ////////////////////////////////////////////////////////////////////////////////
 // pico-sdk gpio primatives/functions
 //
-void gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled);
-void gpio_acknowledge_irq(uint gpio, uint32_t events);
-
-void esp_cec_rx_init(uint gpio, gpio_irq_callback_t edge_time);
 
 enum gpio_function {
   GPIO_FUNC_XIP = 0,
@@ -103,8 +101,6 @@ void gpio_put(uint gpio, int value);
 ////////////////////////////////////////////////////////////////////////////////
 // Implement some of the pico-sdk timer primatives/functions
 //
-typedef uint64_t absolute_time_t;
-
 // /*
 //  update_us_since_boot(): update an absolute_time_t value to represent a given number of
 //  microseconds since boot
@@ -117,7 +113,6 @@ typedef uint64_t absolute_time_t;
 // //    *t = esp_timer_get_time() + us_since_boot;
 //     *t = time_us_64() + us_since_boot;
 // }
-
 // /*
 //  from_us_since_boot(): convert a number of microseconds since boot to an absolute_time_t
 //     static absolute_time_t from_us_since_boot(uint64_t us_since_boot)
@@ -133,27 +128,35 @@ typedef uint64_t absolute_time_t;
 //     return t; // returns an absolute time equivalent to us_since_boot
 // }
 
-#define from_us_since_boot(t) ((absolute_time_t)(t))
+////////////////////////////////////////////////////////////////////////////////
+// REQUIRED FOR main.c & debug.c
+#define vTaskStartScheduler vTaskStartScheduler_stub
+void vTaskStartScheduler_stub(void);
+void alarm_pool_init_default();
+void stdio_init_all();
+void board_init();
+////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// Some pico-sdk alarm stuff
-//
-void alarm_pool_init_default();
-
+// REQUIRED FOR cec-frame.c
+#define from_us_since_boot(t) ((absolute_time_t)(t))
 typedef int32_t alarm_id_t;  // note this is signed because we use <0 as a meaningful error value
+typedef uint64_t absolute_time_t;
 typedef int64_t (*alarm_callback_t)(alarm_id_t id, void *user_data);
 alarm_id_t add_alarm_at(absolute_time_t time,
                         alarm_callback_t callback,
                         void *user_data,
                         bool fire_if_past);
+void irq_set_enabled(int a, int b);
+void gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled);
+void gpio_acknowledge_irq(uint gpio, uint32_t events);
+
+typedef void (*cec_frame_rx_isr_callback_t)(uint64_t edge_time);
+void esp_cec_rx_init(uint gpio, cec_frame_rx_isr_callback_t callback);  // esp32 port only
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR main.c & debug.c
-#define vTaskStartScheduler vTaskStartScheduler_stub
-void vTaskStartScheduler_stub(void);
-void stdio_init_all();
-void board_init();
+// REQUIRED FOR cec-task.c
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -168,17 +171,12 @@ void board_init();
 #define PICO_DEFAULT_LED_PIN 2
 ////////////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR hdmi-cec.c
-#define HID_KEY_NONE 0
-////////////////////////////////////////////////////////////////////////////////
-
 #define SCL_IO_PIN CONFIG_I2C_MASTER_SCL
 #define SDA_IO_PIN CONFIG_I2C_MASTER_SDA
 #define MASTER_FREQUENCY CONFIG_I2C_MASTER_FREQUENCY
 #define I2C_PORT 0  // == I2C_NUM_0
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR hdmi-ddc.c
+// REQUIRED FOR ddc.c
 #define PICO_ERROR_NONE 0
 #define PICO_ERROR_GENERIC -1
 #define PICO_ERROR_TIMEOUT -2
@@ -192,16 +190,9 @@ struct i2c_inst {
   bool restart_on_next;
 };
 
-#define USE_ESPIDF_I2C_DRIVER_V2
-
 typedef struct i2c_inst i2c_inst_t;
-#ifdef USE_ESPIDF_I2C_DRIVER_V2
-uint i2c_init(i2c_inst_t *i2c,
-              uint i2c_frequency,
-              uint16_t chip_addr);  // modified for compatibility with esp-idf
-#else
-uint i2c_init(i2c_inst_t *i2c, uint baudrate);  // pico-sdk prototype
-#endif
+uint esp_i2c_init(uint i2c_frequency, uint16_t chip_addr);  // esp-idf only, req for v2 driver
+uint i2c_init(i2c_inst_t *i2c, uint baudrate);  // pico-sdk prototype can map to esp-idf v1 driver
 void i2c_deinit(i2c_inst_t *i2c);
 int i2c_read_timeout_us(i2c_inst_t *i2c,
                         uint8_t addr,
@@ -218,7 +209,7 @@ int i2c_write_timeout_us(i2c_inst_t *i2c,
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR usb_cdc.c
+// REQUIRED FOR usb-cdc.c
 void reset_usb_boot(uint32_t usb_activity_gpio_pin_mask, uint32_t disable_interface_mask);
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms);
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,12 +257,14 @@ uint32_t tud_cdc_write_flush(void);
 #define XIP_BASE 0x100
 #define FLASH_PAGE_SIZE 16
 #define FLASH_SECTOR_SIZE 512
+void restore_interrupts(uint32_t a);                        // declared in <hardware/sync.h>
+uint32_t save_and_disable_interrupts();                     // declared in <hardware/sync.h>
+void flash_range_erase(uint32_t flash_offs, size_t count);  // declared in <hardware/flash.h>
+void flash_range_program(uint32_t flash_offs,
+                         const uint8_t *data,
+                         size_t count);  // declared in <hardware/flash.h>
 
-void flash_range_erase(int address, int size);
-void flash_range_program(int address, uint8_t *a, int size);
-
-void restore_interrupts(uint32_t a);
-uint32_t save_and_disable_interrupts();
+void flash_range_read(uint32_t flash_offs, const uint8_t *data, size_t count);  // esp32 port only
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -284,35 +277,37 @@ uint32_t save_and_disable_interrupts();
 #ifndef NULL
 #define NULL 0
 #endif
-#define HID_KEY_ENTER 0
-#define HID_KEY_ARROW_UP 0
-#define HID_KEY_ARROW_DOWN 0
-#define HID_KEY_ARROW_LEFT 0
-#define HID_KEY_ARROW_RIGHT 0
-#define HID_KEY_C 0
-#define HID_KEY_BACKSPACE 0
-#define HID_KEY_0 0
-#define HID_KEY_1 0
-#define HID_KEY_2 0
-#define HID_KEY_3 0
-#define HID_KEY_4 0
-#define HID_KEY_5 0
-#define HID_KEY_6 0
-#define HID_KEY_7 0
-#define HID_KEY_8 0
-#define HID_KEY_9 0
-#define HID_KEY_I 0
-#define HID_KEY_P 0
-#define HID_KEY_X 0
-#define HID_KEY_SPACE 0
-#define HID_KEY_R 0
-#define HID_KEY_F 0
-#define HID_KEY_L 0
-#define HID_KEY_F12 0
-
+#define HID_KEY_NONE 0x00
+#define HID_KEY_C 0x06
+#define HID_KEY_F 0x09
+#define HID_KEY_I 0x0C
+#define HID_KEY_L 0x0F
+#define HID_KEY_P 0x13
+#define HID_KEY_R 0x15
+#define HID_KEY_X 0x1B
+#define HID_KEY_1 0x1E
+#define HID_KEY_2 0x1F
+#define HID_KEY_3 0x20
+#define HID_KEY_4 0x21
+#define HID_KEY_5 0x22
+#define HID_KEY_6 0x23
+#define HID_KEY_7 0x24
+#define HID_KEY_8 0x25
+#define HID_KEY_9 0x26
+#define HID_KEY_0 0x27
+#define HID_KEY_ENTER 0x28
+#define HID_KEY_BACKSPACE 0x2A
+#define HID_KEY_SPACE 0x2C
+#define HID_KEY_F12 0x45
+#define HID_KEY_ARROW_RIGHT 0x4F
+#define HID_KEY_ARROW_LEFT 0x50
+#define HID_KEY_ARROW_DOWN 0x51
+#define HID_KEY_ARROW_UP 0x52
 // #define KEYBOARD_LED_CAPSLOCK 0
 // #define HID_REPORT_TYPE_OUTPUT 0
 ////////////////////////////////////////////////////////////////////////////////
+
+// Perhaps implement the equivalent of ESP_LOGx for the pico build:
 
 // #define ESP_LOGD(tag, fmt, ...) do {} while (0)
 

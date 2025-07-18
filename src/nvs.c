@@ -1,15 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef USE_PORTABLE
-#include <hardware/flash.h>
-#include <hardware/sync.h>
-#endif
-
-#include "crc/crc32.h"
-
 #include "portable.h"
 DECLARE_TAG()
+
+#include "crc/crc32.h"
 
 #include "cec-config.h"
 #include "nvs.h"
@@ -59,6 +54,8 @@ typedef struct __attribute__((packed)) {
 
   /** CEC device type (unused). */
   uint8_t device_type;
+
+  uint8_t monitor_mode;
 
   /** Keymap. */
   cec_config_keymap_t keymap_type;
@@ -126,6 +123,7 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
   if (crc32((unsigned char *)&nvs->config, sizeof(nvs->config)) == nvs->config_crc) {
     // deserialise
     config->edid_delay_ms = nvs->config.edid_delay_ms;
+    config->monitor_mode = nvs->config.monitor_mode;
     config->physical_address = nvs->config.physical_address;
     config->logical_address = nvs->config.logical_address;
     config->device_type = nvs->config.device_type;
@@ -147,8 +145,14 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
 bool nvs_read_config(cec_config_t *config) {
   bool success = false;
 
+#ifdef __XTENSA__
+  pico_cec_nvs_t pico_cec_nvs = {0x0};
+  flash_range_read(nvs_get_flash_address(), (const void *)&pico_cec_nvs, sizeof(pico_cec_nvs));
+  pico_cec_nvs_t *cec_nvs = &pico_cec_nvs;
+#else
   // flash is mmapped for read
   pico_cec_nvs_t *cec_nvs = (pico_cec_nvs_t *)(CEC_NVS_BASE_ADDR);
+#endif
 
   // start with default config, then overlay from nvs
   cec_config_set_default(config);
@@ -188,6 +192,7 @@ void nvs_load_config(cec_config_t *config) {
 bool nvs_save_config(const cec_config_t *config) {
   pico_cec_nvs_t cec_nvs = {0x0};
 
+  // TODO: it looks like CEC_NVS_LEN is the address of a variable containing a len
   if (sizeof(cec_nvs) > CEC_NVS_LEN) {
     return false;
   }
@@ -199,6 +204,7 @@ bool nvs_save_config(const cec_config_t *config) {
 
   // serialise and checksum config
   cec_nvs.config.edid_delay_ms = config->edid_delay_ms;
+  cec_nvs.config.monitor_mode = config->monitor_mode;
   cec_nvs.config.physical_address = config->physical_address;
   cec_nvs.config.logical_address = config->logical_address;
   cec_nvs.config.device_type = config->device_type;

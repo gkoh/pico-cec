@@ -1,15 +1,12 @@
-#ifndef USE_PORTABLE
-#include <hardware/watchdog.h>
-#include <pico/bootrom.h>
-#endif
-
 #include <stdlib.h>
 #include <string.h>
 #include <tusb.h>
 
-#include "config.h"
 #include "portable.h"
 DECLARE_TAG()
+#include "project_info.h"
+
+#include "config.h"
 
 #include "cec-frame.h"
 #include "cec-log.h"
@@ -62,12 +59,18 @@ void cdc_printfln(const char *fmt, ...) {
   va_start(ap, fmt);
   cdc_vprintf(fmt, ap);
   va_end(ap);
-  // print(_CDC_BR);
-  print("\r\n");
+  print(_CDC_BR);
 }
 
 static int show_version(void *arg) {
   cdc_printfln("%s", PICO_CEC_VERSION);
+#ifdef __XTENSA__
+  cdc_printfln("Project: %s", PROJECT_NAME);
+  cdc_printfln("Version: %s", PROJECT_VERSION);
+  cdc_printfln("IDF_VER: %s", IDF_VER);
+  cdc_printfln("Built: %s", BUILD_TIMESTAMP);
+  cdc_printfln("Git: %s (%s)%s", GIT_COMMIT_HASH, GIT_BRANCH, GIT_DIRTY);
+#endif
   return 0;
 }
 #if 0
@@ -107,6 +110,20 @@ static int exec_debug(void *arg, int argc, const char *argv[]) {
   return -1;
 }
 
+static int exec_monitor(void *arg, int argc, const char *argv[]) {
+  if (argc == 2) {
+    if (strcmp(argv[1], "on") == 0) {
+      cec_frame_set_monitor_mode(true);
+      return 0;
+    } else if (strcmp(argv[1], "off") == 0) {
+      cec_frame_set_monitor_mode(false);
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
 static int exec_reboot(void *arg, int argc, const char **argv) {
   if ((argc == 2) && (strcmp(argv[1], "bootsel") == 0)) {
     // reboot into USB bootloader
@@ -137,11 +154,16 @@ static void print_logical_address(uint8_t address) {
   cdc_printfln("%-17s: 0x%02x", "Logical address", address);
 }
 
+static void print_monitor_mode(uint8_t monitor_mode) {
+  cdc_printfln("%-17s: %s", "Promiscuous mode", monitor_mode ? "on" : "off");
+}
+
 static int show_config(cec_config_t *config) {
   // UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   // cdc_printfln("StackHighWaterMark = %lu", uxHighWaterMark);
 
   print_edid_delay(config->edid_delay_ms);
+  print_monitor_mode(config->monitor_mode);
   print_physical_address(config->physical_address);
   print_logical_address(config->logical_address);
   const char *type = "unknown";
@@ -205,7 +227,7 @@ static int show_stats_cpu(void) {
 
   UBaseType_t n = uxTaskGetSystemState(status, count, &total_run_time);
 
-  uint64_t uptime = cec_get_uptime_ms() / 1000;
+  uint64_t uptime = util_uptime_ms() / 1000;
   uint64_t seconds = uptime % 60;
   uptime /= 60;
   uint64_t minutes = uptime % 60;
@@ -252,6 +274,7 @@ static int exec_show(void *arg, int argc, const char **argv) {
         }
       }
     } else if (strcmp(argv[1], "cec") == 0) {
+      print_monitor_mode(cec_frame_get_monitor_mode());
       print_physical_address(cec_get_physical_address());
       print_logical_address(cec_get_logical_address());
     } else if (strcmp(argv[1], "version") == 0) {
@@ -337,6 +360,19 @@ static int exec_set(void *arg, int argc, const char **argv) {
           cdc_printfln("Unknown device type \'%s\'", argv[3]);
           return -1;
         }
+      } else if (strcmp(argv[2], "monitor_mode") == 0) {
+        if (strcmp(argv[3], "on") == 0) {
+          config.monitor_mode = 1;
+          print_monitor_mode(config.monitor_mode);
+          return 0;
+        } else if (strcmp(argv[3], "off") == 0) {
+          config.monitor_mode = 0;
+          print_monitor_mode(config.monitor_mode);
+          return 0;
+        } else {
+          cdc_printfln("Error parsing monitor mode");
+          return -1;
+        }
       }
     }
   } else if (argc == 3) {
@@ -362,10 +398,12 @@ static int exec_set(void *arg, int argc, const char **argv) {
 static const tclie_cmd_t cmds[] = {
     {"log", exec_log, "Set the ESP_LOGx level.", "log {1|2|3|4|5|6}"},
     {"debug", exec_debug, "Control debug output.", "debug {on|off}"},
+    {"monitor", exec_monitor, "CEC bus monitor mode.", "monitor {on|off}"},
     {"query", exec_query, "Query information.", "query {edid}"},
     {"save", exec_save, "Save configuration.", "save"},
     {"set", exec_set, "Set configuration parameters.",
-     "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
+     "set {(config (edid_delay_ms|logical_address|physical_address|monitor_mode "
+     "<value>)|(device_type "
      "{playback|recording}))|(keymap <value>)}"},
     {"show", exec_show, "Show information.",
      "show {cec|config|keymap|nvs|(stats {cec|cpu|tasks})|version}"},
@@ -391,7 +429,7 @@ void cdc_task(void *params) {
       }
 
       tud_cdc_write_flush();
-      vTaskDelay(pdMS_TO_TICKS(1));
+      vTaskDelay(pdMS_TO_TICKS(10));
     } else {
       vTaskDelay(pdMS_TO_TICKS(50));
     }

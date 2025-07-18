@@ -26,10 +26,6 @@
 //--------------------------------------------------------------------+
 // INCLUDE
 //--------------------------------------------------------------------+
-#ifndef USE_PORTABLE
-#include "common/tusb_common.h"
-#endif
-
 #include "FreeRTOS.h"
 #include "task.h"
 

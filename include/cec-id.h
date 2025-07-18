@@ -1,5 +1,5 @@
-#ifndef HDMI_CEC_ID_H
-#define HDMI_CEC_ID_H
+#ifndef CEC_ID_H
+#define CEC_ID_H
 
 typedef enum {
   CEC_ID_FEATURE_ABORT = 0x00,
@@ -45,4 +45,4 @@ typedef enum {
   CEC_ABORT_UNDETERMINED = 5,
 } cec_abort_t;
 
-#endif  // HDMI_CEC_ID_H
+#endif

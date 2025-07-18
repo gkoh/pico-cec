@@ -9,13 +9,14 @@
 #include "portable.h"
 DECLARE_TAG()
 
-#include "cec-config.h"  // for cec_user_control_name
-#include "cec-frame.h"   // for cec_message_t, cec_frame_t
-#include "cec-id.h"      //
-#include "cec-log.h"
-#include "cec-task.h"  // for cec_get_uptime_ms
 #include "config.h"
-#include "usb-cdc.h"
+
+#include "cec-frame.h"
+#include "cec-id.h"
+#include "cec-log.h"
+#include "cec-user.h"
+
+#define _LOG_BR "\r\n"
 
 #define LOG_LINE_LENGTH (64)
 #define LOG_QUEUE_LENGTH (16)
@@ -30,30 +31,32 @@ static uint8_t log_mb_storage[LOG_MB_SIZE];
 
 static volatile bool enabled = false;
 
+/**
+ * Get milliseconds since boot. (~ since the log task started)
+ */
+uint64_t util_uptime_ms(void) {
+  return (time_us_64() / 1000);
+}
+
 static void cec_log_task(void *param) {
-  MessageBufferHandle_t *mb = (MessageBufferHandle_t *)param;  // yes, this is already a local just
-                                                               // above, but for design consistency
+  log_callback_t log_callback = param;
 
   while (true) {
     char buffer[LOG_LINE_LENGTH];
 
-    size_t bytes = xMessageBufferReceive(*mb, buffer, sizeof(buffer) - 2, pdMS_TO_TICKS(100));
+    size_t bytes = xMessageBufferReceive(log_mb, buffer, sizeof(buffer), pdMS_TO_TICKS(100));
     if (bytes > 0) {
-      ESP_LOGI("log", "%s", buffer);
-
-      strcat(buffer, "\r\n");
-      cdc_log(buffer);
+      log_callback(buffer);  // cdc_log()
     }
   }
 }
 
-void cec_log_init(void) {
+void cec_log_init(log_callback_t log) {
   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
   enabled = false;
 
-  xTaskCreateStatic(cec_log_task, "log", LOG_STACK_SIZE, &log_mb, LOG_PRIORITY, &log_stack[0],
+  xTaskCreateStatic(cec_log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log, LOG_PRIORITY, &log_stack[0],
                     &log_task_static);
-  ESP_LOGI(TAG, "cec_log_init()");
 }
 
 bool cec_log_enabled(void) {
@@ -62,12 +65,14 @@ bool cec_log_enabled(void) {
 
 void cec_log_enable(void) {
   enabled = true;
-  ESP_LOGI(TAG, "cec_log_enable()");
 }
 
 void cec_log_disable(void) {
   enabled = false;
-  ESP_LOGI(TAG, "cec_log_disable()");
+}
+
+void cec_log(const char *buffer, int len) {
+  xMessageBufferSend(log_mb, buffer, len + 1, pdMS_TO_TICKS(20));
 }
 
 void cec_log_vsubmitf(const char *fmt, va_list ap) {
@@ -117,10 +122,10 @@ __attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
 
   va_list ap;
   va_start(ap, fmt);
-  snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", cec_get_uptime_ms(),
+  snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", util_uptime_ms(),
            send ? initiator : destination, arrow, send ? destination : initiator);
   vsnprintf(buffer, sizeof(buffer), fmt, ap);
-  cec_log_submitf("%s: %s" _CDC_BR, prefix, buffer);
+  cec_log_submitf("%s: %s"_LOG_BR, prefix, buffer);
   va_end(ap);
 }
 
@@ -169,6 +174,48 @@ const char *cec_feature_abort_reason[] = {
 };
 
 /**
+ * Log a raw CEC frame.
+ *
+ * CEC raw frame logging function, formatted suitable for cec-o-matic
+ */
+#define MAX_BUFFER_LEN 64
+#if 1
+void cec_log_raw_frame(cec_frame_t *frame) {
+  cec_message_t *msg = frame->message;
+  char buffer[MAX_BUFFER_LEN];
+
+  memset(buffer, 0, MAX_BUFFER_LEN);
+  if (msg->len > 0) {
+    int j = 0;
+    for (int i = 0; i < msg->len && j < MAX_BUFFER_LEN; i++, j += 3) {
+      sprintf(&buffer[j], "%02x:", msg->data[i]);
+    }
+    buffer[j - 1] = '\0';  // drop the last ':' character
+    ESP_LOGI(TAG, "%s", buffer);
+    buffer[j - 1] = '\r';
+    buffer[j - 0] = '\n';
+    cec_log(buffer, j + 1);
+  }
+}
+#else
+void cec_log_raw_frame(cec_frame_t *frame) {
+  cec_message_t *msg = frame->message;
+  char buffer[MAX_BUFFER_LEN];
+
+  memset(buffer, 0, MAX_BUFFER_LEN);
+  if (msg->len > 0) {
+    int j = 0;
+    for (int i = 0; i < msg->len && j < MAX_BUFFER_LEN; i++, j += 3) {
+      sprintf(&buffer[j], "%02x:\r\n", msg->data[i]);
+    }
+    cec_log(buffer, j + 3);
+    buffer[j - 1] = '\0';
+    ESP_LOGI(TAG, "%s", buffer);
+  }
+}
+#endif
+
+/**
  * Log a CEC frame.
  *
  * CEC frame logging function, which includes minor protocol decoding for debug
@@ -215,7 +262,7 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
       case CEC_ID_VENDOR_COMMAND_WITH_ID:
         log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         for (int i = 0; i < msg->len; i++) {
-          cec_log_submitf(" %02x" _CDC_BR, msg->data[i]);
+          cec_log_submitf(" %02x"_LOG_BR, msg->data[i]);
         }
         break;
       case CEC_ID_REPORT_POWER_STATUS:
@@ -237,8 +284,8 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], status);
         break;
       default: {
-        const char *message = cec_message[cmd];
-        if (strlen(message) > 0) {
+        const char *message = cec_message[cmd];  // TODO: seems to be problematic for unknown cmd's
+        if (message != NULL && strlen(message) > 0) {
           log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         } else {
           log_printf(initiator, destination, recv, frame->ack, "[%x] (undecoded)", cmd);
@@ -246,6 +293,6 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
       }
     }
   } else {
-    log_printf(initiator, destination, recv, frame->ack, "[%s]", "Polling Message");
+    // log_printf(initiator, destination, recv, frame->ack, "[%s]", "Polling Message");
   }
 }

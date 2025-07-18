@@ -14,8 +14,9 @@ typedef enum {
 extern TaskHandle_t xLEDTask;
 
 void blink_init(void);
-void led_task(void *param);
 void blink_set(blink_state_t state);
 void blink_set_blink(blink_state_t state);
+
+void led_task(void *param);
 
 #endif

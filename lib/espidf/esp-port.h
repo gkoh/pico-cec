@@ -1,21 +1,24 @@
 #ifndef _ESP_PORT_H_
 #define _ESP_PORT_H_
 
-#include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-// Internal workings of the port which is not made visible to the application
-//  this will be more like the stuff we utilise from/for the esp-sdk mostly
+// Internal workings of the port which is not made directly visible to the application
+// This will be more like the stuff we utilise from/for the esp-sdk mostly
 //  intended as support for pico-sdk compatibility functions found in portable.c
 //
-#include <esp_timer.h>
-#include "sdkconfig.h"
 
 #define UART_PORT_NUM (2)
 void uart_init(void);
+
+void timer_init(void);
+typedef int64_t (*timer_callback_t)(int32_t id, void *user_data);
+// IRAM_ATTR not defined at this point
+//void IRAM_ATTR timer_start(uint64_t time, timer_callback_t callback, void *user_data);
+
+typedef void (*gpio_irq_callback_t)(uint64_t edge_time);
+void gpio_isr_init(unsigned int gpio, gpio_irq_callback_t callback);
 
 // For timer support:
 // CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD=y  // sdkconfig (not needed now that we are not
@@ -30,13 +33,6 @@ void uart_init(void);
 // 55:* PICO_BOARD: specify variant of Pico board, defaults to Seeed XIAO RP2040
 // 63:$ cmake -DPICO_BOARD=pico -DCEC_PIN=11 ..
 //
-#define GPIO_OUTPUT_IO_0 CONFIG_GPIO_OUTPUT_0
-#define GPIO_OUTPUT_IO_1 CONFIG_GPIO_OUTPUT_1
-#define GPIO_OUTPUT_PIN_SEL ((1ULL << GPIO_OUTPUT_IO_0) | (1ULL << GPIO_OUTPUT_IO_1))
-
-#define GPIO_INPUT_IO_0 CONFIG_GPIO_INPUT_0
-#define GPIO_INPUT_IO_1 CONFIG_GPIO_INPUT_1
-#define GPIO_INPUT_PIN_SEL ((1ULL << GPIO_INPUT_IO_0) | (1ULL << GPIO_INPUT_IO_1))
 
 // // For timer support:
 // // CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD=y  // sdkconfig

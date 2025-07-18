@@ -2,7 +2,7 @@
 #define USB_CDC_H
 
 #ifdef __XTENSA__
-#define _CDC_BR ""
+#define _CDC_BR "\r\n"
 #else
 #define _CDC_BR "\r\n"
 #endif

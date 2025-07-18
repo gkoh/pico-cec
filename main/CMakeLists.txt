@@ -5,6 +5,7 @@ idf_component_register(SRCS
                     "../src/cec-frame.c"
                     "../src/cec-log.c"
                     "../src/cec-task.c"
+                    "../src/cec-user.c"
                     "../src/ddc.c"
                     "../src/debug.c"
                     "../src/freertos_hook.c"
@@ -19,17 +20,23 @@ idf_component_register(SRCS
                     "../tcli/source/tclie.c"
                     "../lib/espidf/esp-port.c"
                     "../lib/espidf/portable.c"
+                    "../lib/espidf/prefs.c"
                     "../lib/espidf/crc/crc32.c"
-                    PRIV_REQUIRES spi_flash esp_timer
+                    PRIV_REQUIRES spi_flash esp_timer nvs_flash
                     REQUIRES driver
-                    INCLUDE_DIRS
+                    PRIV_INCLUDE_DIRS
+                    "${CMAKE_BINARY_DIR}"
+                    INCLUDE_DIRS "."
                     "../include"
                     "../tcli/include"
                     "../lib/espidf"
                     )
 
+# Append the FreeRTOS kernel's internal include directory
+set(FREERTOS_KERNEL_INCLUDE "${IDF_PATH}/components/freertos/FreeRTOS-Kernel/include/freertos")
+target_include_directories(${COMPONENT_LIB} PRIVATE "${FREERTOS_KERNEL_INCLUDE}")
+
 add_definitions(
-  -DUSE_PORTABLE
   -DDEBUG
   -DCEC_PIN=4
   -DSTACK_WORDSIZE=8

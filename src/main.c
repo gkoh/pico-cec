@@ -1,18 +1,11 @@
-#include <stdio.h>
-
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
 
-#ifndef USE_PORTABLE
-#include "bsp/board.h"
-#include "hardware/timer.h"
-#include "pico/stdlib.h"
-#endif
-
-#include "config.h"
 #include "portable.h"
 DECLARE_TAG()
+
+#include "config.h"
 
 #include "blink.h"
 #include "cec-frame.h"
@@ -23,7 +16,7 @@ DECLARE_TAG()
 #include "ws2812.h"
 
 int main() {
-  static StaticQueue_t xStaticCECQueue;
+  static StaticQueue_t xCECQueue;
   static uint8_t storageCECQueue[CEC_QUEUE_LENGTH * sizeof(uint8_t)];
 
   static StackType_t stackLED[LED_STACK_SIZE];
@@ -50,10 +43,8 @@ int main() {
   alarm_pool_init_default();
 
   // HID key queue
-  static QueueHandle_t
-      cec_q;  // static required for esp32 port as this function doesn't persist there
-  cec_q =
-      xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xStaticCECQueue);
+  static QueueHandle_t cec_q;  // static req for esp32 port as this function doesn't persist there
+  cec_q = xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xCECQueue);
 
   xLEDTask = xTaskCreateStatic(led_task, LED_TASK_NAME, LED_STACK_SIZE, NULL, LED_PRIORITY,
                                &stackLED[0], &xLEDTCB);
@@ -65,15 +56,13 @@ int main() {
                                &stackUSB[0], &xUSBTCB);
   xCDCTask = xTaskCreateStatic(cdc_task, CDC_TASK_NAME, CDC_STACK_SIZE, NULL, CDC_PRIORITY,
                                &stackCDC[0], &xCDCTCB);
-
-  (void)xCECTask;
-  (void)xLEDTask;
+  // (void)xLEDTask;
+  // (void)xCECTask;
   (void)xHIDTask;
-  (void)xCDCTask;
   (void)xUSBTask;
   (void)xCDCTask;
 
-  cec_log_init();
+  cec_log_init(cdc_log);
 
   vTaskStartScheduler();  // no-op on esp32 port as rtos is already running
 

@@ -9,9 +9,11 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_system.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "sdkconfig.h"
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/task.h"
+// #include "sdkconfig.h"
+
+#include "project_info.h"
 
 int debug_main();
 int main();
@@ -40,6 +42,11 @@ void app_main(void) {
 
   printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
 
-  //    debug_main();
+  printf("Project: %s", PROJECT_NAME);
+  printf("Version: %s", PROJECT_VERSION);
+  printf("Built: %s", BUILD_TIMESTAMP);
+  printf("Git: %s (%s)%s", GIT_COMMIT_HASH, GIT_BRANCH, GIT_DIRTY);
+
+  // debug_main();
   main();
 }

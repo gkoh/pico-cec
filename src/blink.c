@@ -1,8 +1,3 @@
-#ifndef USE_PORTABLE
-#include "bsp/board.h"
-#include "pico/stdlib.h"
-#endif
-
 #include "portable.h"
 DECLARE_TAG()
 

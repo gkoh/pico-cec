@@ -2,29 +2,19 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include "esp_chip_info.h"
-#include "esp_flash.h"
-#include "esp_log.h"
-#include "esp_system.h"
+#include <driver/gpio.h>
+#include <driver/i2c.h>         // legacy driver
+#include <driver/i2c_master.h>  // new driver model
+#include <driver/uart.h>
+#include <esp_flash.h>
+#include <esp_system.h>
 
 #include "esp-port.h"
 #include "portable.h"
 DECLARE_TAG()
 
-#ifdef USE_ESPIDF_I2C_DRIVER_V2
-#include "driver/i2c_master.h"  // new driver model
-#else
-#include "driver/i2c.h"  // legacy driver
-#endif
-
 #include "sdkconfig.h"
-
-// const char *TAG = "nil";  // global tag for reference from multiple modules
+#include "prefs.h"
 
 void gpio_init(uint gpio) {}
 void gpio_disable_pulls(uint gpio) {
@@ -62,12 +52,52 @@ void vTaskStartScheduler_stub(void) {
 void stdio_init_all() {}
 void board_init() {
   esp_log_level_set("*", ESP_LOG_DEBUG);
+  prefs_init();
   uart_init();
+}
+void alarm_pool_init_default() {
+  timer_init();
 }
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR hdmi-cdc.c
+// REQUIRED FOR cec-frame.c
+void irq_set_enabled(int a, int b) {}
+void gpio_acknowledge_irq(uint gpio, uint32_t events) {}
+void IRAM_ATTR gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled) {
+  if (enabled) {
+    if (event_mask == (GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL)) {
+      gpio_set_intr_type(gpio, GPIO_INTR_ANYEDGE);
+    }
+    if (event_mask == (GPIO_IRQ_EDGE_RISE)) {
+      gpio_set_intr_type(gpio, GPIO_INTR_POSEDGE);
+    }
+    if (event_mask == (GPIO_IRQ_EDGE_FALL)) {
+      gpio_set_intr_type(gpio, GPIO_INTR_NEGEDGE);
+    }
+  } else {
+    gpio_set_intr_type(gpio, GPIO_INTR_DISABLE);
+  }
+}
+void esp_cec_rx_init(uint gpio, cec_frame_rx_isr_callback_t callback) {  // esp32 port only
+  gpio_isr_init(gpio, callback);
+}
+void IRAM_ATTR timer_start(uint64_t time, timer_callback_t callback, void *user_data);
+alarm_id_t IRAM_ATTR add_alarm_at(absolute_time_t time,
+                                  alarm_callback_t callback,
+                                  void *user_data,
+                                  bool fire_if_past) {
+  timer_start(time, callback, user_data);
+  return 0;
+}
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// REQUIRED FOR cec-task.c
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// REQUIRED FOR usb-cdc.c
 void reset_usb_boot(uint32_t usb_activity_gpio_pin_mask, uint32_t disable_interface_mask) {}
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms) {
   esp_restart();
@@ -75,14 +105,13 @@ void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms) {
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR hdmi-ddc.c
+// REQUIRED FOR ddc.c
 #ifdef USE_ESPIDF_I2C_DRIVER_V2
 // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/migration-guides/release-5.x/5.2/peripherals.html
 i2c_master_bus_handle_t bus_handle;
 i2c_master_dev_handle_t dev_handle;
 
-uint i2c_init(i2c_inst_t *i2c, uint i2c_frequency, uint16_t chip_addr) {
-  (void)i2c;
+uint esp_i2c_init(uint i2c_frequency, uint16_t chip_addr) {
   esp_err_t ret;
   i2c_master_bus_config_t i2c_bus_config = {
       .clk_source = I2C_CLK_SRC_DEFAULT,
@@ -123,7 +152,6 @@ uint i2c_init(i2c_inst_t *i2c, uint i2c_frequency, uint16_t chip_addr) {
   //    if (i2c_new_master_bus(&i2c_bus_config, &tool_bus_handle) != ESP_OK) {
   //        return 1;
   //    }
-  //  return baudrate;  // Returns: Actual set baudrate
   return i2c_frequency;  // unused
 }
 void i2c_deinit(i2c_inst_t *i2c) {
@@ -343,16 +371,33 @@ int i2c_write_timeout_us(i2c_inst_t *i2c,
 #endif  // USE_ESPIDF_I2C_DRIVER_V2
 ////////////////////////////////////////////////////////////////////////////////
 
+// static pico_cec_nvs_t pico_cec_nvs = {0x0};
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR nvs.c
 uint32_t CEC_NVS_BASE_ADDR[] = {0};
-uint32_t __CEC_NVS_LEN[] = {0};
-void restore_interrupts(uint32_t a) {}  // declared in <hardware/sync.h>
+// uint32_t __CEC_NVS_LEN[] = {0};
+// uint32_t CEC_NVS_BASE_ADDR[] = &pico_cec_nvs;
+// uint32_t __CEC_NVS_LEN = sizeof(pico_cec_nvs_t);
+uint32_t __CEC_NVS_LEN = 2048;
+void restore_interrupts(uint32_t a) {}
 uint32_t save_and_disable_interrupts() {
   return 0;
-}  // declared in <hardware/sync.h>
-void flash_range_erase(int address, int size) {}                // declared in <hardware/flash.h>
-void flash_range_program(int address, uint8_t *a, int size) {}  // declared in <hardware/flash.h>
+}
+void flash_range_erase(uint32_t flash_offs, size_t count) {
+  prefs_clear();
+}
+void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count) {
+  if (prefs_begin("Settings", false, NULL)) {
+    prefs_putBytes("Settings", data, count);
+    prefs_end();
+  }
+}
+void flash_range_read(uint32_t flash_offs, const uint8_t *data, size_t count) {
+  if (prefs_begin("Settings", true, NULL)) {
+    prefs_getBytes("Settings", (void *)data, count);
+    prefs_end();
+  }
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -398,13 +443,11 @@ uint32_t tud_cdc_available(void) {
 }
 uint8_t tud_cdc_read_char(void) {
   uint8_t data;
-  uart_read_bytes(UART_PORT_NUM, &data, 1,
-                  20 / portTICK_PERIOD_MS);  // (20 / portTICK_PERIOD_MS) = 2
+  uart_read_bytes(UART_PORT_NUM, &data, 1, 20 / portTICK_PERIOD_MS);  // (20/portTICK_PERIOD_MS) = 2
   return data;
 }
 uint32_t tud_cdc_write_flush(void) {
-  vTaskDelay(pdMS_TO_TICKS(10));  // needs to be at least ten?
-  //    uart_flush(UART_PORT_NUM);  // TODO: seems to be a problem when calling this
+  // uart_flush(UART_PORT_NUM);  // TODO: seems to be a problem when calling this
   return 0;
 }
 ////////////////////////////////////////////////////////////////////////////////

@@ -2,13 +2,6 @@
 #include "queue.h"
 #include "task.h"
 
-#ifndef USE_PORTABLE
-#include "class/hid/hid.h"
-#include "pico/stdlib.h"
-#include "tusb.h"  // TODO: investigate why this seems to be required for HID_KEY_NONE,
-                   // despite above inclusion of class/hid/hid.h where it is defined?
-#endif
-
 #include "portable.h"
 DECLARE_TAG()
 
@@ -31,6 +24,8 @@ DECLARE_TAG()
  * https://github.com/tsowell/avr-hdmi-cec-volume/tree/master
  */
 
+ #define _LOG_BR "\r\n"
+ 
 /** The running CEC configuration. */
 static cec_config_t config = {0x0};
 
@@ -62,13 +57,6 @@ static bool audio_status = false;
 
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
-
-/**
- * Get milliseconds since boot.
- */
-uint64_t cec_get_uptime_ms(void) {
-  return (time_us_64() / 1000);
-}
 
 static void cec_feature_abort(uint8_t initiator,
                               uint8_t destination,
@@ -182,19 +170,19 @@ static uint8_t allocate_logical_address(cec_config_t *config) {
   uint8_t a;
   for (unsigned int i = 0; i < NUM_LADDRESS; i++) {
     a = laddress[config->device_type][i];
-    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_CDC_BR, a);
+    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_LOG_BR, a);
     ESP_LOGD(TAG, "Attempting to allocate logical address 0x%01hhx", a);
     if (!cec_ping(a)) {
       break;
     }
   }
 
-  cec_log_submitf("Allocated logical address 0x%02x"_CDC_BR, a);
+  cec_log_submitf("Allocated logical address 0x%02x"_LOG_BR, a);
   ESP_LOGI(TAG, "Allocated logical address 0x%02x", a);
   return a;
 }
 
-uint16_t get_physical_address(const cec_config_t *config) {
+static uint16_t get_physical_address(const cec_config_t *config) {
   return (config->physical_address == 0x0000) ? ddc_get_physical_address()
                                               : config->physical_address;
 }
@@ -232,12 +220,12 @@ void cec_task(void *param) {
 
     pldcnt = cec_frame_recv(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
-    // ESP_LOGI(TAG, "pldcnt = %u", pldcnt);
+    // ESP_LOGD(TAG, "pldcnt = %u", pldcnt);
     initiator = (pld[0] & 0xf0) >> 4;
     destination = pld[0] & 0x0f;
 
     if ((pldcnt > 1)) {
-      ESP_LOGD(TAG, "pldcnt = %u, pld[1] = %u", pldcnt, pld[1]);
+      // ESP_LOGD(TAG, "pldcnt = %u, pld[1] = %u", pldcnt, pld[1]);
       switch (pld[1]) {
         case CEC_ID_IMAGE_VIEW_ON:
           break;
