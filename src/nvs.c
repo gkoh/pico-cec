@@ -55,7 +55,10 @@ typedef struct __attribute__((packed)) {
   /** CEC device type (unused). */
   uint8_t device_type;
 
+  /** CEC monitor mode (bus analyser). */
   uint8_t monitor_mode;
+
+  uint8_t allocated_laddr;
 
   /** Keymap. */
   cec_config_keymap_t keymap_type;
@@ -127,6 +130,7 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
     config->physical_address = nvs->config.physical_address;
     config->logical_address = nvs->config.logical_address;
     config->device_type = nvs->config.device_type;
+    config->allocated_laddr = nvs->config.allocated_laddr;
     // hack to support previous unused setting
     if (config->device_type == CEC_CONFIG_DEVICE_TYPE_TV) {
       config->device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
@@ -209,6 +213,7 @@ bool nvs_save_config(const cec_config_t *config) {
   cec_nvs.config.logical_address = config->logical_address;
   cec_nvs.config.device_type = config->device_type;
   cec_nvs.config.keymap_type = config->keymap_type;
+  cec_nvs.config.allocated_laddr = config->allocated_laddr;
 
   for (unsigned int n = 0; n < UINT8_MAX; n++) {
     cec_nvs.config.keymap[n] = config->keymap[n].key;
@@ -232,3 +237,16 @@ bool nvs_save_config(const cec_config_t *config) {
 
   return true;
 }
+
+#ifndef __XTENSA__
+// // {0x04, 0x08, 0x0b, 0x0f},  // Playback Device
+uint8_t foo_laddr = 0x0b;
+
+void save_logical_address(uint8_t addr) {
+  foo_laddr = addr;
+}
+
+uint8_t load_logical_address(void) {
+  return foo_laddr;
+}
+#endif

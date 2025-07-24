@@ -11,6 +11,7 @@ void cec_log_init(log_callback_t log);
 bool cec_log_enabled();
 void cec_log_enable(void);
 void cec_log_disable(void);
+void cec_log_mask_toggle(void);
 void cec_log(const char *buffer, int len);
 void cec_log_raw_frame(cec_frame_t *frame);
 void cec_log_frame(cec_frame_t *frame, bool recv);

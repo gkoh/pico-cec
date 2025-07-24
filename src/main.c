@@ -1,3 +1,12 @@
+/* Intercept HDMI CEC commands, convert to a keypress and send to HID task
+ * handler.
+ *
+ * Based (mostly ripped) from the Arduino version by Szymon Slupik:
+ * https://github.com/SzymonSlupik/CEC-Tiny-Pro
+ * which itself is based on the original code by Thomas Sowell:
+ * https://github.com/tsowell/avr-hdmi-cec-volume/tree/master
+ */
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
@@ -56,8 +65,9 @@ int main() {
                                &stackUSB[0], &xUSBTCB);
   xCDCTask = xTaskCreateStatic(cdc_task, CDC_TASK_NAME, CDC_STACK_SIZE, NULL, CDC_PRIORITY,
                                &stackCDC[0], &xCDCTCB);
-  // (void)xLEDTask;
-  // (void)xCECTask;
+
+  (void)xLEDTask;
+  (void)xCECTask;
   (void)xHIDTask;
   (void)xUSBTask;
   (void)xCDCTask;

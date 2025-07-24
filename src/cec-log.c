@@ -30,12 +30,15 @@ static MessageBufferHandle_t log_mb;
 static uint8_t log_mb_storage[LOG_MB_SIZE];
 
 static volatile bool enabled = false;
+static volatile bool mask = false;  // i don't think we need the volatile, but it can't hurt..
 
 /**
  * Get milliseconds since boot. (~ since the log task started)
  */
 uint64_t util_uptime_ms(void) {
   return (time_us_64() / 1000);
+  // uint64_t now = millis();
+  // return now - startup_time;
 }
 
 static void cec_log_task(void *param) {
@@ -51,12 +54,12 @@ static void cec_log_task(void *param) {
   }
 }
 
-void cec_log_init(log_callback_t log) {
+void cec_log_init(log_callback_t log_callback) {
   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
   enabled = false;
 
-  xTaskCreateStatic(cec_log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log, LOG_PRIORITY, &log_stack[0],
-                    &log_task_static);
+  xTaskCreateStatic(cec_log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log_callback, LOG_PRIORITY,
+                    &log_stack[0], &log_task_static);
 }
 
 bool cec_log_enabled(void) {
@@ -69,6 +72,10 @@ void cec_log_enable(void) {
 
 void cec_log_disable(void) {
   enabled = false;
+}
+
+void cec_log_mask_toggle(void) {
+  mask = !mask;
 }
 
 void cec_log(const char *buffer, int len) {
@@ -190,8 +197,8 @@ void cec_log_raw_frame(cec_frame_t *frame) {
     for (int i = 0; i < msg->len && j < MAX_BUFFER_LEN; i++, j += 3) {
       sprintf(&buffer[j], "%02x:", msg->data[i]);
     }
-    buffer[j - 1] = '\0';  // drop the last ':' character
-    ESP_LOGI(TAG, "%s", buffer);
+    // buffer[j - 1] = '\0';  // drop the last ':' character
+    // ESP_LOGI(TAG, "%s", buffer);
     buffer[j - 1] = '\r';
     buffer[j - 0] = '\n';
     cec_log(buffer, j + 1);
@@ -255,7 +262,10 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         if (name != NULL) {
           log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], name);
         } else {
-          log_printf(initiator, destination, recv, frame->ack, "[%s] Unknown command: 0x%02x",
+          // resulting string to long? this version fails silently (pico & esp)
+          // log_printf(initiator, destination, recv, frame->ack, "[%s] Unknown command: 0x%02x",
+          //            cec_message[cmd], key);
+          log_printf(initiator, destination, recv, frame->ack, "[%s] Unknown: 0x%02x",
                      cec_message[cmd], key);
         }
       } break;
@@ -283,12 +293,18 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         }
         log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], status);
         break;
+      case CEC_ID_DEVICE_VENDOR_ID:
+      case CEC_ID_GIVE_PHYSICAL_ADDRESS:
+        if (mask)
+          break;
       default: {
         const char *message = cec_message[cmd];  // TODO: seems to be problematic for unknown cmd's
         if (message != NULL && strlen(message) > 0) {
           log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         } else {
+          ESP_LOGI(TAG, "cec_log_frame() unknown cmd %02X", cmd);
           log_printf(initiator, destination, recv, frame->ack, "[%x] (undecoded)", cmd);
+          cec_log_raw_frame(frame);
         }
       }
     }

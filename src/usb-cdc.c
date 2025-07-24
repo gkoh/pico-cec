@@ -1,6 +1,10 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tusb.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "portable.h"
 DECLARE_TAG()
@@ -10,9 +14,11 @@ DECLARE_TAG()
 
 #include "config.h"
 
+#include "cec-cmd.h"
 #include "cec-frame.h"
 #include "cec-log.h"
 #include "cec-task.h"
+#include "cec-util.h"
 #include "ddc.h"
 #include "nvs.h"
 #include "tclie.h"
@@ -43,27 +49,6 @@ static void cdc_vprintf(const char *fmt, va_list ap) {
   print(buffer);
 }
 
-void cdc_log(const char *str) {
-  tclie_log(&tclie, str);
-}
-
-/** Print formatted string. */
-void cdc_printf(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  cdc_vprintf(fmt, ap);
-  va_end(ap);
-}
-
-/** Print formatted string with newline. */
-void cdc_printfln(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  cdc_vprintf(fmt, ap);
-  va_end(ap);
-  print(_CDC_BR);
-}
-
 static int show_version(void *arg) {
   cdc_printfln("%s", PICO_CEC_VERSION);
 #ifdef __XTENSA__
@@ -75,27 +60,56 @@ static int show_version(void *arg) {
 #endif
   return 0;
 }
-#if 0
-typedef enum {
-    ESP_LOG_NONE    = 0,    /*!< No log output */
-    ESP_LOG_ERROR   = 1,    /*!< Critical errors, software module can not recover on its own */
-    ESP_LOG_WARN    = 2,    /*!< Error conditions from which recovery measures have been taken */
-    ESP_LOG_INFO    = 3,    /*!< Information messages which describe normal flow of events */
-    ESP_LOG_DEBUG   = 4,    /*!< Extra information which is not necessary for normal use (values, pointers, sizes, etc). */
-    ESP_LOG_VERBOSE = 5,    /*!< Bigger chunks of debugging information, or frequent messages which can potentially flood the output. */
-    ESP_LOG_MAX     = 6,    /*!< Number of levels supported */
-} esp_log_level_t;
-#endif  // 0
 
-static int exec_log(void *arg, int argc, const char *argv[]) {
 #ifdef __XTENSA__
+static int exec_log(void *arg, int argc, const char *argv[]) {
   if (argc == 2) {
     int level = atoi(argv[1]);
     esp_log_level_set("*", level);
     return 0;
   }
-#endif  // __XTENSA__
   return -1;
+}
+#endif  // __XTENSA__
+
+void save_logical_address(uint8_t addr);
+
+static int debug_test(const char *arg) {
+  if (strcmp(arg, "help") == 0) {
+    cdc_printfln("frame|start|stop|dump|clear|rxint|erase");
+  } else if (strcmp(arg, "frame") == 0) {
+    cdc_printfln("Not implemented");
+  } else if (strcmp(arg, "start") == 0) {
+    cec_frame_capture(true);
+  } else if (strcmp(arg, "stop") == 0) {
+    cec_frame_capture(false);
+  } else if (strcmp(arg, "dump") == 0) {
+    cec_frame_dump();
+  } else if (strcmp(arg, "clear") == 0) {
+    cec_frame_clear_stats();
+  } else if (strcmp(arg, "rxint") == 0) {
+    cec_frame_rxint();
+  } else if (strcmp(arg, "erase") == 0) {
+    cec_config_set_default(&config);
+    nvs_save_config(&config);
+#ifdef __XTENSA__
+    save_logical_address(0xFF);
+#endif
+  } else {
+    cdc_printfln("Not implemented");
+    return -1;
+  }
+  return 0;
+}
+
+static int capture(const char *arg) {
+  int capture_bit_count = atoi(arg);
+  cdc_printfln("capturing rx bits, timeout in %d seconds", capture_bit_count);
+  cec_frame_capture(true);
+  vTaskDelay(pdMS_TO_TICKS(1000 * capture_bit_count));
+  cec_frame_capture(false);
+  cec_frame_dump();
+  return 0;
 }
 
 static int exec_debug(void *arg, int argc, const char *argv[]) {
@@ -106,6 +120,19 @@ static int exec_debug(void *arg, int argc, const char *argv[]) {
     } else if (strcmp(argv[1], "off") == 0) {
       cec_log_disable();
       return 0;
+    } else if (strcmp(argv[1], "mask") == 0) {
+      cec_log_mask_toggle();
+      return 0;
+    }
+  }
+  if (argc == 3) {
+    if (strcmp(argv[1], "test") == 0) {
+      debug_test(argv[2]);
+      return 0;
+    }
+    if (strcmp(argv[1], "capture") == 0) {
+      capture(argv[2]);
+      return 0;
     }
   }
 
@@ -115,10 +142,16 @@ static int exec_debug(void *arg, int argc, const char *argv[]) {
 static int exec_monitor(void *arg, int argc, const char *argv[]) {
   if (argc == 2) {
     if (strcmp(argv[1], "on") == 0) {
-      cec_frame_set_monitor_mode(true);
+      cec_frame_set_monitor_mode(0x03);
       return 0;
     } else if (strcmp(argv[1], "off") == 0) {
-      cec_frame_set_monitor_mode(false);
+      cec_frame_set_monitor_mode(0x00);
+      return 0;
+    } else if (strcmp(argv[1], "raw") == 0) {
+      cec_frame_set_monitor_mode(0x01);
+      return 0;
+    } else if (strcmp(argv[1], "prom") == 0) {
+      cec_frame_set_monitor_mode(0x02);
       return 0;
     }
   }
@@ -168,6 +201,7 @@ static int show_config(cec_config_t *config) {
   print_monitor_mode(config->monitor_mode);
   print_physical_address(config->physical_address);
   print_logical_address(config->logical_address);
+
   const char *type = "unknown";
   switch ((cec_config_device_type_t)config->device_type) {
     case CEC_CONFIG_DEVICE_TYPE_TV:
@@ -216,9 +250,11 @@ static int show_stats_cec(void) {
   cdc_printfln("%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);
   cdc_printfln("%-13s: %lu frames", "CEC tx noack", stats.tx_noack_frames);
   if (stats.rx_frames) {
-    cdc_printfln("%-13s: %u %%", "rx bit aborts",
+    cdc_printfln("%-13s: %u %%", "rx abort rate",
                  (unsigned int)(stats.rx_abort_frames * 100 / stats.rx_frames));
   }
+  cdc_printfln("%-13s: %lu", "idle timeouts", stats.idle_timeouts);
+
   return 0;
 }
 
@@ -253,12 +289,24 @@ static int show_stats_tasks(void) {
 
   UBaseType_t n = uxTaskGetSystemState(status, count, NULL);
 
+#if (configTASKLIST_INCLUDE_COREID == 1)
+  cdc_printfln("%-13s | %-6s | %-10s | %-10s", "task", "core", "priority", "stack (min*)");
+  cdc_printfln("--------------------------------------------------");
+#else
   cdc_printfln("%-13s | %-10s | %-10s", "task", "priority", "stack (min*)");
+  cdc_printfln("-----------------------------------------");
+#endif
 
   for (UBaseType_t i = 0; i < n; i++) {
-    cdc_printfln("%-13s | %-10lu | %-10lu", status[i].pcTaskName,
+#if (configTASKLIST_INCLUDE_COREID == 1)
+    cdc_printfln("%-13s | %-6lu | %-10lu | %-10lu", status[i].pcTaskName,
+                 (uint32_t)status[i].xCoreID, (uint32_t)status[i].uxCurrentPriority,
+                 (uint32_t)status[i].usStackHighWaterMark / STACK_WORDSIZE);
+#else
+    cdc_printfln("%-13s | %-10ld | %-10lu", status[i].pcTaskName,
                  (uint32_t)status[i].uxCurrentPriority,
                  (uint32_t)status[i].usStackHighWaterMark / STACK_WORDSIZE);
+#endif
   }
   cdc_printfln("* closer to zero is approaching stack overflow");
 
@@ -397,11 +445,26 @@ static int exec_set(void *arg, int argc, const char **argv) {
   return -1;
 }
 
+static int exec_send(void *arg, int argc, const char **argv) {
+  if (argc == 2) {
+    return send_cmd(argv[1]);
+  } else if (argc == 3) {
+    return 0;
+  }
+  return -1;
+}
+
 static const tclie_cmd_t cmds[] = {
-    {"log", exec_log, "Set the ESP_LOGx level.", "log {1|2|3|4|5|6}"},
-    {"debug", exec_debug, "Control debug output.", "debug {on|off}"},
-    {"monitor", exec_monitor, "CEC bus monitor mode.", "monitor {on|off}"},
+#ifdef __XTENSA__
+    {"log", exec_log, "Set ESP_LOGx level. (None, Error, Warning, Info, Debug, Verbose)",
+     "log {0|1|2|3|4|5}"},
+#endif
+    {"debug", exec_debug, "Control debug output.",
+     "debug {on|off|mask|(capture <seconds>)|(test <number>)}"},
+    {"monitor", exec_monitor, "CEC bus monitor mode. (pro=promiscuous)",
+     "monitor {on|off|raw|pro}"},
     {"query", exec_query, "Query information.", "query {edid}"},
+    {"send", exec_send, "Send CEC message.", "send {help|<cec-command>}"},
     {"save", exec_save, "Save configuration.", "save"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config (edid_delay_ms|logical_address|physical_address|monitor_mode "
@@ -411,6 +474,27 @@ static const tclie_cmd_t cmds[] = {
      "show {cec|config|keymap|nvs|(stats {cec|cpu|tasks})|version}"},
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
 };
+
+/** Print formatted string. */
+void cdc_printf(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  cdc_vprintf(fmt, ap);
+  va_end(ap);
+}
+
+/** Print formatted string with newline. */
+void cdc_printfln(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  cdc_vprintf(fmt, ap);
+  va_end(ap);
+  print(_CDC_BR);
+}
+
+void cdc_log(const char *str) {
+  tclie_log(&tclie, str);
+}
 
 void cdc_task(void *params) {
   (void)params;

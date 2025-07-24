@@ -112,6 +112,10 @@ static void IRAM_ATTR gpio_isr_handler(void *arg) {
 #endif  // USE_GPIO_TASK_HANDLER
 }
 
+void gpio_set_irq_callback(gpio_irq_callback_t callback) {
+  gpio_irq_callback = callback;
+}
+
 void gpio_isr_init(unsigned int gpio, gpio_irq_callback_t callback) {
   gpio_irq_callback = callback;
 
@@ -149,8 +153,8 @@ static void *timer_user_data = NULL;
 static esp_timer_handle_t oneshot_timer_handle;
 static int64_t last_timer_value;
 
-extern int64_t frame_time_start;  // temporary for debugging diagnostics only
-extern char *frame_type_str;      // temporary for debugging diagnostics only
+// int64_t frame_time_start;  // temporary for debugging diagnostics only
+// char *frame_type_str;      // temporary for debugging diagnostics only
 
 // This callback is fixed in the timer initialisation, so we use a second callback
 //  pointer to allow the application code to configure which 'alarm' it wants invoked
@@ -165,8 +169,8 @@ static void IRAM_ATTR oneshot_timer_callback(void *arg) {
     ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, 0));
     ESP_LOGE(TAG, "ERROR: timer, next: %lld us", next);
   } else {  // finished a frame tx or frame rx ack
-    ESP_LOGV(TAG, "%s frame complete: %ld us", frame_type_str,
-             (uint32_t)(time_since_boot - frame_time_start));
+    // ESP_LOGV(TAG, "%s frame complete: %ld us", frame_type_str,
+    //          (uint32_t)(time_since_boot - frame_time_start));
   }
   last_timer_value = time_since_boot;
 }
@@ -195,8 +199,8 @@ void IRAM_ATTR timer_start(uint64_t time, timer_callback_t callback, void *user_
 
   if (user_data) {
 
-    frame_time_start = last_timer_value;
-    frame_type_str = "TX";
+    // frame_time_start = last_timer_value;
+    // frame_type_str = "TX";
 
     // ESP_LOGD(TAG, "Starting frame tx: %ld", (int32_t)(time - last_timer_value));
     ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, 0));  // fires timer immediately

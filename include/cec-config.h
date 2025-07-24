@@ -42,6 +42,9 @@ typedef struct {
   /** Use CEC monitor mode. (bus analyser) */
   uint8_t monitor_mode;
 
+  /** Save our currently allocated logical address for first attempt on restart */
+  uint16_t allocated_laddr;
+
   /** Keymap configuration. */
   cec_config_keymap_t keymap_type;
 

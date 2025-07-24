@@ -19,6 +19,7 @@ typedef int64_t (*timer_callback_t)(int32_t id, void *user_data);
 
 typedef void (*gpio_irq_callback_t)(uint64_t edge_time);
 void gpio_isr_init(unsigned int gpio, gpio_irq_callback_t callback);
+void gpio_set_irq_callback(gpio_irq_callback_t callback);  // for changing the callback after initialisation
 
 // For timer support:
 // CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD=y  // sdkconfig (not needed now that we are not

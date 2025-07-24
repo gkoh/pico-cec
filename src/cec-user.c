@@ -35,6 +35,7 @@ const char *cec_user_control_name[UINT8_MAX] = {
     [CEC_USER_DISPLAY_INFO] = "Display Information",
     [CEC_USER_VOLUME_UP] = "Volume Up",
     [CEC_USER_VOLUME_DOWN] = "Volume Down",
+    [CEC_USER_TOGGLE_MUTE] = "Toggle Mute",
     [CEC_USER_PLAY] = "Play",
     [CEC_USER_STOP] = "Stop",
     [CEC_USER_PAUSE] = "Pause",

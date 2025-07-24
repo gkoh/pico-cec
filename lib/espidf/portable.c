@@ -51,7 +51,8 @@ void vTaskStartScheduler_stub(void) {
 }
 void stdio_init_all() {}
 void board_init() {
-  esp_log_level_set("*", ESP_LOG_DEBUG);
+  // esp_log_level_set("*", ESP_LOG_DEBUG);
+  esp_log_level_set("*", ESP_LOG_INFO);
   prefs_init();
   uart_init();
 }
@@ -75,8 +76,10 @@ void IRAM_ATTR gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled
     if (event_mask == (GPIO_IRQ_EDGE_FALL)) {
       gpio_set_intr_type(gpio, GPIO_INTR_NEGEDGE);
     }
+    gpio_intr_enable(gpio);
   } else {
     gpio_set_intr_type(gpio, GPIO_INTR_DISABLE);
+    gpio_intr_disable(gpio);
   }
 }
 void esp_cec_rx_init(uint gpio, cec_frame_rx_isr_callback_t callback) {  // esp32 port only
@@ -371,7 +374,6 @@ int i2c_write_timeout_us(i2c_inst_t *i2c,
 #endif  // USE_ESPIDF_I2C_DRIVER_V2
 ////////////////////////////////////////////////////////////////////////////////
 
-// static pico_cec_nvs_t pico_cec_nvs = {0x0};
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR nvs.c
 uint32_t CEC_NVS_BASE_ADDR[] = {0};
@@ -397,6 +399,22 @@ void flash_range_read(uint32_t flash_offs, const uint8_t *data, size_t count) {
     prefs_getBytes("Settings", (void *)data, count);
     prefs_end();
   }
+}
+////////////////////////////////////////////////////////////////////////////////
+void save_logical_address(uint8_t addr) {
+  if (prefs_begin("cec-laddr", false, NULL)) {
+    prefs_putBytes("cec-laddr", (void *)&addr, sizeof(addr));
+    prefs_end();
+  }
+}
+
+uint8_t load_logical_address(void) {
+  uint8_t addr;
+  if (prefs_begin("cec-laddr", true, NULL)) {
+    prefs_getBytes("cec-laddr", (void *)&addr, sizeof(addr));
+    prefs_end();
+  }
+  return addr;
 }
 ////////////////////////////////////////////////////////////////////////////////
 

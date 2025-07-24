@@ -1,11 +1,13 @@
 idf_component_register(SRCS
                     "app_main.c"
                     "../src/blink.c"
+                    "../src/cec-cmd.c"
                     "../src/cec-config.c"
                     "../src/cec-frame.c"
                     "../src/cec-log.c"
                     "../src/cec-task.c"
                     "../src/cec-user.c"
+                    "../src/cec-util.c"
                     "../src/ddc.c"
                     "../src/debug.c"
                     "../src/freertos_hook.c"

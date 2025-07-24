@@ -42,10 +42,10 @@ void app_main(void) {
 
   printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
 
-  printf("Project: %s", PROJECT_NAME);
-  printf("Version: %s", PROJECT_VERSION);
-  printf("Built: %s", BUILD_TIMESTAMP);
-  printf("Git: %s (%s)%s", GIT_COMMIT_HASH, GIT_BRANCH, GIT_DIRTY);
+  printf("Project: %s\n", PROJECT_NAME);
+  printf("Version: %s\n", PROJECT_VERSION);
+  printf("Built: %s\n", BUILD_TIMESTAMP);
+  printf("Git: %s (%s)%s\n", GIT_COMMIT_HASH, GIT_BRANCH, GIT_DIRTY);
 
   // debug_main();
   main();

@@ -41,6 +41,8 @@ static const uint8_t default_logical_addr = 0x0f;
  */
 static const uint8_t default_device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
 
+static const uint8_t default_allocated_laddr = 0x00;
+
 /**
  * Default (Kodi) key mapping from CEC user control to HID keyboard entry.
  */
@@ -111,6 +113,7 @@ void cec_config_set_default(cec_config_t *config) {
   config->physical_address = default_physical_addr;
   config->logical_address = default_logical_addr;
   config->device_type = default_device_type;
+  config->allocated_laddr = default_allocated_laddr;
 #if KEYMAP_DEFAULT_KODI
   config->keymap_type = CEC_CONFIG_KEYMAP_KODI;
 #elif KEYMAP_DEFAULT_MISTER

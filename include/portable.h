@@ -56,9 +56,8 @@
   do {                          \
   } while (0)
 
-#endif  // __XTENSA__
+//#ifdef USE_PORTABLE
 
-#ifdef USE_PORTABLE
 // for blink.c
 #include "bsp/board.h"
 #include "pico/stdlib.h"
@@ -115,6 +114,8 @@
 #include "pico/sem.h"
 // #include "pico/stdlib.h"
 
-#endif  // USE_PORTABLE
+//#endif  // USE_PORTABLE
+
+#endif  // __XTENSA__
 
 #endif  // _PORTABLE_H_

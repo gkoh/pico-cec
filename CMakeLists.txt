@@ -31,8 +31,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/crc)
 # Initialize the SDK
 pico_sdk_init()
 
-#add_compile_options(-Wall -Werror)
-add_compile_options(-Wall -Werror -DUSE_PORTABLE)
+add_compile_options(-Wall -Werror)
 
 set(TCLI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/tcli)
 
@@ -54,9 +53,12 @@ target_compile_options(tcli PRIVATE
 add_executable(${PROJECT}
   src/blink.c
   src/cec-config.c
+  src/cec-cmd.c
   src/cec-frame.c
   src/cec-log.c
   src/cec-task.c
+  src/cec-user.c
+  src/cec-util.c
   src/ddc.c
   src/freertos_hook.c
   src/main.c
@@ -77,7 +79,7 @@ target_include_directories(${PROJECT} PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
-set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
+set(PICO_CEC_VERSION "pico-cec" CACHE STRING "Pico-CEC version string.")
 set(KEYMAP_DEFAULT "KODI" CACHE STRING "Default keymap, specify KODI or MISTER.")
 
 set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
