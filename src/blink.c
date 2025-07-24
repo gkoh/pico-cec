@@ -1,5 +1,5 @@
-#include "portable.h"
-DECLARE_TAG()
+#include "bsp/board.h"
+#include "pico/stdlib.h"
 
 #include "blink.h"
 #include "ws2812.h"
