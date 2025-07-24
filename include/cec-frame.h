@@ -59,7 +59,7 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address);
 void cec_frame_set_monitor_mode(int mode);
 int cec_frame_get_monitor_mode(void);
 
-void * get_frame_rx_isr(void);  // for cec-util.c
+void *get_frame_rx_isr(void);  // for cec-util.c
 
 bool cec_frame_ping(uint8_t destination);
 
