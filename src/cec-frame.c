@@ -165,12 +165,12 @@ static void IRAM_ATTR frame_rx_isr(uint64_t edge_time) {
       gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
       return;
     case CEC_FRAME_STATE_ACK_LOW:
-      rx_frame.start = time_us_64();
+      rx_frame.start = edge_time;
       // send ack by changing ack from 1 to 0
       uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
-      if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
-        rx_frame.state = CEC_FRAME_STATE_ACK_END;
-        gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
+      if (!monitor_mode && tgt_addr != 0x0f && tgt_addr == rx_frame.address) {
+        rx_frame.state = CEC_FRAME_STATE_ACK_END;  // TODO: remove, gets overwritten below?
+        gpio_set_dir(CEC_PIN, GPIO_OUT);           // pull low, then schedule float high
         add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
         rx_frame.ack = true;
       }
@@ -178,13 +178,13 @@ static void IRAM_ATTR frame_rx_isr(uint64_t edge_time) {
       gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
       return;
     case CEC_FRAME_STATE_ACK_HIGH:
-      low_time = time_us_64() - rx_frame.start;
-      if ((low_time >= 400 && low_time <= 800) || (low_time >= 1300 && low_time <= 1700)) {
+      low_time = edge_time - rx_frame.start;
+      if ((low_time >= (400 - TOLERANCE) && low_time <= (800 + TOLERANCE))
+          || (low_time >= (1300 - TOLERANCE) && low_time <= (1700 + TOLERANCE))) {
         rx_frame.state = CEC_FRAME_STATE_ACK_END;
       } else {
         rx_frame.state = CEC_FRAME_STATE_ABORT;
-        xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
-        return;
+        break;
       }
       // fall through
     case CEC_FRAME_STATE_ACK_END:

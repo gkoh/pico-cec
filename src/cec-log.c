@@ -32,15 +32,6 @@ static uint8_t log_mb_storage[LOG_MB_SIZE];
 static volatile bool enabled = false;
 static volatile bool mask = false;  // i don't think we need the volatile, but it can't hurt..
 
-/**
- * Get milliseconds since boot. (~ since the log task started)
- */
-uint64_t util_uptime_ms(void) {
-  return (time_us_64() / 1000);
-  // uint64_t now = millis();
-  // return now - startup_time;
-}
-
 static void cec_log_task(void *param) {
   log_callback_t log_callback = param;
 
