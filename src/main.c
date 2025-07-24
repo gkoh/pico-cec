@@ -16,6 +16,8 @@ DECLARE_TAG()
 
 #include "config.h"
 
+#include "pico-cec/config.h"
+
 #include "blink.h"
 #include "cec-frame.h"
 #include "cec-log.h"

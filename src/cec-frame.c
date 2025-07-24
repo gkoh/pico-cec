@@ -165,26 +165,26 @@ static void IRAM_ATTR frame_rx_isr(uint64_t edge_time) {
       gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
       return;
     case CEC_FRAME_STATE_ACK_LOW:
-      rx_frame.start = edge_time;
+      rx_frame.start = time_us_64();
       // send ack by changing ack from 1 to 0
       uint8_t tgt_addr = rx_frame.message->data[0] & 0x0f;
-      if (!monitor_mode && tgt_addr != 0x0f && tgt_addr == rx_frame.address) {
-        rx_frame.state = CEC_FRAME_STATE_ACK_END;  // TODO: remove, gets overwritten below?
-        gpio_set_dir(CEC_PIN, GPIO_OUT);           // pull low, then schedule float high
+      if ((tgt_addr != 0x0f) && (tgt_addr == rx_frame.address)) {
+        rx_frame.state = CEC_FRAME_STATE_ACK_END;
+        gpio_set_dir(CEC_PIN, GPIO_OUT);  // pull low, then schedule pull high
         add_alarm_at(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL, true);
         rx_frame.ack = true;
       }
       rx_frame.state = CEC_FRAME_STATE_ACK_HIGH;
       gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE, true);
       return;
-    case CEC_FRAME_STATE_ACK_HIGH:  // we see our own ACK_HIGH rising edge?
-      low_time = edge_time - rx_frame.start;
-      if ((low_time >= (400 - TOLERANCE) && low_time <= (800 + TOLERANCE))
-          || (low_time >= (1300 - TOLERANCE) && low_time <= (1700 + TOLERANCE))) {
+    case CEC_FRAME_STATE_ACK_HIGH:
+      low_time = time_us_64() - rx_frame.start;
+      if ((low_time >= 400 && low_time <= 800) || (low_time >= 1300 && low_time <= 1700)) {
         rx_frame.state = CEC_FRAME_STATE_ACK_END;
       } else {
         rx_frame.state = CEC_FRAME_STATE_ABORT;
-        break;
+        xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_RX, 0, eNoAction, NULL);
+        return;
       }
       // fall through
     case CEC_FRAME_STATE_ACK_END:
@@ -357,7 +357,6 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
   return 0;  // we did not receive a frame
 }
 
-// static int64_t IRAM_ATTR frame_tx_callback(alarm_id_t alarm, void *user_data) {
 static int64_t frame_tx_callback(alarm_id_t alarm, void *user_data) {
   cec_frame_t *frame = (cec_frame_t *)user_data;
   uint64_t low_time = 0;
@@ -427,7 +426,7 @@ static int64_t frame_tx_callback(alarm_id_t alarm, void *user_data) {
   }
 }
 
-bool force = false;
+bool force = false;  // temporary, pending development of new parameter
 
 bool cec_frame_send(uint8_t pldcnt, uint8_t *pld) {
   if (monitor_mode && !force)
