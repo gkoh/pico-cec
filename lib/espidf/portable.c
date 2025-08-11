@@ -3,31 +3,33 @@
 #include <string.h>
 
 #include <driver/gpio.h>
-#include <driver/i2c.h>         // legacy driver
 #include <driver/i2c_master.h>  // new driver model
 #include <driver/uart.h>
 #include <esp_flash.h>
 #include <esp_system.h>
 
-#include "esp-port.h"
+// #include "led_strip.h"
+
+#include "../cec_ulib/esp-port.h"
 #include "portable.h"
 DECLARE_TAG()
 
-#include "sdkconfig.h"
+#include "config.h"
 #include "prefs.h"
+
+/* Use project configuration menu (idf.py menuconfig) to choose the GPIO to blink,
+   or you can edit the following line and set a number here.
+*/
+// #define BLINK_GPIO CONFIG_BLINK_GPIO
+// #define CONFIG_BLINK_LED_STRIP_BACKEND_RMT 1
+
+#define EDID_I2C_ADDR (0x50)
 
 void gpio_init(uint gpio) {}
 void gpio_disable_pulls(uint gpio) {
   //  gpio_pullup_dis(gpio);
   gpio_pullup_en(gpio);
   gpio_pulldown_dis(gpio);
-}
-void IRAM_ATTR gpio_set_dir(uint gpio, bool out) {
-  //	gpio_reset_pin(gpio);
-  gpio_set_direction(gpio, out == GPIO_OUT ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT);
-}
-bool gpio_get(uint gpio) {
-  return gpio_get_level(gpio);
 }
 void gpio_put(uint gpio, int value) {
   gpio_set_level(gpio, value);
@@ -43,6 +45,57 @@ void gpio_set_function(uint gpio, enum gpio_function fn) {
   //  gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
 }
 
+void usb_init(void);
+
+#if (CONFIG_FREERTOS_HZ != 1000)
+#pragma error
+#endif
+
+#if (CONFIG_FREERTOS_TASK_NOTIFICATION_ARRAY_ENTRIES < 2)
+#pragma error
+#endif
+
+#if (CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS != 1)
+#pragma error
+#endif
+
+#define UART_TXD (CONFIG_UART_TXD)
+#define UART_RXD (CONFIG_UART_RXD)
+#define UART_RTS (UART_PIN_NO_CHANGE)
+#define UART_CTS (UART_PIN_NO_CHANGE)
+
+#define UART_BAUD_RATE (CONFIG_UART_BAUD_RATE)
+#define UART_BUF_SIZE (1024)
+
+void uart_init(void) {
+  uart_config_t uart_config = {
+      .baud_rate = UART_BAUD_RATE,
+      .data_bits = UART_DATA_8_BITS,
+      .parity = UART_PARITY_DISABLE,
+      .stop_bits = UART_STOP_BITS_1,
+      .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+      .source_clk = UART_SCLK_DEFAULT,
+  };
+  int intr_alloc_flags = 0;
+#if CONFIG_UART_ISR_IN_IRAM
+  intr_alloc_flags = ESP_INTR_FLAG_IRAM;
+#endif
+  ESP_ERROR_CHECK(
+      uart_driver_install(UART_PORT_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
+  ESP_ERROR_CHECK(uart_param_config(UART_PORT_NUM, &uart_config));
+  ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, UART_TXD, UART_RXD, UART_RTS, UART_CTS));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// bool gpio_get(unsigned int gpio) {
+//   return gpio_get_level(gpio);
+// }
+void IRAM_ATTR gpio_set_dir(unsigned int gpio, bool out) {
+  //	gpio_reset_pin(gpio);
+  gpio_set_direction(gpio, out == GPIO_OUT ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR main.c
 void vTaskStartScheduler_stub(void) {
@@ -51,48 +104,23 @@ void vTaskStartScheduler_stub(void) {
 }
 void stdio_init_all() {}
 void board_init() {
-  // esp_log_level_set("*", ESP_LOG_DEBUG);
-  esp_log_level_set("*", ESP_LOG_INFO);
+  esp_log_level_set("*", ESP_LOG_DEBUG);
   prefs_init();
+#ifdef USE_USB_CDC
+  usb_init();
+#else
   uart_init();
+#endif
 }
 void alarm_pool_init_default() {
-  timer_init();
+  // timer_init();
 }
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR cec-frame.c
-void irq_set_enabled(int a, int b) {}
-void gpio_acknowledge_irq(uint gpio, uint32_t events) {}
-void IRAM_ATTR gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled) {
-  if (enabled) {
-    if (event_mask == (GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL)) {
-      gpio_set_intr_type(gpio, GPIO_INTR_ANYEDGE);
-    }
-    if (event_mask == (GPIO_IRQ_EDGE_RISE)) {
-      gpio_set_intr_type(gpio, GPIO_INTR_POSEDGE);
-    }
-    if (event_mask == (GPIO_IRQ_EDGE_FALL)) {
-      gpio_set_intr_type(gpio, GPIO_INTR_NEGEDGE);
-    }
-    gpio_intr_enable(gpio);
-  } else {
-    gpio_set_intr_type(gpio, GPIO_INTR_DISABLE);
-    gpio_intr_disable(gpio);
-  }
-}
-void esp_cec_rx_init(uint gpio, cec_frame_rx_isr_callback_t callback) {  // esp32 port only
-  gpio_isr_init(gpio, callback);
-}
-void IRAM_ATTR timer_start(uint64_t time, timer_callback_t callback, void *user_data);
-alarm_id_t IRAM_ATTR add_alarm_at(absolute_time_t time,
-                                  alarm_callback_t callback,
-                                  void *user_data,
-                                  bool fire_if_past) {
-  timer_start(time, callback, user_data);
-  return 0;
-}
+// void irq_set_enabled(int a, int b) {}  // pico only
+// void gpio_acknowledge_irq(uint gpio, uint32_t events) {}  // pico only
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,12 +137,11 @@ void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR ddc.c
-#ifdef USE_ESPIDF_I2C_DRIVER_V2
-// https://docs.espressif.com/projects/esp-idf/en/stable/esp32/migration-guides/release-5.x/5.2/peripherals.html
-i2c_master_bus_handle_t bus_handle;
-i2c_master_dev_handle_t dev_handle;
+static i2c_master_bus_handle_t bus_handle;
+static i2c_master_dev_handle_t dev_handle;
 
-uint esp_i2c_init(uint i2c_frequency, uint16_t chip_addr) {
+uint i2c_init(i2c_inst_t *i2c, uint i2c_frequency) {
+  (void)i2c;
   esp_err_t ret;
   i2c_master_bus_config_t i2c_bus_config = {
       .clk_source = I2C_CLK_SRC_DEFAULT,
@@ -130,7 +157,7 @@ uint esp_i2c_init(uint i2c_frequency, uint16_t chip_addr) {
   }
   i2c_device_config_t i2c_dev_conf = {
       .scl_speed_hz = i2c_frequency,
-      .device_address = chip_addr,
+      .device_address = EDID_I2C_ADDR,
   };
   ret = i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &dev_handle);
   //  *      - ESP_OK: Create I2C master device successfully.
@@ -180,6 +207,9 @@ int i2c_read_timeout_us(i2c_inst_t *i2c,
                         bool nostop,
                         uint timeout_us) {
   (void)i2c;
+
+  assert(EDID_I2C_ADDR == addr);
+
   // esp_err_t i2c_master_receive(i2c_master_dev_handle_t i2c_dev, uint8_t *read_buffer, size_t
   // read_size, int xfer_timeout_ms);
   esp_err_t ret = i2c_master_receive(dev_handle, dst, len, timeout_us / 1000);
@@ -214,6 +244,9 @@ int i2c_write_timeout_us(i2c_inst_t *i2c,
                          bool nostop,
                          uint timeout_us) {
   (void)i2c;
+
+  assert(EDID_I2C_ADDR == addr);
+
   // esp_err_t i2c_master_transmit(i2c_master_dev_handle_t i2c_dev, const uint8_t *write_buffer,
   // size_t write_size, int xfer_timeout_ms);
   esp_err_t ret = i2c_master_transmit(dev_handle, src, len, timeout_us / 1000);
@@ -241,137 +274,6 @@ int i2c_write_timeout_us(i2c_inst_t *i2c,
   return ret;  // Returns: Number of bytes written, or PICO_ERROR_GENERIC if address not
                // acknowledged, no device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
 }
-
-#else
-
-uint i2c_init(i2c_inst_t *i2c, uint i2c_frequency) {
-  (void)i2c;
-  esp_err_t ret;
-  i2c_config_t i2c_config = {
-      .mode = I2C_MODE_MASTER,
-      .scl_io_num = SCL_IO_PIN,
-      .sda_io_num = SDA_IO_PIN,
-      .sda_pullup_en = GPIO_PULLUP_ENABLE,
-      .scl_pullup_en = GPIO_PULLUP_ENABLE,
-      .master.clk_speed = i2c_frequency,
-      // .clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL
-  };
-  //  esp_err_t i2c_param_config(i2c_port_t i2c_num, const i2c_config_t *i2c_conf);
-  ret = i2c_param_config(I2C_PORT, &i2c_config);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "i2c_param_config(..) failed %d", ret);
-  }
-  // esp_err_t i2c_driver_install(i2c_port_t i2c_num, i2c_mode_t mode, size_t slv_rx_buf_len, size_t
-  // slv_tx_buf_len, int intr_alloc_flags);
-  ret = i2c_driver_install(I2C_PORT, I2C_MODE_MASTER, 0, 0, 0);
-  //  *     - ESP_OK   Success
-  //  *     - ESP_ERR_INVALID_ARG Parameter error
-  //  *     - ESP_FAIL Driver installation error
-  // if (ret != ESP_OK) {
-  //     ESP_LOGE(TAG, "i2c_driver_install(..) failed %d", ret);
-  // }
-  switch (ret) {
-    case ESP_OK:
-      break;
-    case ESP_ERR_INVALID_ARG:
-      ESP_LOGE(TAG, "i2c_init(..) Parameter error");
-      break;
-    case ESP_FAIL:
-      ESP_LOGE(TAG, "i2c_init(..) Driver installation error");
-      break;
-    default:
-      ESP_LOGE(TAG, "i2c_driver_install(..) failed %d", ret);
-      break;
-  }
-  return i2c_frequency;  // unused
-}
-void i2c_deinit(i2c_inst_t *i2c) {
-  (void)i2c;
-  // esp_err_t i2c_driver_delete(i2c_port_t i2c_num);
-  esp_err_t ret = i2c_driver_delete(I2C_PORT);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "i2c_driver_delete(..) failed %d", ret);
-  }
-}
-int i2c_read_timeout_us(i2c_inst_t *i2c,
-                        uint8_t addr,
-                        uint8_t *dst,
-                        size_t len,
-                        bool nostop,
-                        uint timeout_us) {
-  (void)i2c;
-  //  esp_err_t ret = i2c_master_read_from_device(I2C_PORT, addr, dst, len, timeout_us);
-  esp_err_t ret = i2c_master_read_from_device(I2C_PORT, addr, dst, len, timeout_us / 1000);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "i2c_master_read_from_device(..) failed %d", ret);
-  }
-  switch (ret) {
-    case ESP_OK:
-      ret = len;
-      break;
-    case ESP_ERR_INVALID_ARG:
-      ret = PICO_ERROR_GENERIC;
-      break;
-    case ESP_ERR_TIMEOUT:
-      ret = PICO_ERROR_TIMEOUT;
-      break;
-    default:
-      ret = PICO_ERROR_GENERIC;
-      ESP_LOGE(TAG, "i2c_master_read_from_device(..) failed %d", ret);
-      break;
-  }
-  return ret;  // Returns: Number of bytes read, or PICO_ERROR_GENERIC if address not acknowledged,
-               // no device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
-}
-int i2c_write_timeout_us(i2c_inst_t *i2c,
-                         uint8_t addr,
-                         const uint8_t *src,
-                         size_t len,
-                         bool nostop,
-                         uint timeout_us) {
-  (void)i2c;
-  //  esp_err_t ret = i2c_master_write_to_device(I2C_PORT, addr, src, len, timeout_us / 1000);
-  esp_err_t ret = i2c_master_write_to_device(I2C_PORT, addr, src, len, timeout_us);
-  //  *     - ESP_OK Success
-  //  *     - ESP_ERR_INVALID_ARG Parameter error
-  //  *     - ESP_FAIL Sending command error, slave hasn't ACK the transfer.
-  //  *     - ESP_ERR_INVALID_STATE I2C driver not installed or not in master mode.
-  //  *     - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "i2c_master_write_to_device(..) failed %d", ret);
-  }
-  switch (ret) {
-    case ESP_OK:
-      ret = len;
-      break;
-    case ESP_ERR_INVALID_ARG:
-      ESP_LOGE(TAG, "i2c_master_write_to_device(..) Parameter error");
-      ret = PICO_ERROR_GENERIC;
-      break;
-    case ESP_FAIL:
-      ESP_LOGE(
-          TAG,
-          "i2c_master_write_to_device(..) Sending command error, slave hasn't ACK the transfer");
-      ret = PICO_ERROR_GENERIC;
-      break;
-    case ESP_ERR_INVALID_STATE:
-      ESP_LOGE(TAG,
-               "i2c_master_write_to_device(..) I2C driver not installed or not in master mode");
-      ret = PICO_ERROR_GENERIC;
-      break;
-    case ESP_ERR_TIMEOUT:
-      ESP_LOGE(TAG, "i2c_master_write_to_device(..) Operation timeout because the bus is busy");
-      ret = PICO_ERROR_TIMEOUT;
-      break;
-    default:
-      ret = PICO_ERROR_GENERIC;
-      ESP_LOGE(TAG, "i2c_master_write_to_device(..) failed %d", ret);
-      break;
-  }
-  return ret;  // Returns: Number of bytes written, or PICO_ERROR_GENERIC if address not
-               // acknowledged, no device present, or PICO_ERROR_TIMEOUT if a timeout occurred.
-}
-#endif  // USE_ESPIDF_I2C_DRIVER_V2
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -421,13 +323,48 @@ uint8_t load_logical_address(void) {
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR blink.c
 // #define PICO_DEFAULT_WS2812_PIN 0
-void ws2812_init(unsigned int pin) {}
-void ws2812_put_rgb(uint8_t red, uint8_t green, uint8_t blue) {}
-void ws2812_put_pixel(uint32_t pixel_grb) {}
+// static led_strip_handle_t led_strip;
+
+void ws2812_init(unsigned int pin) {
+  // ESP_LOGI(TAG, "Example configured to blink addressable LED!");
+  //   /* LED strip initialization with the GPIO and pixels number*/
+  //   led_strip_config_t strip_config = {
+  //       .strip_gpio_num = pin,
+  //       .max_leds = 1, // at least one LED on board
+  //   };
+  // #if CONFIG_BLINK_LED_STRIP_BACKEND_RMT
+  //   led_strip_rmt_config_t rmt_config = {
+  //       .resolution_hz = 10 * 1000 * 1000, // 10MHz
+  //       .flags.with_dma = false,
+  //   };
+  //   ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+  // #elif CONFIG_BLINK_LED_STRIP_BACKEND_SPI
+  //   led_strip_spi_config_t spi_config = {
+  //       .spi_bus = SPI2_HOST,
+  //       .flags.with_dma = true,
+  //   };
+  //   ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
+  // #else
+  // #error "unsupported LED strip backend"
+  // #endif
+  //   /* Set all LED off to clear all pixels */
+  //   led_strip_clear(led_strip);
+}
+void ws2812_put_rgb(uint8_t red, uint8_t green, uint8_t blue) {
+  // led_strip_set_pixel(led_strip, 0, red, green, blue);
+  // /* Refresh the strip to send data */
+  // led_strip_refresh(led_strip);
+}
+// void ws2812_put_pixel(uint32_t pixel_grb) {}
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR usb_hid.c
+
+void board_led_write(int state) {}
+
+#ifndef USE_USB_CDC
+
 bool tud_init(uint8_t rhport) {
   return 0;
 }
@@ -435,18 +372,13 @@ void tud_task(void) {
   static uint32_t _delay = 100;
   vTaskDelay(pdMS_TO_TICKS(_delay));
 }
-bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, const uint8_t keycode[6]) {
-  return 0;
-}
 bool tud_suspended(void) {
-  return 0;
-}
-bool tud_hid_ready(void) {
   return 0;
 }
 bool tud_remote_wakeup(void) {
   return false;
 }
+
 uint32_t tud_cdc_write_str(const char *str) {
   uart_write_bytes(UART_PORT_NUM, str, strlen(str));
   return 0;
@@ -455,12 +387,12 @@ bool tud_cdc_connected(void) {
   return 1;
 }
 uint32_t tud_cdc_available(void) {
-  size_t size;
+  size_t size = 0;
   uart_get_buffered_data_len(UART_PORT_NUM, &size);
   return size;
 }
 uint8_t tud_cdc_read_char(void) {
-  uint8_t data;
+  uint8_t data = 0;
   uart_read_bytes(UART_PORT_NUM, &data, 1, 20 / portTICK_PERIOD_MS);  // (20/portTICK_PERIOD_MS) = 2
   return data;
 }
@@ -468,4 +400,43 @@ uint32_t tud_cdc_write_flush(void) {
   // uart_flush(UART_PORT_NUM);  // TODO: seems to be a problem when calling this
   return 0;
 }
+
+#endif  // USE_USB_CDC
+
+#ifndef USE_USB_HID
+bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, const uint8_t keycode[6]) {
+  return 0;
+}
+bool tud_hid_ready(void) {
+  return 0;
+}
+#endif  // USE_USB_HID
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// REQUIRED FOR usb_descriptors.c
+#ifndef USE_USB_CDC
+uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
+  (void)index;  // for multiple configurations
+  // return desc_configuration;
+  return 0;
+}
+uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
+  (void)langid;
+
+  return 0;
+}
+uint8_t const *tud_descriptor_device_cb(void) {
+  //  return (uint8_t const *)&desc_device;
+  return 0;
+}
+#endif  // USE_USB_CDC
+
+#ifndef USE_USB_HID
+uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
+  (void)instance;
+  // return desc_hid_report;
+  return 0;
+}
+#endif  // USE_USB_HID
 ////////////////////////////////////////////////////////////////////////////////

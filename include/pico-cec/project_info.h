@@ -1,0 +1,8 @@
+#pragma once
+
+#define PROJECT_NAME "@PROJ_NAME@"
+#define PROJECT_VERSION "@PROJ_VER@"
+#define GIT_COMMIT_HASH "@GIT_COMMIT_HASH@"
+#define GIT_BRANCH "@GIT_BRANCH@"
+#define GIT_DIRTY "@GIT_DIRTY@"
+#define BUILD_TIMESTAMP "@BUILD_TIMESTAMP@"

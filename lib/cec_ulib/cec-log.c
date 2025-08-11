@@ -6,10 +6,8 @@
 #include "message_buffer.h"
 #include "task.h"
 
-#include "portable.h"
+#include "cec-hal.h"
 DECLARE_TAG()
-
-#include "config.h"
 
 #include "cec-frame.h"
 #include "cec-id.h"
@@ -22,8 +20,8 @@ DECLARE_TAG()
 #define LOG_QUEUE_LENGTH (16)
 #define LOG_MB_SIZE (LOG_LINE_LENGTH * LOG_QUEUE_LENGTH)
 
-static StaticTask_t log_task_static;
-static StackType_t log_stack[LOG_STACK_SIZE];
+// static StaticTask_t log_task_static;
+// static StackType_t log_stack[LOG_STACK_SIZE];
 
 static StaticMessageBuffer_t log_mb_static;
 static MessageBufferHandle_t log_mb;
@@ -31,27 +29,50 @@ static uint8_t log_mb_storage[LOG_MB_SIZE];
 
 static volatile bool enabled = false;
 static volatile bool mask = false;  // i don't think we need the volatile, but it can't hurt..
+/*
+static uint64_t startup_time;
 
-static void cec_log_task(void *param) {
+#include <time.h>
+long long millis(void) {
+  struct timespec t;
+  clock_gettime(CLOCK_REALTIME, &t);  // won't return uptime if something sets the system clock
+  return t.tv_sec * 1000 + (t.tv_nsec + 500000) / 1000000;
+}
+ */
+/**
+ * Get milliseconds since boot. (~ since the log task started)
+ */
+uint64_t util_uptime_ms(void) {
+  return (time_us_64() / 1000);
+  // uint64_t now = millis();
+  // return now - startup_time;
+}
+
+void log_task(void *param) {
   log_callback_t log_callback = param;
+
+  log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
+  //  startup_time = millis();
+  enabled = true;
 
   while (true) {
     char buffer[LOG_LINE_LENGTH];
 
     size_t bytes = xMessageBufferReceive(log_mb, buffer, sizeof(buffer), pdMS_TO_TICKS(100));
     if (bytes > 0) {
-      log_callback(buffer);  // cdc_log()
+      log_callback(buffer);  // console_output()
     }
   }
 }
 
-void cec_log_init(log_callback_t log_callback) {
-  log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
-  enabled = false;
+// void cec_log_init(log_callback_t log_callback) {
+//   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
+//   startup_time = millis();
+//   enabled = false;
 
-  xTaskCreateStatic(cec_log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log_callback, LOG_PRIORITY,
-                    &log_stack[0], &log_task_static);
-}
+//   xTaskCreateStatic(log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log_callback, LOG_PRIORITY,
+//                     &log_stack[0], &log_task_static);
+// }
 
 bool cec_log_enabled(void) {
   return enabled;
@@ -70,7 +91,9 @@ void cec_log_mask_toggle(void) {
 }
 
 void cec_log(const char *buffer, int len) {
+  // if (enabled) {  // don't filter for 'debug on' mode, as this is used by cec_log_raw_frame
   xMessageBufferSend(log_mb, buffer, len + 1, pdMS_TO_TICKS(20));
+  // }
 }
 
 void cec_log_vsubmitf(const char *fmt, va_list ap) {
@@ -123,7 +146,7 @@ __attribute__((format(printf, 5, 6))) static void log_printf(uint8_t initiator,
   snprintf(prefix, sizeof(prefix), "[%10llu] %02x %s %02x", util_uptime_ms(),
            send ? initiator : destination, arrow, send ? destination : initiator);
   vsnprintf(buffer, sizeof(buffer), fmt, ap);
-  cec_log_submitf("%s: %s"_LOG_BR, prefix, buffer);
+  cec_log_submitf("%s: %s" _LOG_BR, prefix, buffer);
   va_end(ap);
 }
 
@@ -159,6 +182,8 @@ const char *cec_message[] = {
     [CEC_ID_GET_CEC_VERSION] = "Get CEC Version",
     [CEC_ID_VENDOR_COMMAND_WITH_ID] = "Vendor Command With ID",
     [CEC_ID_REQUEST_ARC_INITIATION] = "Request ARC Initiation",
+    [CEC_ID_ECHO_REQUEST] = "Echo Request",
+    [CEC_ID_ECHO_RESPOND] = "Echo Respond",
     [CEC_ID_ABORT] = "Abort",
 };
 
@@ -263,7 +288,7 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
       case CEC_ID_VENDOR_COMMAND_WITH_ID:
         log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         for (int i = 0; i < msg->len; i++) {
-          cec_log_submitf(" %02x"_LOG_BR, msg->data[i]);
+          cec_log_submitf(" %02x" _LOG_BR, msg->data[i]);
         }
         break;
       case CEC_ID_REPORT_POWER_STATUS:
@@ -293,7 +318,7 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         if (message != NULL && strlen(message) > 0) {
           log_printf(initiator, destination, recv, frame->ack, "[%s]", cec_message[cmd]);
         } else {
-          ESP_LOGI(TAG, "cec_log_frame() unknown cmd %02X", cmd);
+          // ESP_LOGI(TAG, "cec_log_frame() unknown cmd %02X", cmd);
           log_printf(initiator, destination, recv, frame->ack, "[%x] (undecoded)", cmd);
           cec_log_raw_frame(frame);
         }

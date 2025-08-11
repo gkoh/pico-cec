@@ -25,6 +25,9 @@
 
 #include "usb_descriptors.h"
 #include "tusb.h"
+#if defined(__XTENSA__) || defined(__riscv)
+#include "tusb_cdc_acm.h"  // TODO: only required for esp32 - but is it part of pico-sdk?
+#endif
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after
  * the first plug. Same VID/PID with different interface e.g MSC (first), then CDC (later) will
@@ -121,6 +124,8 @@ uint8_t const desc_configuration[] = {
                        CFG_TUD_HID_EP_BUFSIZE,
                        5),
 
+    // Interface number, string index, EP notification address and size, EP data address (out, in)
+    // and size.
     TUD_CDC_DESCRIPTOR(ITF_NUM_CDC,
                        USBD_STR_CDC,
                        USBD_CDC_EP_CMD,
@@ -189,13 +194,20 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
 // String Descriptors
 //--------------------------------------------------------------------+
 
+#define CONFIG_TINYUSB_DESC_MANUFACTURER_STRING "TinyUSB"
+#define CONFIG_TINYUSB_DESC_PRODUCT_STRING "TinyUSB Device"
+#define CONFIG_TINYUSB_DESC_SERIAL_STRING "123456"
+#define CONFIG_TINYUSB_DESC_CDC_STRING "Pico-CEC Console"
+#define CONFIG_DESC_HID_STRING ""
+
 // array of pointer to string descriptors
 char const *string_desc_arr[] = {
-    (const char[]){0x09, 0x04},  // 0: is supported language is English (0x0409)
-    "TinyUSB",                   // 1: Manufacturer
-    "TinyUSB Device",            // 2: Product
-    "123456",                    // 3: Serials, should use chip ID
-    "Pico-CEC Console",          // 4: stdio
+    (const char[]){0x09, 0x04},               // 0: is supported language is English (0x0409)
+    CONFIG_TINYUSB_DESC_MANUFACTURER_STRING,  // 1: Manufacturer
+    CONFIG_TINYUSB_DESC_PRODUCT_STRING,       // 2: Product
+    CONFIG_TINYUSB_DESC_SERIAL_STRING,        // 3: Serials, should use chip ID
+    CONFIG_TINYUSB_DESC_CDC_STRING,           // 4: CDC Interface
+    CONFIG_DESC_HID_STRING,                   // 5: HID Interface
 };
 
 static uint16_t _desc_str[32];

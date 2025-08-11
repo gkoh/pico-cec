@@ -6,6 +6,9 @@ DECLARE_TAG()
 
 TaskHandle_t xLEDTask;
 
+// static uint8_t intensity = 0x78;
+static uint8_t intensity = 0x12;
+
 void blink_init(void) {
 #ifdef PICO_DEFAULT_WS2812_POWER_PIN
   gpio_init(PICO_DEFAULT_WS2812_POWER_PIN);
@@ -15,7 +18,7 @@ void blink_init(void) {
 
   // RGB = solid green on boot
   ws2812_init(PICO_DEFAULT_WS2812_PIN);
-  ws2812_put_rgb(0, 0x78, 0);
+  ws2812_put_rgb(0, intensity, 0);
 
 #ifdef PICO_DEFAULT_LED_PIN
   gpio_init(PICO_DEFAULT_LED_PIN);
@@ -26,7 +29,7 @@ void blink_init(void) {
 void blink_set(blink_state_t state) {
   switch (state) {
     case BLINK_STATE_GREEN_ON:
-      ws2812_put_rgb(0, 0x78, 0);
+      ws2812_put_rgb(0, intensity, 0);
       break;
     case BLINK_STATE_OFF:
       ws2812_put_rgb(0, 0, 0);
@@ -38,6 +41,10 @@ void blink_set(blink_state_t state) {
 
 void blink_set_blink(blink_state_t state) {
   xTaskNotify(xLEDTask, (uint32_t)state, eSetValueWithOverwrite);
+}
+
+void blink_set_intensity(uint8_t value) {
+  intensity = value;
 }
 
 void led_task(void *param) {
@@ -63,15 +70,15 @@ void led_task(void *param) {
     if (state) {
       switch (rgb_state) {
         case BLINK_STATE_BLUE_2HZ:
-          ws2812_put_rgb(0, 0, 0x78);
+          ws2812_put_rgb(0, 0, intensity);
           blink_delay = 1000;
           break;
         case BLINK_STATE_GREEN_2HZ:
-          ws2812_put_rgb(0, 0x78, 0);
+          ws2812_put_rgb(0, intensity, 0);
           blink_delay = 500;
           break;
         case BLINK_STATE_RED_2HZ:
-          ws2812_put_rgb(0x78, 0, 0);
+          ws2812_put_rgb(intensity, 0, 0);
           blink_delay = 2000;
           break;
         default:

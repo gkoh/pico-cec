@@ -1,8 +1,17 @@
 #ifndef _PORTABLE_H_
 #define _PORTABLE_H_
 
-#ifdef __XTENSA__
+#if defined(__XTENSA__) || defined(__riscv)
 #include "../lib/espidf/portable.h"
+#include "project_info.h"
+
+#include "config.h"
+
+#ifdef USE_USB_CDC
+#include <tusb.h>
+#include "tinyusb.h"
+#include "tusb.h"
+#endif
 
 #ifndef PICO_CEC_VERSION
 #define PICO_CEC_VERSION "esp32"
@@ -33,12 +42,16 @@
 
 #else  // !__XTENSA__
 
+#include "pico-cec/project_info.h"
+
 #ifndef PICO_CEC_VERSION
 #define PICO_CEC_VERSION "unknown"
 #endif
 
 #define IRAM_ATTR
 #define DECLARE_TAG()
+#define cec_id_event_log(a)
+#define cec_id_event_log_start()
 
 #define ESP_LOGE(tag, fmt, ...) \
   do {                          \

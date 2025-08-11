@@ -1,4 +1,4 @@
-#ifdef __XTENSA__
+#if defined(__XTENSA__) || defined(__riscv)
 #include <freertos/FreeRTOSConfig.h>
 #else
 /*

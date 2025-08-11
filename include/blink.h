@@ -16,6 +16,7 @@ extern TaskHandle_t xLEDTask;
 void blink_init(void);
 void blink_set(blink_state_t state);
 void blink_set_blink(blink_state_t state);
+void blink_set_intensity(uint8_t value);
 
 void led_task(void *param);
 

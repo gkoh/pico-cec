@@ -33,6 +33,8 @@ typedef enum {
   CEC_ID_GET_CEC_VERSION = 0x9f,
   CEC_ID_VENDOR_COMMAND_WITH_ID = 0xa0,
   CEC_ID_REQUEST_ARC_INITIATION = 0xc3,
+  CEC_ID_ECHO_REQUEST = 0xfa,
+  CEC_ID_ECHO_RESPOND = 0xfb,
   CEC_ID_ABORT = 0xff,
 } cec_id_t;
 
@@ -44,5 +46,13 @@ typedef enum {
   CEC_ABORT_REFUSED = 4,
   CEC_ABORT_UNDETERMINED = 5,
 } cec_abort_t;
+
+// These cec protocol diagnostic functions are defined away for the pico-pi build
+#ifndef cec_id_event_log
+void cec_id_event_log(uint8_t id);
+#endif
+#ifndef cec_id_event_log_start
+void cec_id_event_log_start(void);
+#endif
 
 #endif

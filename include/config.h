@@ -1,8 +1,29 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#if defined(__XTENSA__) || defined(__riscv)
+
+#include "sdkconfig.h"
+
+// For the specific target SoC, sdkconfig.h defines the current target, i.e.
+#if CONFIG_IDF_TARGET_ESP32
+#define USE_ALTERNATE_UART
+#elif CONFIG_IDF_TARGET_ESP32S2
+#elif CONFIG_IDF_TARGET_ESP32C3
+#define USE_USB_CDC
+#elif CONFIG_IDF_TARGET_ESP32S3
+#define USE_USB_CDC
+#define USE_USB_HID
+#elif CONFIG_IDF_TARGET_ESP32H4
+#elif CONFIG_IDF_TARGET_ESP32C2
+#elif CONFIG_IDF_TARGET_ESP32C6
+#elif CONFIG_IDF_TARGET_ESP32H2
+#endif
+
+#endif  // __XTENSA__
+
 #ifndef PICO_CEC_VERSION
-#ifdef __XTENSA__
+#if defined(__XTENSA__) || defined(__riscv)
 #define PICO_CEC_VERSION "esp32"
 #else
 #define PICO_CEC_VERSION "unknown"
@@ -20,11 +41,9 @@
 
 #define USB_STACK_SIZE (512 * STACK_WORDSIZE)
 #define HID_STACK_SIZE (256 * STACK_WORDSIZE)
-// #define CDC_STACK_SIZE (2048 * STACK_WORDSIZE)
-#define CDC_STACK_SIZE (4096 * STACK_WORDSIZE)
+#define CDC_STACK_SIZE (1024 * STACK_WORDSIZE)
 #define LED_STACK_SIZE (128 * STACK_WORDSIZE)
-// #define LOG_STACK_SIZE (1024 * STACK_WORDSIZE)
-#define LOG_STACK_SIZE (2048 * STACK_WORDSIZE)
+#define LOG_STACK_SIZE (1024 * STACK_WORDSIZE)
 #define CEC_STACK_SIZE (1024 * STACK_WORDSIZE)
 #define KEY_STACK_SIZE (1024 * STACK_WORDSIZE)
 

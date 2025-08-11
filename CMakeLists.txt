@@ -3,10 +3,10 @@ cmake_minimum_required(VERSION 3.13)
 set(PROJECT pico-cec)
 set(FAMILY rp2040)
 set(BOARD "pico_sdk") # Configure TinyUSB use pico-sdk board configuration
-#set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
+set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
 
 #set(PICO_BOARD "waveshare_rp2040_zero" CACHE STRING "Raspberry Pi Pico board type.")
-set(PICO_BOARD "vcc_gnd_yd_2040" CACHE STRING "Raspberry Pi Pico board type.")
+#set(PICO_BOARD "vcc_gnd_yd_2040" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "pico" CACHE STRING "Raspberry Pi Pico board type.")
 
 set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/boards)
@@ -52,13 +52,17 @@ target_compile_options(tcli PRIVATE
 
 add_executable(${PROJECT}
   src/blink.c
-  src/cec-config.c
-  src/cec-cmd.c
-  src/cec-frame.c
-  src/cec-log.c
-  src/cec-task.c
-  src/cec-user.c
-  src/cec-util.c
+  lib/cec_ulib/cec-config.c
+  lib/cec_ulib/cec-cmd.c
+  lib/cec_ulib/cec-frame.c
+  lib/cec_ulib/cec-hal.c
+#  lib/cec_ulib/cec-id.c
+  lib/cec_ulib/cec-log.c
+  lib/cec_ulib/cec-task.c
+  lib/cec_ulib/cec-user.c
+  lib/cec_ulib/cec-util.c
+  src/config-keymap.c
+  src/console.c
   src/ddc.c
   src/freertos_hook.c
   src/main.c
@@ -66,7 +70,6 @@ add_executable(${PROJECT}
   src/usb-cdc.c
   src/usb_descriptors.c
   src/usb_hid.c
-  src/util.c
   src/ws2812.c
   src/ws2812.pio)
 
@@ -77,6 +80,7 @@ pico_generate_pio_header(${PROJECT} ${PROJECT_SOURCE_DIR}/src/ws2812.pio OUTPUT_
 target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/include/tusb
+  ${PROJECT_SOURCE_DIR}/lib/cec_ulib/include
   ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")

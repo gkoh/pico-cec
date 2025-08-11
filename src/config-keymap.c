@@ -1,47 +1,8 @@
 #include "portable.h"
 DECLARE_TAG()
 
-#include "cec-config.h"
 #include "cec-user.h"
-
-/**
- * Default EDID probe delay in milliseconds.
- *
- * Number of milliseconds to delay the EDID probe. The DDC bus is shared and a
- * delay can avoid access conflicts.
- */
-static const uint32_t default_edid_delay_ms = 5000;
-
-/**
- * Default monitor mode (on/off).
- */
-static const uint8_t default_monitor_mode = 0;
-
-/**
- * Default physical address.
- *
- * 0x0000 is typically reserved for the television and we never claim it.
- * Thus, use 0x0000 to indicate "auto-query over HDMI-DCD".
- */
-static const uint16_t default_physical_addr = 0x0000;
-
-/**
- * Default logical address.
- *
- * Valid values are 0x00 through to 0x0f.
- * 0x00 is the TV, 0x0f is unregistered, both are treated as 'auto-allocate'.
- * Anything else is treated as 'hardcoded'.
- */
-static const uint8_t default_logical_addr = 0x0f;
-
-/**
- * Default device type.
- *
- * One of "playback" or "recording" enumeration.
- */
-static const uint8_t default_device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
-
-static const uint8_t default_allocated_laddr = 0x00;
+#include "config-keymap.h"
 
 /**
  * Default (Kodi) key mapping from CEC user control to HID keyboard entry.
@@ -104,16 +65,11 @@ static const uint8_t default_mister_user_keymap[UINT8_MAX] = {
     [CEC_USER_SUB_PICTURE] = HID_KEY_L,
     0x00};
 
-void cec_config_set_default(cec_config_t *config) {
+void config_keymap_set_default(config_t *config) {
   if (config == NULL) {
     return;
   }
-  config->edid_delay_ms = default_edid_delay_ms;
-  config->monitor_mode = default_monitor_mode;
-  config->physical_address = default_physical_addr;
-  config->logical_address = default_logical_addr;
-  config->device_type = default_device_type;
-  config->allocated_laddr = default_allocated_laddr;
+  cec_config_set_default(&config->cec);
 #if KEYMAP_DEFAULT_KODI
   config->keymap_type = CEC_CONFIG_KEYMAP_KODI;
 #elif KEYMAP_DEFAULT_MISTER
@@ -123,7 +79,7 @@ void cec_config_set_default(cec_config_t *config) {
 #endif
 }
 
-void cec_config_set_keymap(cec_config_t *config) {
+void config_keymap_set(config_t *config) {
   if (config == NULL) {
     return;
   }
@@ -143,13 +99,13 @@ void cec_config_set_keymap(cec_config_t *config) {
       return;
   }
 
-  // set only the keys, keynames are finalised in cec_config_complete()
+  // set only the keys, keynames are finalised in config_keymap_complete()
   for (unsigned int i = 0; i < UINT8_MAX; i++) {
     config->keymap[i].key = default_keymap[i];
   }
 }
 
-void cec_config_complete(cec_config_t *config) {
+void config_keymap_complete(config_t *config) {
   for (uint8_t i = 0; i < UINT8_MAX; i++) {
     if (config->keymap[i].key != 0x00) {
       const char *name = cec_user_control_name[i];

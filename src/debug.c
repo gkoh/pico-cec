@@ -15,8 +15,8 @@ DECLARE_TAG()
 #endif
 
 #define BLINK_STACK_SIZE (512 * STACK_WORDSIZE)
-#define CEC_STACK_SIZE (512 * STACK_WORDSIZE)
-#define CEC_QUEUE_LENGTH (16)
+// #define CEC_STACK_SIZE (512 * STACK_WORDSIZE)
+// #define CEC_QUEUE_LENGTH (16)
 
 static void blink_task(void *param) {
   static uint32_t blink_delay = 1000;
@@ -29,7 +29,7 @@ static void blink_task(void *param) {
   }
 }
 
-#ifdef __XTENSA__
+#if defined(__XTENSA__) || defined(__riscv)
 int debug_main() {
 #else
 int main() {

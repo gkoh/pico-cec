@@ -6,7 +6,8 @@
 
 static const char *TAG = "prefs";
 
-static uint32_t _handle;
+// static uint32_t _handle;
+static nvs_handle_t _handle;
 static bool _started;
 static bool _readOnly;
 
@@ -38,7 +39,7 @@ bool prefs_begin(const char *name, bool readOnly, const char *partition_label) {
   esp_err_t err = ESP_OK;
   if (partition_label != NULL) {
     err = nvs_flash_init_partition(partition_label);
-    if (err) {
+    if (err != ESP_OK) {
       ESP_LOGE(TAG, "nvs_flash_init_partition failed: %s", nvs_error(err));
       return false;
     }
@@ -47,7 +48,7 @@ bool prefs_begin(const char *name, bool readOnly, const char *partition_label) {
   } else {
     err = nvs_open(name, readOnly ? NVS_READONLY : NVS_READWRITE, &_handle);
   }
-  if (err) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "nvs_open failed: %s", nvs_error(err));
     return false;
   }
@@ -68,12 +69,12 @@ size_t prefs_putBytes(const char *key, const void *value, size_t len) {
     return 0;
   }
   esp_err_t err = nvs_set_blob(_handle, key, value, len);
-  if (err) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "nvs_set_blob fail: %s %s", key, nvs_error(err));
     return 0;
   }
   err = nvs_commit(_handle);
-  if (err) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
     return 0;
   }
@@ -86,8 +87,8 @@ static size_t prefs_getBytesLength(const char *key) {
     return 0;
   }
   esp_err_t err = nvs_get_blob(_handle, key, NULL, &len);
-  if (err) {
-    ESP_LOGE(TAG, "nvs_get_blob len fail: %s %s", key, nvs_error(err));
+  if (err != ESP_OK) {
+    ESP_LOGD(TAG, "nvs_get_blob length fail: '%s' %s", key, nvs_error(err));
     return 0;
   }
   return len;
@@ -103,8 +104,8 @@ size_t prefs_getBytes(const char *key, void *buf, size_t maxLen) {
     return 0;
   }
   esp_err_t err = nvs_get_blob(_handle, key, buf, &len);
-  if (err) {
-    ESP_LOGE(TAG, "nvs_get_blob fail: %s %s", key, nvs_error(err));
+  if (err != ESP_OK) {
+    ESP_LOGD(TAG, "nvs_get_blob fail: '%s' %s", key, nvs_error(err));
     return 0;
   }
   return len;
@@ -115,12 +116,12 @@ bool prefs_clear(void) {
     return false;
   }
   esp_err_t err = nvs_erase_all(_handle);
-  if (err) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "nvs_erase_all fail: %s", nvs_error(err));
     return false;
   }
   err = nvs_commit(_handle);
-  if (err) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "nvs_commit fail: %s", nvs_error(err));
     return false;
   }

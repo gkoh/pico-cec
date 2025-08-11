@@ -1,23 +1,57 @@
+// clang-format off
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
 
-#include "portable.h"
+#include "cec-hal.h"
 DECLARE_TAG()
 
-#include "blink.h"
 #include "cec-config.h"
 #include "cec-frame.h"
 #include "cec-id.h"
 #include "cec-log.h"
 #include "cec-task.h"
-#include "ddc.h"
-#include "nvs.h"
 
 #define _LOG_BR "\r\n"
+#define PICO_CEC_VENDOR_ID 0x0010FA
+
+// #define CEC_TASK_TRACE
+#ifndef CEC_TASK_TRACE
+// #undef ESP_LOGE
+#undef ESP_LOGW
+#undef ESP_LOGI
+#undef ESP_LOGD
+#undef ESP_LOGV
+// #define ESP_LOGE(tag, fmt, ...) do {} while (0)
+#define ESP_LOGW(tag, fmt, ...) \
+  do {                          \
+  } while (0)
+#define ESP_LOGI(tag, fmt, ...) \
+  do {                          \
+  } while (0)
+#define ESP_LOGD(tag, fmt, ...) do {} while (0)
+#define ESP_LOGV(tag, fmt, ...) do {} while (0)
+#endif  // CEC_TASK_TRACE
 
 /** The running CEC configuration. */
 static cec_config_t config = {0x0};
+
+/** The status of the CEC connection. */
+static bool cec_active = false;
+
+bool cec_task_get_status(void) {
+  return cec_active;
+}
+
+void cec_task_set_config(cec_config_t cec_config) {
+  config = cec_config;
+  if (config.monitor_mode) {
+    cec_frame_set_monitor_mode(true);
+  } else {
+    cec_frame_set_monitor_mode(false);
+  }
+}
 
 // HDMI logical addresses
 // 2 dimensional array of valid logical addresses for playback and recording
@@ -33,6 +67,47 @@ static const uint8_t laddress[NUM_TYPES][NUM_LADDRESS] = {
     {0x05, 0x0e, 0x0e, 0x0e},  // Audio System
 };
 
+// clang-format off
+//
+// typedef enum {
+//     CDT_TV,
+//     CDT_RECORDING_DEVICE,
+//     CDT_PLAYBACK_DEVICE,
+//     CDT_TUNER,
+//     CDT_AUDIO_SYSTEM,
+//     CDT_OTHER,                   // Not a real CEC type..
+// } CEC_DEVICE_TYPE;
+//
+// typedef enum {
+//     CLA_TV                 = 0,  // (0x00)
+//     CLA_RECORDING_DEVICE_1 = 1,  // (0x01)
+//     CLA_RECORDING_DEVICE_2 = 2,  // (0x02)
+//     CLA_TUNER_1            = 3,  // (0x03)
+//     CLA_PLAYBACK_DEVICE_1  = 4,  // (0x04)
+//     CLA_AUDIO_SYSTEM       = 5,  // (0x05)
+//     CLA_TUNER_2            = 6,  // (0x06)
+//     CLA_TUNER_3            = 7,  // (0x07)
+//     CLA_PLAYBACK_DEVICE_2  = 8,  // (0x08)
+//     CLA_RECORDING_DEVICE_3 = 9,  // (0x09)
+//     CLA_TUNER_4            = 10, // (0x0a)
+//     CLA_PLAYBACK_DEVICE_3  = 11, // (0x0b)
+//     CLA_RESERVED_1         = 12, // (0x0c)
+//     CLA_RESERVED_2         = 13, // (0x0d)
+//     CLA_FREE_USE           = 14, // (0x0e)
+//     CLA_UNREGISTERED       = 15, // (0x0f)
+// } CEC_LOGICAL_ADDRESS;
+//
+// int CEC_LogicalDevice::_validLogicalAddresses[6][5] = {
+//  {CLA_TV,                  CLA_FREE_USE,           CLA_UNREGISTERED,       CLA_UNREGISTERED, CLA_UNREGISTERED, },
+//  {CLA_RECORDING_DEVICE_1,  CLA_RECORDING_DEVICE_2, CLA_RECORDING_DEVICE_3, CLA_UNREGISTERED, CLA_UNREGISTERED, },
+//  {CLA_PLAYBACK_DEVICE_1,   CLA_PLAYBACK_DEVICE_2,  CLA_PLAYBACK_DEVICE_3,  CLA_UNREGISTERED, CLA_UNREGISTERED, },
+//  {CLA_TUNER_1,             CLA_TUNER_2,            CLA_TUNER_3,            CLA_TUNER_4,      CLA_UNREGISTERED, },
+//  {CLA_AUDIO_SYSTEM,        CLA_UNREGISTERED,       CLA_UNREGISTERED,       CLA_UNREGISTERED, CLA_UNREGISTERED, },
+//  {CLA_UNREGISTERED,        CLA_UNREGISTERED,       CLA_UNREGISTERED,       CLA_UNREGISTERED, CLA_UNREGISTERED, },
+// };
+//
+// clang-format on
+
 /* The HDMI address for this device.  Respond to CEC sent to this address. */
 static uint8_t laddr = 0x0f;
 
@@ -45,11 +120,26 @@ static uint16_t active_addr = 0x0000;
 /* Audio state. */
 static bool audio_status = false;
 
+// void save_logical_address(uint8_t addr) __attribute__((weak));
+// uint8_t load_logical_address(void) __attribute__((weak));
 void __attribute__((weak)) save_logical_address(uint8_t addr) {
   laddr = addr;
 }
 uint8_t __attribute__((weak)) load_logical_address(void) {
   return laddr;
+}
+uint16_t __attribute__((weak)) ddc_get_physical_address(void) {
+  return 0;
+}
+
+static void cec_echo_respond(uint8_t initiator,
+                             uint8_t destination,
+                             uint8_t msg,
+                             cec_abort_t reason) {
+  uint8_t pld[4] = {HEADER0(initiator, destination), CEC_ID_ECHO_RESPOND, msg, reason};
+
+  ESP_LOGI(TAG, "cec_echo_respond(%d, %d, %d, %d)", initiator, destination, msg, reason);
+  cec_frame_send(4, pld, false);
 }
 
 static void cec_feature_abort(uint8_t initiator,
@@ -59,7 +149,7 @@ static void cec_feature_abort(uint8_t initiator,
   uint8_t pld[4] = {HEADER0(initiator, destination), CEC_ID_FEATURE_ABORT, msg, reason};
 
   ESP_LOGI(TAG, "cec_feature_abort(%d, %d, %d, %d)", initiator, destination, msg, reason);
-  cec_frame_send(4, pld);
+  cec_frame_send(4, pld, false);
 }
 
 static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t vendor_id) {
@@ -67,14 +157,14 @@ static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t ve
                     (vendor_id >> 16) & 0x0ff, (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
 
   ESP_LOGD(TAG, "device_vendor_id(%d, %d, %ld)", initiator, destination, vendor_id);
-  cec_frame_send(5, pld);
+  cec_frame_send(5, pld, false);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_POWER_STATUS, power_status};
 
   ESP_LOGI(TAG, "report_power_status(%d, %d, %d)", initiator, destination, power_status);
-  cec_frame_send(3, pld);
+  cec_frame_send(3, pld, false);
 }
 
 static void set_system_audio_mode(uint8_t initiator,
@@ -84,14 +174,14 @@ static void set_system_audio_mode(uint8_t initiator,
                     system_audio_mode};
 
   ESP_LOGI(TAG, "set_system_audio_mode(%d, %d, %d)", initiator, destination, system_audio_mode);
-  cec_frame_send(3, pld);
+  cec_frame_send(3, pld, false);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_AUDIO_STATUS, audio_status};
 
   ESP_LOGI(TAG, "report_audio_status(%d, %d, %d)", initiator, destination, audio_status);
-  cec_frame_send(3, pld);
+  cec_frame_send(3, pld, false);
 }
 
 static void system_audio_mode_status(uint8_t initiator,
@@ -102,7 +192,7 @@ static void system_audio_mode_status(uint8_t initiator,
 
   ESP_LOGI(TAG, "system_audio_mode_status(%d, %d, %d)", initiator, destination,
            system_audio_mode_status);
-  cec_frame_send(3, pld);
+  cec_frame_send(3, pld, false);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
@@ -110,7 +200,7 @@ static void set_osd_name(uint8_t initiator, uint8_t destination) {
       HEADER0(initiator, destination), CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
 
   ESP_LOGI(TAG, "set_osd_name(%d, %d)", initiator, destination);
-  cec_frame_send(10, pld);
+  cec_frame_send(10, pld, false);
 }
 
 static void report_physical_address(uint8_t initiator,
@@ -120,9 +210,9 @@ static void report_physical_address(uint8_t initiator,
   uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_REPORT_PHYSICAL_ADDRESS,
                     (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
 
-  ESP_LOGI(TAG, "report_physical_address(%d, %d, %d, %d)", initiator, destination, physical_address,
+  ESP_LOGD(TAG, "report_physical_address(%d, %d, %d, %d)", initiator, destination, physical_address,
            device_type);
-  cec_frame_send(5, pld);
+  cec_frame_send(5, pld, false);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
@@ -130,14 +220,14 @@ static void report_cec_version(uint8_t initiator, uint8_t destination) {
   uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
 
   ESP_LOGI(TAG, "report_cec_version(%d, %d)", initiator, destination);
-  cec_frame_send(3, pld);
+  cec_frame_send(3, pld, false);
 }
 
 static void image_view_on(uint8_t initiator, uint8_t destination) {
   uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
   ESP_LOGI(TAG, "image_view_on(%d, %d)", initiator, destination);
-  cec_frame_send(2, pld);
+  cec_frame_send(2, pld, false);
 }
 
 static void active_source(uint8_t initiator, uint16_t physical_address) {
@@ -145,7 +235,7 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
                     (physical_address >> 0) & 0x0ff};
 
   ESP_LOGI(TAG, "active_source(%d, %d)", initiator, physical_address);
-  cec_frame_send(4, pld);
+  cec_frame_send(4, pld, false);
 }
 
 static uint8_t allocate_logical_address(cec_config_t *config) {
@@ -172,7 +262,7 @@ static uint8_t allocate_logical_address(cec_config_t *config) {
   }
   do {
     a = laddress[config->device_type][i - 1];
-    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_LOG_BR, a);
+    // cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_LOG_BR, a);
     ESP_LOGI(TAG, "Attempting to allocate logical address 0x%02x", a);
     if (!cec_frame_ping(a)) {
       ESP_LOGD(TAG, "cec_frame_ping(0x%02x) NACK", a);
@@ -189,7 +279,7 @@ static uint8_t allocate_logical_address(cec_config_t *config) {
 #else
   for (unsigned int i = 0; i < NUM_LADDRESS; i++) {
     a = laddress[config->device_type][i];
-    cec_log_submitf("Attempting to allocate logical address 0x%01hhx"_LOG_BR, a);
+    cec_log_submitf("Attempting to allocate logical address 0x%01hhx" _LOG_BR, a);
     ESP_LOGI(TAG, "Attempting to allocate logical address 0x%01hhx", a);
     if (!cec_frame_ping(a)) {
       ESP_LOGI(TAG, "cec_frame_ping(0x%01hhx) NACK", a);
@@ -220,7 +310,10 @@ void cec_task(void *param) {
   QueueHandle_t *q = (QueueHandle_t *)param;
 
   // load configuration
-  nvs_load_config(&config);
+  // nvs_load_config(&config);
+
+  // start the cec protocol event id log task (esp port only)
+  cec_id_event_log_start();
 
   // pause for EDID to settle
   vTaskDelay(pdMS_TO_TICKS(config.edid_delay_ms));
@@ -229,14 +322,17 @@ void cec_task(void *param) {
 
   paddr = get_physical_address(&config);
   ESP_LOGI(TAG, "physical address: %d", paddr);
+  cec_log_submitf("physical address: %d", paddr);
   laddr = allocate_logical_address(&config);
   ESP_LOGI(TAG, "logical address: %d", laddr);
+  cec_log_submitf("logical address: %d", laddr);
 
   while (true) {
     uint8_t pld[16] = {0x0};
     uint8_t pldcnt;
     uint8_t initiator, destination;
-    uint8_t key = HID_KEY_NONE;
+    //    uint8_t key = HID_KEY_NONE;
+    uint8_t user_control = 0xFF;  // magic 'no-op' number, as zero is valid control code
     uint8_t no_active = 0;
 
     pldcnt = cec_frame_recv(pld, laddr);
@@ -249,46 +345,38 @@ void cec_task(void *param) {
       // ESP_LOGD(TAG, "pldcnt = %u, pld[1] = %u", pldcnt, pld[1]);
       switch (pld[1]) {
         case CEC_ID_IMAGE_VIEW_ON:
-          ESP_LOGI(TAG, "CEC_ID_IMAGE_VIEW_ON");
           break;
         case CEC_ID_TEXT_VIEW_ON:
-          ESP_LOGI(TAG, "CEC_ID_TEXT_VIEW_ON");
           break;
         case CEC_ID_STANDBY:
-          ESP_LOGI(TAG, "CEC_ID_STANDBY");
           if (destination == laddr || destination == 0x0f) {
             active_addr = 0x0000;
-            blink_set_blink(BLINK_STATE_BLUE_2HZ);
+            // blink_set_blink(BLINK_STATE_BLUE_2HZ);
+            cec_active = false;
           }
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_REQUEST:
-          ESP_LOGI(TAG, "CEC_ID_SYSTEM_AUDIO_MODE_REQUEST");
           if (destination == laddr) {
             set_system_audio_mode(laddr, initiator, audio_status);
           }
           break;
         case CEC_ID_GIVE_AUDIO_STATUS:
-          ESP_LOGI(TAG, "CEC_ID_GIVE_AUDIO_STATUS");
           if (destination == laddr) {
             report_audio_status(laddr, initiator, 0x32);  // volume 50%, mute off
           }
           break;
         case CEC_ID_SET_SYSTEM_AUDIO_MODE:
-          ESP_LOGI(TAG, "CEC_ID_SET_SYSTEM_AUDIO_MODE");
           if (destination == laddr || destination == 0x0f) {
             audio_status = (pld[2] == 1);
           }
           break;
         case CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS:
-          ESP_LOGI(TAG, "CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS");
           if (destination == laddr)
             system_audio_mode_status(laddr, initiator, audio_status);
           break;
         case CEC_ID_SYSTEM_AUDIO_MODE_STATUS:
-          ESP_LOGI(TAG, "CEC_ID_SYSTEM_AUDIO_MODE_STATUS");
           break;
         case CEC_ID_ROUTING_CHANGE:
-          ESP_LOGI(TAG, "CEC_ID_ROUTING_CHANGE");
           // uint16_t old_addr = (pld[2] << 8) | pld[3];
           active_addr = (pld[4] << 8) | pld[5];
           paddr = get_physical_address(&config);
@@ -300,12 +388,10 @@ void cec_task(void *param) {
           }
           break;
         case CEC_ID_ACTIVE_SOURCE:
-          ESP_LOGI(TAG, "CEC_ID_ACTIVE_SOURCE");
           active_addr = (pld[2] << 8) | pld[3];
           no_active = 0;
           break;
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
-          ESP_LOGI(TAG, "CEC_ID_REPORT_PHYSICAL_ADDRESS");
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
             paddr = get_physical_address(&config);
@@ -316,7 +402,6 @@ void cec_task(void *param) {
           }
           break;
         case CEC_ID_REQUEST_ACTIVE_SOURCE:
-          ESP_LOGI(TAG, "CEC_ID_REQUEST_ACTIVE_SOURCE");
           no_active++;
           if (paddr == active_addr || no_active > 2) {
             image_view_on(laddr, 0x00);
@@ -325,32 +410,28 @@ void cec_task(void *param) {
           }
           break;
         case CEC_ID_SET_STREAM_PATH:
-          ESP_LOGI(TAG, "CEC_ID_SET_STREAM_PATH");
           if (paddr == ((pld[2] << 8) | pld[3])) {
             active_addr = paddr;
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
             no_active = 0;
-            blink_set_blink(BLINK_STATE_GREEN_2HZ);
+            // blink_set_blink(BLINK_STATE_GREEN_2HZ);
+            cec_active = true;
           }
           break;
         case CEC_ID_DEVICE_VENDOR_ID:
-          // ESP_LOGI(TAG, "CEC_ID_DEVICE_VENDOR_ID");
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            device_vendor_id(laddr, 0x0f, 0x0010FA);
+            device_vendor_id(laddr, 0x0f, PICO_CEC_VENDOR_ID);
           }
           break;
         case CEC_ID_GIVE_DEVICE_VENDOR_ID:
-          ESP_LOGI(TAG, "CEC_ID_GIVE_DEVICE_VENDOR_ID");
           if (destination == laddr)
-            device_vendor_id(laddr, 0x0f, 0x0010FA);
+            device_vendor_id(laddr, 0x0f, PICO_CEC_VENDOR_ID);
           break;
         case CEC_ID_MENU_STATUS:
-          ESP_LOGI(TAG, "CEC_ID_MENU_STATUS");
           break;
         case CEC_ID_GIVE_DEVICE_POWER_STATUS:
-          ESP_LOGI(TAG, "CEC_ID_GIVE_DEVICE_POWER_STATUS");
           if (destination == laddr)
             report_power_status(laddr, initiator, active_addr != paddr);
 #if 0
@@ -360,73 +441,74 @@ void cec_task(void *param) {
 #endif
           break;
         case CEC_ID_REPORT_POWER_STATUS:
-          ESP_LOGI(TAG, "CEC_ID_REPORT_POWER_STATUS");
           break;
         case CEC_ID_GET_MENU_LANGUAGE:
-          ESP_LOGI(TAG, "CEC_ID_GET_MENU_LANGUAGE");
           break;
         case CEC_ID_INACTIVE_SOURCE:
-          ESP_LOGI(TAG, "CEC_ID_INACTIVE_SOURCE");
           break;
         case CEC_ID_CEC_VERSION:
-          ESP_LOGI(TAG, "CEC_ID_CEC_VERSION");
           break;
         case CEC_ID_GET_CEC_VERSION:
-          ESP_LOGI(TAG, "CEC_ID_GET_CEC_VERSION");
           if (destination == laddr) {
             report_cec_version(laddr, initiator);
           }
           break;
         case CEC_ID_GIVE_OSD_NAME:
-          ESP_LOGI(TAG, "CEC_ID_GIVE_OSD_NAME");
           if (destination == laddr)
             set_osd_name(laddr, initiator);
           break;
         case CEC_ID_SET_OSD_NAME:
-          ESP_LOGI(TAG, "CEC_ID_SET_OSD_NAME");
           break;
         case CEC_ID_GIVE_PHYSICAL_ADDRESS:
-          // ESP_LOGI(TAG, "CEC_ID_GIVE_PHYSICAL_ADDRESS");
           if (destination == laddr && paddr != 0x0000)
             report_physical_address(laddr, 0x0f, paddr, config.device_type);
           break;
         case CEC_ID_USER_CONTROL_PRESSED:
-          ESP_LOGI(TAG, "CEC_ID_USER_CONTROL_PRESSED");
           if (destination == laddr) {
-            blink_set(BLINK_STATE_GREEN_ON);
-            command_t command = config.keymap[pld[2]];
-            if (command.name != NULL) {
-              xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
-            }
+            // blink_set(BLINK_STATE_GREEN_ON);
+            // command_t command = config.keymap[pld[2]];
+            // if (command.name != NULL) {
+            //  xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
+            // }
+            user_control = pld[2];
+            xQueueSend(*q, &user_control, pdMS_TO_TICKS(10));
           }
           break;
         case CEC_ID_USER_CONTROL_RELEASED:
-          ESP_LOGI(TAG, "CEC_ID_USER_CONTROL_RELEASED");
           if (destination == laddr) {
-            blink_set(BLINK_STATE_OFF);
-            key = HID_KEY_NONE;
-            xQueueSend(*q, &key, pdMS_TO_TICKS(10));
+            // blink_set(BLINK_STATE_OFF);
+            // key = HID_KEY_NONE;
+            // xQueueSend(*q, &key, pdMS_TO_TICKS(10));
+            user_control = 0xFF;  // magic 'no-user_control' number, as zero is valid
+            xQueueSend(*q, &user_control, pdMS_TO_TICKS(10));
+          }
+          break;
+        case CEC_ID_ECHO_REQUEST:
+          if (destination == laddr) {
+            cec_echo_respond(laddr, initiator, pld[1], CEC_ID_ECHO_RESPOND);
+          }
+          break;
+        case CEC_ID_ECHO_RESPOND:
+          if (destination == laddr) {
+            // cec_echo_respond(laddr, initiator, pld[1], CEC_ID_ECHO_REQUEST);
           }
           break;
         case CEC_ID_ABORT:
-          ESP_LOGI(TAG, "CEC_ID_ABORT");
           if (destination == laddr) {
             cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_REFUSED);
           }
           break;
         case CEC_ID_FEATURE_ABORT:
-          ESP_LOGI(TAG, "CEC_ID_FEATURE_ABORT");
           break;
         case CEC_ID_VENDOR_COMMAND_WITH_ID:
-          ESP_LOGI(TAG, "CEC_ID_VENDOR_COMMAND_WITH_ID");
           break;
         default:
-          ESP_LOGI(TAG, "CEC_ default");
           if (destination == laddr) {
             cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_UNRECOGNIZED);
           }
           break;
       }
+      cec_id_event_log(pld[1]);
     }
   }
 }
