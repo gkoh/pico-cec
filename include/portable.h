@@ -37,7 +37,7 @@
 
 #else  // !__XTENSA__
 
-#include "../build/project_info.h"
+#include "project_info.h"
 
 #define IRAM_ATTR
 #define DECLARE_TAG()

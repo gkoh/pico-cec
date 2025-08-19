@@ -178,6 +178,6 @@ string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/project_info.h.in
-    ${CMAKE_BINARY_DIR}/project_info.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/project_info.h
     @ONLY
 )
