@@ -157,7 +157,7 @@ int main() {
 
   cec_init(config.cec, console_put);
 
-  vTaskStartScheduler();  // no-op on esp32 port as rtos is already running, req. for pico-sdk builds
+  vTaskStartScheduler();  // no-op on esp32 port as rtos is already running
 
   return 0;
 }
