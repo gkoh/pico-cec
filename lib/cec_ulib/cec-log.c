@@ -68,9 +68,9 @@ static void log_task(void *param) {
 }
 
 void cec_log_init(log_callback_t log_callback) {
-//   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
-//   startup_time = millis();
-//   enabled = false;
+  //   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
+  //   startup_time = millis();
+  //   enabled = false;
   xTaskCreateStatic(log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log_callback, LOG_PRIORITY,
                     &log_stack[0], &log_task_static);
 }

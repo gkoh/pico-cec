@@ -305,7 +305,7 @@ void cec_task(void *param) {
   } else {
     cec_frame_set_monitor_mode(false);
   }
-  
+
   // start the cec protocol event id log task (esp port only)
   cec_id_event_log_start();
 
