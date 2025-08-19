@@ -163,11 +163,11 @@ void nvs_load_config(config_t *config) {
   nvs_read_config(config);
 
   switch (config->keymap_type) {
-    case CEC_CONFIG_KEYMAP_KODI:
-    case CEC_CONFIG_KEYMAP_MISTER:
+    case CONFIG_KEYMAP_KODI:
+    case CONFIG_KEYMAP_MISTER:
       config_keymap_set(config);
       break;
-    case CEC_CONFIG_KEYMAP_CUSTOM:
+    case CONFIG_KEYMAP_CUSTOM:
       // should already be loaded
       break;
     default:
@@ -224,7 +224,8 @@ bool nvs_save_config(const config_t *config) {
   return true;
 }
 
-#ifndef __XTENSA__
+#if defined(__XTENSA__) || defined(__riscv)
+#else
 // // {0x04, 0x08, 0x0b, 0x0f},  // Playback Device
 uint8_t foo_laddr = 0x0b;
 

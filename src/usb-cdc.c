@@ -65,7 +65,7 @@ void cdc_task(void *params) {
       // There are data available
       while (tud_cdc_available()) {
         uint8_t c = tud_cdc_read_char();
-        console_input(c);
+        console_get(c);
       }
       tud_cdc_write_flush();
       vTaskDelay(pdMS_TO_TICKS(10));

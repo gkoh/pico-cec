@@ -1,3 +1,7 @@
+#include "config.h"
+
+#if defined(USE_USB_CDC)  // || defined(USE_USB_HID)
+
 #include "tinyusb.h"
 #include "tusb.h"
 #include "tusb_cdc_acm.h"
@@ -18,3 +22,5 @@ void usb_init(void) {
   ESP_ERROR_CHECK(tusb_cdc_acm_init(&acm_cfg));
   ESP_LOGI(TAG, "USB Composite initialization DONE");
 }
+
+#endif  // USE_USB_CDC

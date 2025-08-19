@@ -1,12 +1,26 @@
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.1.1)
+set(toolchainVersion 14_2_Rel1)
+set(picotoolVersion 2.1.1)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
 cmake_minimum_required(VERSION 3.13)
 
 set(PROJECT pico-cec)
 set(FAMILY rp2040)
 set(BOARD "pico_sdk") # Configure TinyUSB use pico-sdk board configuration
-set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
+#set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
 
 #set(PICO_BOARD "waveshare_rp2040_zero" CACHE STRING "Raspberry Pi Pico board type.")
-#set(PICO_BOARD "vcc_gnd_yd_2040" CACHE STRING "Raspberry Pi Pico board type.")
+set(PICO_BOARD "vcc_gnd_yd_2040" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "pico" CACHE STRING "Raspberry Pi Pico board type.")
 
 set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/boards)
@@ -69,7 +83,7 @@ add_executable(${PROJECT}
   src/nvs.c
   src/usb-cdc.c
   src/usb_descriptors.c
-  src/usb_hid.c
+  src/usb-hid.c
   src/ws2812.c
   src/ws2812.pio)
 
@@ -91,6 +105,9 @@ set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
 
 set_source_files_properties(src/usb-cdc.c PROPERTIES COMPILE_DEFINITIONS
+  "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
+
+set_source_files_properties(src/console.c PROPERTIES COMPILE_DEFINITIONS
   "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
 
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h
@@ -116,3 +133,51 @@ pico_set_linker_script(${PROJECT} ${PROJECT_SOURCE_DIR}/src/memmap_ram_nvs.ld)
 # disable stdio and uart
 pico_enable_stdio_usb(${PROJECT} 0)
 pico_enable_stdio_uart(${PROJECT} 0)
+
+#-------------------------------------------------------------------------------
+# Create version header file for inclusion in the source code
+
+# Dynamically determine project name from directory name
+get_filename_component(my_project_name "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+
+# Replace spaces with underscores
+string(REPLACE " " "_" my_project_name "${my_project_name}")
+
+# Set sanitized project name for the include file
+set(PROJ_NAME "${my_project_name}")
+
+set(PROJ_VER "34.42")
+
+set(SDK_VERSION ${PICO_SDK_VERSION_STRING})
+
+set(BOARD_NAME ${PICO_BOARD})
+
+# Git info
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND bash -c "git diff --quiet || echo +dirty"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_DIRTY
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S")
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/project_info.h.in
+    ${CMAKE_BINARY_DIR}/project_info.h
+    @ONLY
+)

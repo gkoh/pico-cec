@@ -1,5 +1,5 @@
-#ifndef __PORTABLE_H__
-#define __PORTABLE_H__
+#ifndef __ESP_IDF_H__
+#define __ESP_IDF_H__
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -8,6 +8,58 @@
 // The published interface of the port made visible to the application
 //   everything in here should represent a replacement for pico-sdk stuff
 //
+// The cec_ulib library should now exist indepenent of this module
+//
+
+#include "sdkconfig.h"
+
+#if (CONFIG_FREERTOS_TASK_NOTIFICATION_ARRAY_ENTRIES < 2)
+#pragma error
+#endif
+#if (CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD != 1)
+#pragma error
+#endif
+#if (CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS != 1)
+#pragma error
+#endif
+#if (CONFIG_FREERTOS_HZ != 1000)
+#pragma error
+#endif
+
+// For the specific target SoC, sdkconfig.h defines the current target, i.e.
+#if CONFIG_IDF_TARGET_ESP32
+#define PICO_CEC_VERSION "esp32"
+#define USE_ALTERNATE_UART
+#elif CONFIG_IDF_TARGET_ESP32S2
+#pragma error
+#elif CONFIG_IDF_TARGET_ESP32C3
+#define PICO_CEC_VERSION "esp32c3"
+#define USE_RGB_LED
+#elif CONFIG_IDF_TARGET_ESP32S3
+#define PICO_CEC_VERSION "esp32s3"
+#define USE_RGB_LED
+#define USE_USB_CDC
+#define USE_USB_HID
+
+#if (CONFIG_TINYUSB_NO_DEFAULT_TASK != 1)
+#pragma error
+#endif
+#if (CONFIG_TINYUSB_CDC_ENABLED != 1)
+#pragma error
+#endif
+#if (CONFIG_TINYUSB_HID_COUNT < 1)
+#pragma error
+#endif
+
+#elif CONFIG_IDF_TARGET_ESP32H4
+#pragma error
+#elif CONFIG_IDF_TARGET_ESP32C2
+#define PICO_CEC_VERSION "esp32c2"
+#elif CONFIG_IDF_TARGET_ESP32C6
+#pragma error
+#elif CONFIG_IDF_TARGET_ESP32H2
+#pragma error
+#endif
 
 typedef unsigned int uint;
 
@@ -50,8 +102,6 @@ enum gpio_function {
 
 #define GPIO_IN 0
 #define GPIO_OUT 1
-
-void gpio_set_dir(unsigned int gpio, bool out);
 
 void gpio_init(uint gpio);
 void gpio_set_function(uint gpio, enum gpio_function fn);
@@ -135,7 +185,8 @@ void board_led_write(int state);
 #define BOARD_TUD_RHPORT 0
 #endif
 
-#ifndef USE_USB_CDC  // TODO: won't work as config.h not included here
+// #ifndef USE_USB_CDC  // TODO: won't work as config.h not included here
+#if (CONFIG_TINYUSB_CDC_ENABLED != 1)
 
 #ifndef KEYBOARD_LED_CAPSLOCK
 #define KEYBOARD_LED_CAPSLOCK 0
@@ -165,7 +216,6 @@ uint8_t tud_cdc_read_char(void);
 uint32_t tud_cdc_write_flush(void);
 
 #endif
-
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,12 +236,12 @@ void flash_range_read(uint32_t flash_offs, const uint8_t *data, size_t count);  
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR freertos_hook.c
 #ifndef TU_ASSERT
-#define TU_ASSERT(a, b)  // tu_assert(a)
+#define TU_ASSERT(a, b) configASSERT((a));
 #endif
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// REQUIRED FOR cec-config.c
+// REQUIRED FOR config-keymap.c
 #ifndef NULL
 #define NULL 0
 #endif
@@ -225,4 +275,4 @@ void flash_range_read(uint32_t flash_offs, const uint8_t *data, size_t count);  
 // #define HID_REPORT_TYPE_OUTPUT 0
 ////////////////////////////////////////////////////////////////////////////////
 
-#endif  // __PORTABLE_H__
+#endif

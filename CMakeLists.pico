@@ -66,20 +66,24 @@ target_compile_options(tcli PRIVATE
 
 add_executable(${PROJECT}
   src/blink.c
-  src/cec-config.c
-  src/cec-cmd.c
-  src/cec-frame.c
-  src/cec-log.c
-  src/cec-task.c
-  src/cec-user.c
-  src/cec-util.c
+  lib/cec_ulib/cec-config.c
+  lib/cec_ulib/cec-cmd.c
+  lib/cec_ulib/cec-frame.c
+  lib/cec_ulib/cec-hal.c
+#  lib/cec_ulib/cec-id.c
+  lib/cec_ulib/cec-log.c
+  lib/cec_ulib/cec-task.c
+  lib/cec_ulib/cec-user.c
+  lib/cec_ulib/cec-util.c
+  src/config-keymap.c
+  src/console.c
   src/ddc.c
   src/freertos_hook.c
   src/main.c
   src/nvs.c
   src/usb-cdc.c
   src/usb_descriptors.c
-  src/usb_hid.c
+  src/usb-hid.c
   src/ws2812.c
   src/ws2812.pio)
 
@@ -90,6 +94,7 @@ pico_generate_pio_header(${PROJECT} ${PROJECT_SOURCE_DIR}/src/ws2812.pio OUTPUT_
 target_include_directories(${PROJECT} PRIVATE
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/include/tusb
+  ${PROJECT_SOURCE_DIR}/lib/cec_ulib/include
   ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
@@ -100,6 +105,9 @@ set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
 
 set_source_files_properties(src/usb-cdc.c PROPERTIES COMPILE_DEFINITIONS
+  "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
+
+set_source_files_properties(src/console.c PROPERTIES COMPILE_DEFINITIONS
   "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
 
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h
@@ -125,3 +133,51 @@ pico_set_linker_script(${PROJECT} ${PROJECT_SOURCE_DIR}/src/memmap_ram_nvs.ld)
 # disable stdio and uart
 pico_enable_stdio_usb(${PROJECT} 0)
 pico_enable_stdio_uart(${PROJECT} 0)
+
+#-------------------------------------------------------------------------------
+# Create version header file for inclusion in the source code
+
+# Dynamically determine project name from directory name
+get_filename_component(my_project_name "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+
+# Replace spaces with underscores
+string(REPLACE " " "_" my_project_name "${my_project_name}")
+
+# Set sanitized project name for the include file
+set(PROJ_NAME "${my_project_name}")
+
+set(PROJ_VER "34.42")
+
+set(SDK_VERSION ${PICO_SDK_VERSION_STRING})
+
+set(BOARD_NAME ${PICO_BOARD})
+
+# Git info
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND bash -c "git diff --quiet || echo +dirty"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_DIRTY
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S")
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/project_info.h.in
+    ${CMAKE_BINARY_DIR}/project_info.h
+    @ONLY
+)

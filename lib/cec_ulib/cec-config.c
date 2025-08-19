@@ -24,6 +24,11 @@ static const uint8_t default_monitor_mode = 0;
 static const uint16_t default_physical_addr = 0x0000;
 
 /**
+ * Default vendor identfication.
+ */
+static const uint16_t default_vendor_id = PICO_CEC_VENDOR_ID;
+
+/**
  * Default logical address.
  *
  * Valid values are 0x00 through to 0x0f.
@@ -50,5 +55,6 @@ void cec_config_set_default(cec_config_t *config) {
   config->physical_address = default_physical_addr;
   config->logical_address = default_logical_addr;
   config->device_type = default_device_type;
+  config->vendor_id = default_vendor_id;
   config->allocated_laddr = default_allocated_laddr;
 }

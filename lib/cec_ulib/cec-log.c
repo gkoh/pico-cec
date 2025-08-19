@@ -9,6 +9,8 @@
 #include "cec-hal.h"
 DECLARE_TAG()
 
+#include "cec-config.h"
+
 #include "cec-frame.h"
 #include "cec-id.h"
 #include "cec-log.h"
@@ -20,8 +22,8 @@ DECLARE_TAG()
 #define LOG_QUEUE_LENGTH (16)
 #define LOG_MB_SIZE (LOG_LINE_LENGTH * LOG_QUEUE_LENGTH)
 
-// static StaticTask_t log_task_static;
-// static StackType_t log_stack[LOG_STACK_SIZE];
+static StaticTask_t log_task_static;
+static StackType_t log_stack[LOG_STACK_SIZE];
 
 static StaticMessageBuffer_t log_mb_static;
 static MessageBufferHandle_t log_mb;
@@ -43,12 +45,12 @@ long long millis(void) {
  * Get milliseconds since boot. (~ since the log task started)
  */
 uint64_t util_uptime_ms(void) {
-  return (time_us_64() / 1000);
+  return (cec_hal_time64() / 1000);
   // uint64_t now = millis();
   // return now - startup_time;
 }
 
-void log_task(void *param) {
+static void log_task(void *param) {
   log_callback_t log_callback = param;
 
   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
@@ -60,19 +62,18 @@ void log_task(void *param) {
 
     size_t bytes = xMessageBufferReceive(log_mb, buffer, sizeof(buffer), pdMS_TO_TICKS(100));
     if (bytes > 0) {
-      log_callback(buffer);  // console_output()
+      log_callback(buffer);  // console_put()
     }
   }
 }
 
-// void cec_log_init(log_callback_t log_callback) {
+void cec_log_init(log_callback_t log_callback) {
 //   log_mb = xMessageBufferCreateStatic(LOG_MB_SIZE, &log_mb_storage[0], &log_mb_static);
 //   startup_time = millis();
 //   enabled = false;
-
-//   xTaskCreateStatic(log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log_callback, LOG_PRIORITY,
-//                     &log_stack[0], &log_task_static);
-// }
+  xTaskCreateStatic(log_task, LOG_TASK_NAME, LOG_STACK_SIZE, log_callback, LOG_PRIORITY,
+                    &log_stack[0], &log_task_static);
+}
 
 bool cec_log_enabled(void) {
   return enabled;
@@ -96,7 +97,7 @@ void cec_log(const char *buffer, int len) {
   // }
 }
 
-void cec_log_vsubmitf(const char *fmt, va_list ap) {
+static void cec_log_vsubmitf(const char *fmt, va_list ap) {
   if (enabled) {
     char buffer[LOG_LINE_LENGTH];
 

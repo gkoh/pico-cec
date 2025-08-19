@@ -48,7 +48,7 @@ static StaticQueue_t xStaticTxFrameQueue;
 static QueueHandle_t cec_frame_queue = NULL;
 static uint8_t txFrameQueue[CEC_FRAME_QUEUE_LENGTH * sizeof(cec_msg_t)];
 
-TaskHandle_t xCECTask;
+extern TaskHandle_t xCECTask;
 
 static uint8_t rx_buffer[16] = {0x0};
 static cec_message_t rx_message = {.data = &rx_buffer[0], .len = 0};
@@ -76,7 +76,7 @@ void cec_frame_get_stats(cec_frame_stats_t *stats) {
  * returning a time since boot, at least for the esp32 port)
  */
 static inline uint32_t time_next(uint32_t start, uint32_t next) {
-  return (next - (time_us_64() - start));
+  return (next - (cec_hal_time32() - start));
 }
 
 /**
@@ -84,6 +84,9 @@ static inline uint32_t time_next(uint32_t start, uint32_t next) {
  */
 static uint32_t IRAM_ATTR ack_high(void *user_data) {
   cec_hal_bus_high();
+
+  cec_hal_ack_high();
+
   return 0;
 }
 
@@ -99,7 +102,7 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
     case CEC_FRAME_STATE_START_LOW:  // 0
       rx_frame.start = edge_time;
       rx_frame.state = CEC_FRAME_STATE_START_HIGH;
-      cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE, true);
+      cec_hal_rx_irq_high();
       return;
     case CEC_FRAME_STATE_START_HIGH:  // 1
       low_time = edge_time - rx_frame.start;
@@ -108,7 +111,7 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
         rx_frame.byte = 0;
         rx_frame.bit = 0;
         rx_frame.state = CEC_FRAME_STATE_DATA_LOW;
-        cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+        cec_hal_rx_irq_low();
         return;
       } else {
         rx_frame.state = CEC_FRAME_STATE_ABORT;
@@ -130,7 +133,7 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
           rx_frame.state = CEC_FRAME_STATE_DATA_HIGH;
         }
         rx_frame.first = false;
-        cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE, true);
+        cec_hal_rx_irq_high();
         return;
       } else {
         rx_frame.state = CEC_FRAME_STATE_ABORT;
@@ -161,7 +164,7 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
           rx_frame.state = CEC_FRAME_STATE_DATA_LOW;
         }
       }
-      cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+      cec_hal_rx_irq_low();
       return;
     case CEC_FRAME_STATE_ACK_LOW:  // 6
       rx_frame.start = edge_time;
@@ -170,11 +173,14 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
       if (!monitor_mode && tgt_addr != 0x0f && tgt_addr == rx_frame.address) {
         rx_frame.state = CEC_FRAME_STATE_ACK_END;  // TODO: remove, gets overwritten below?
         cec_hal_bus_low();                         // pull low, then schedule pull high
-        cec_hal_frame_tx(from_us_since_boot(rx_frame.start + 1500), ack_high, NULL);
+
+        cec_hal_ack_low();
+
+        cec_hal_frame_tx(rx_frame.start + 1500, ack_high, NULL);
         rx_frame.ack = true;
       }
       rx_frame.state = CEC_FRAME_STATE_ACK_HIGH;
-      cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE, true);
+      cec_hal_rx_irq_high();
       return;
     case CEC_FRAME_STATE_ACK_HIGH:  // 7 - we see our own ACK_HIGH rising edge?
       low_time = edge_time - rx_frame.start;
@@ -191,7 +197,7 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
         rx_frame.state = CEC_FRAME_STATE_END;
       } else {
         rx_frame.state = CEC_FRAME_STATE_DATA_LOW;
-        cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+        cec_hal_rx_irq_low();
         return;
       }
       // finish receiving frame
@@ -201,7 +207,7 @@ static void IRAM_ATTR frame_rx_isr(uint32_t edge_time) {
       rx_frame.message->len = rx_frame.byte;
       break;
   }
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  cec_hal_rx_irq_disable();
   BaseType_t woken = pdFALSE;
   xQueueSendToFrontFromISR(cec_frame_queue, &signal, &woken);
   cec_hal_YIELD_FROM_ISR(woken);
@@ -228,36 +234,43 @@ static bool bus_is_idle(int idle_wait, int max_wait) {
     }
   }
   if (j > 0) {  // the bus was busy, but is now free
-    ESP_LOGI(TAG, "bus_is_idle(%d) %d", idle_wait, j);
+    ESP_LOGV(TAG, "bus_is_idle(%d) %d", idle_wait, j);
   }
   return true;
 }
 
-static bool cec_frame_transmit(uint8_t *data, uint8_t len) {
+static int cec_frame_transmit(uint8_t *data, uint8_t len) {
   // disable GPIO ISR before sending
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  cec_hal_rx_irq_disable();
   cec_message_t message = {data, len};
   cec_frame_t frame = {
       .message = &message,
       .bit = 7,
       .byte = 0,
       .start = 0,
+      .eom = false,
       .ack = false,
       .state = CEC_FRAME_STATE_START_LOW,
   };
-  cec_hal_frame_tx(from_us_since_boot(time_us_64()), frame_tx_callback, &frame);
+  cec_hal_frame_tx(cec_hal_time32(), frame_tx_callback, &frame);
   // block task until transmission complete
   ulTaskNotifyTakeIndexed(NOTIFY_TX, pdTRUE, portMAX_DELAY);
-  cec_log_frame(&frame, false);
-  if (frame.ack) {
-    cec_stats.tx_frames++;
+  if (frame.state == CEC_FRAME_STATE_ARBITRATION) {
+    cec_stats.tx_arb_fails++;
+    // frame.ack = false;  // TODO: not needed, as an arbitration fail won't ever have ack set?
+    return 2;
   } else {
-    cec_stats.tx_noack_frames++;
+    cec_log_frame(&frame, false);
+    if (frame.ack) {
+      cec_stats.tx_frames++;
+    } else {
+      cec_stats.tx_noack_frames++;
+    }
   }
-  return frame.ack;
+  return frame.ack ? 1 : 0;  // TODO: perhaps just return an int; 0 == success no-ack, 1 == success
+                             // ack, -1 arbitration failed (or something similar)
 }
 
-uint32_t dwell_period_max;
 static uint32_t dwell_time_start;
 static cec_msg_type_t dwell_type;
 
@@ -266,7 +279,7 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
 
   // how long were we away before coming back ready for the next receive wait
   if (dwell_time_start != 0) {
-    uint32_t dwell_period = time_us_64() - dwell_time_start;
+    uint32_t dwell_period = cec_hal_time32() - dwell_time_start;
     if (dwell_type == CEC_MSG_RX_READY) {  // only monitoring the maximum rx-packet processing time
       if (dwell_period > cec_stats.dwell_period_max) {
         cec_stats.dwell_period_max = dwell_period;
@@ -278,7 +291,7 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
   rx_frame.state = CEC_FRAME_STATE_START_LOW;
   rx_frame.ack = false;
   memset(&rx_frame.message->data[0], 0, 16);
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+  cec_hal_rx_irq_low();
 
   if (xQueueReceive(cec_frame_queue, &item, portMAX_DELAY) == pdTRUE) {
     dwell_type = 0;
@@ -286,7 +299,7 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
     if (item.type == CEC_MSG_RX_READY) {
       if (rx_frame.message->len) {  // TODO: possibly redundant, replace with assert?
 
-        dwell_time_start = time_us_64();
+        dwell_time_start = cec_hal_time32();
         dwell_type = CEC_MSG_RX_READY;
 
         cec_stats.rx_frames++;
@@ -302,18 +315,22 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
       // It's a TX item that we got from the queue
       // ESP_LOGD(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET");
       if (bus_is_idle(IDLE_WAIT, MAX_WAIT)) {  // Proceed to transmit
-        cec_frame_transmit(item.tx.data, item.tx.len);
-      } else {  // re-queue the transmit packet
-        ESP_LOGI(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET - re-queueing");
-        // Ensure at least one slot remains for RX ISR to notify
-        if (uxQueueSpacesAvailable(cec_frame_queue) > 1) {
-          if (xQueueSendToFront(cec_frame_queue, &item, 0) != pdTRUE) {
-            // TODO: this could be an assert as it should never happen
-            ESP_LOGE(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET - failed to queue");
-          }
-        } else {  // Reject/drop TX packet to prevent RX ISR from being blocked
-          ESP_LOGE(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET - reject, queue full");
+        int err = cec_frame_transmit(item.tx.data, item.tx.len);
+        // TODO: do we want to try re-transmitting if no ack? if so, how many times would we try??
+        if (err < 2) {  // the transmit was successful
+          return 0;
         }
+        ESP_LOGE(TAG, "cec_frame_recv() BUS ARBITRATION LOST");
+      }
+      ESP_LOGI(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET - re-queueing");
+      // Ensure at least one slot remains for RX ISR to notify
+      if (uxQueueSpacesAvailable(cec_frame_queue) > 1) {
+        if (xQueueSendToFront(cec_frame_queue, &item, 0) != pdTRUE) {
+          // TODO: this could be an assert as it should never happen
+          ESP_LOGE(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET - failed to queue");
+        }
+      } else {  // Reject/drop TX packet to prevent RX ISR from being blocked
+        ESP_LOGE(TAG, "cec_frame_recv() CEC_MSG_TX_PACKET - reject, queue full");
       }
     } else if (item.type == CEC_MSG_RX_ERROR) {
       cec_stats.rx_abort_frames++;
@@ -336,7 +353,7 @@ static uint32_t IRAM_ATTR frame_tx_callback(void *user_data) {
   switch (frame->state) {
     case CEC_FRAME_STATE_START_LOW:
       cec_hal_bus_low();
-      frame->start = time_us_64();
+      frame->start = cec_hal_time32();
       frame->state = CEC_FRAME_STATE_START_HIGH;
       return time_next(frame->start, 3700);
     case CEC_FRAME_STATE_START_HIGH:
@@ -345,23 +362,37 @@ static uint32_t IRAM_ATTR frame_tx_callback(void *user_data) {
       return time_next(frame->start, 4500);
     case CEC_FRAME_STATE_DATA_LOW:
       cec_hal_bus_low();
-      frame->start = time_us_64();
+      frame->start = cec_hal_time32();
       low_time = (frame->message->data[frame->byte] & (1 << frame->bit)) ? 600 : 1500;
       frame->state = CEC_FRAME_STATE_DATA_HIGH;
       return time_next(frame->start, low_time);
+    case CEC_FRAME_STATE_ARBITRATION:
+      if (cec_hal_bus_get() == false) {  // another device is contending for the bus
+        break;                           // we are done, so the notification will be raised below
+      } else {
+        frame->state = CEC_FRAME_STATE_DATA_LOW;
+      }
+      return time_next(frame->start, 2400);
     case CEC_FRAME_STATE_DATA_HIGH:
       cec_hal_bus_high();
-      if (frame->bit--) {
+      if (frame->bit) {
+        if ((frame->byte == 0) && (frame->message->data[frame->byte] & (1 << frame->bit))) {
+          // we are signalling a logical 1 during address byte, so perform bus arbitration check
+          frame->state = CEC_FRAME_STATE_ARBITRATION;
+          frame->bit--;
+          return time_next(frame->start, 1050);
+        }
         frame->state = CEC_FRAME_STATE_DATA_LOW;
       } else {
         frame->byte++;
         frame->state = CEC_FRAME_STATE_EOM_LOW;
       }
+      frame->bit--;
       return time_next(frame->start, 2400);
     case CEC_FRAME_STATE_EOM_LOW:
       cec_hal_bus_low();
       low_time = (frame->byte < frame->message->len) ? 1500 : 600;
-      frame->start = time_us_64();
+      frame->start = cec_hal_time32();
       frame->state = CEC_FRAME_STATE_EOM_HIGH;
       return time_next(frame->start, low_time);
     case CEC_FRAME_STATE_EOM_HIGH:
@@ -370,7 +401,7 @@ static uint32_t IRAM_ATTR frame_tx_callback(void *user_data) {
       return time_next(frame->start, 2400);
     case CEC_FRAME_STATE_ACK_LOW:
       cec_hal_bus_low();
-      frame->start = time_us_64();
+      frame->start = cec_hal_time32();
       frame->state = CEC_FRAME_STATE_ACK_HIGH;
       return time_next(frame->start, 600);
     case CEC_FRAME_STATE_ACK_HIGH:
@@ -393,9 +424,11 @@ static uint32_t IRAM_ATTR frame_tx_callback(void *user_data) {
       return time_next(frame->start, 2400);
     case CEC_FRAME_STATE_END:
     default:
-      xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_TX, 0, eNoAction, NULL);
-      return 0;
+      break;  // every other case has returned
   }
+  // every other case has returned a next bit time, we are done, or we failed bus arbitration
+  xTaskNotifyIndexedFromISR(xCECTask, NOTIFY_TX, 0, eNoAction, NULL);
+  return 0;
 }
 
 bool cec_frame_send(uint8_t pldcnt, uint8_t *pld, bool force) {
@@ -424,25 +457,26 @@ bool cec_frame_send(uint8_t pldcnt, uint8_t *pld, bool force) {
 }
 
 // Define ping to synchronously return the ACK result while keeping everything else async.
+// NOTE: must only be called from cec_task
 bool cec_frame_ping(uint8_t destination) {
   uint8_t pld[1] = {HEADER0(destination, destination)};
-  bool ack = false;
+  int res = 0;
 
   // ESP_LOGD(TAG, "cec_frame_ping(%d)", destination);
   if (bus_is_idle(IDLE_WAIT * 3, MAX_WAIT)) {
-    ack = cec_frame_transmit(&pld[0], 1);
-    cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+    res = cec_frame_transmit(&pld[0], 1);
+    cec_hal_rx_irq_low();
   }
-  return ack;
+  return (res == 1);
 }
 
-void cec_frame_init(void) {
+void cec_frame_init(unsigned int gpio) {
   cec_frame_queue = xQueueCreateStatic(CEC_FRAME_QUEUE_LENGTH, sizeof(cec_msg_t), &txFrameQueue[0],
                                        &xStaticTxFrameQueue);
   if (!cec_frame_queue) {
     ESP_LOGE(TAG, "Creating CEC frame queue failed");
     return;
   }
-  cec_hal_init(CEC_PIN, &frame_rx_isr);
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  cec_hal_init(gpio, &frame_rx_isr);
+  cec_hal_rx_irq_disable();
 }

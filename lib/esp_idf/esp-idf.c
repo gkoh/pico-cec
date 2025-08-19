@@ -8,20 +8,21 @@
 #include <esp_flash.h>
 #include <esp_system.h>
 
-// #include "led_strip.h"
-
-#include "../cec_ulib/esp-port.h"
-#include "portable.h"
+#include "esp-idf.h"
 DECLARE_TAG()
 
-#include "config.h"
 #include "prefs.h"
+
+#ifdef USE_RGB_LED
+#include "led_strip.h"
+#endif
 
 /* Use project configuration menu (idf.py menuconfig) to choose the GPIO to blink,
    or you can edit the following line and set a number here.
 */
 // #define BLINK_GPIO CONFIG_BLINK_GPIO
-// #define CONFIG_BLINK_LED_STRIP_BACKEND_RMT 1
+#define BLINK_GPIO 48
+#define CONFIG_BLINK_LED_STRIP_BACKEND_RMT 1
 
 #define EDID_I2C_ADDR (0x50)
 
@@ -104,9 +105,11 @@ void vTaskStartScheduler_stub(void) {
 }
 void stdio_init_all() {}
 void board_init() {
+  // log levels: None, Error, Warning, Info, Debug, Verbose
   esp_log_level_set("*", ESP_LOG_DEBUG);
   prefs_init();
-#ifdef USE_USB_CDC
+// #ifdef USE_USB_CDC
+#if (CONFIG_TINYUSB_CDC_ENABLED == 1)
   usb_init();
 #else
   uart_init();
@@ -323,39 +326,45 @@ uint8_t load_logical_address(void) {
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR blink.c
 // #define PICO_DEFAULT_WS2812_PIN 0
-// static led_strip_handle_t led_strip;
+#ifdef USE_RGB_LED
+static led_strip_handle_t led_strip;
 
 void ws2812_init(unsigned int pin) {
   // ESP_LOGI(TAG, "Example configured to blink addressable LED!");
-  //   /* LED strip initialization with the GPIO and pixels number*/
-  //   led_strip_config_t strip_config = {
-  //       .strip_gpio_num = pin,
-  //       .max_leds = 1, // at least one LED on board
-  //   };
-  // #if CONFIG_BLINK_LED_STRIP_BACKEND_RMT
-  //   led_strip_rmt_config_t rmt_config = {
-  //       .resolution_hz = 10 * 1000 * 1000, // 10MHz
-  //       .flags.with_dma = false,
-  //   };
-  //   ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-  // #elif CONFIG_BLINK_LED_STRIP_BACKEND_SPI
-  //   led_strip_spi_config_t spi_config = {
-  //       .spi_bus = SPI2_HOST,
-  //       .flags.with_dma = true,
-  //   };
-  //   ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
-  // #else
-  // #error "unsupported LED strip backend"
-  // #endif
-  //   /* Set all LED off to clear all pixels */
-  //   led_strip_clear(led_strip);
+  /* LED strip initialization with the GPIO and pixels number*/
+  led_strip_config_t strip_config = {
+      .strip_gpio_num = pin,
+      .max_leds = 1,  // at least one LED on board
+  };
+#if CONFIG_BLINK_LED_STRIP_BACKEND_RMT
+  led_strip_rmt_config_t rmt_config = {
+      .resolution_hz = 10 * 1000 * 1000,  // 10MHz
+      .flags.with_dma = false,
+  };
+  ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+#elif CONFIG_BLINK_LED_STRIP_BACKEND_SPI
+  led_strip_spi_config_t spi_config = {
+      .spi_bus = SPI2_HOST,
+      .flags.with_dma = true,
+  };
+  ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
+#else
+#error "unsupported LED strip backend"
+#endif
+  /* Set all LED off to clear all pixels */
+  led_strip_clear(led_strip);
 }
 void ws2812_put_rgb(uint8_t red, uint8_t green, uint8_t blue) {
-  // led_strip_set_pixel(led_strip, 0, red, green, blue);
-  // /* Refresh the strip to send data */
-  // led_strip_refresh(led_strip);
+  led_strip_set_pixel(led_strip, 0, red, green, blue);
+  /* Refresh the strip to send data */
+  led_strip_refresh(led_strip);
 }
 // void ws2812_put_pixel(uint32_t pixel_grb) {}
+#else
+void ws2812_init(unsigned int pin) {}
+void ws2812_put_rgb(uint8_t red, uint8_t green, uint8_t blue) {}
+#endif  // USE_RGB_LED
+
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -363,80 +372,83 @@ void ws2812_put_rgb(uint8_t red, uint8_t green, uint8_t blue) {
 
 void board_led_write(int state) {}
 
-#ifndef USE_USB_CDC
+// #ifndef USE_USB_CDC
 
-bool tud_init(uint8_t rhport) {
+bool __attribute__((weak)) tud_init(uint8_t rhport) {
   return 0;
 }
-void tud_task(void) {
+void __attribute__((weak)) tud_task(void) {
   static uint32_t _delay = 100;
   vTaskDelay(pdMS_TO_TICKS(_delay));
 }
-bool tud_suspended(void) {
+bool __attribute__((weak)) tud_suspended(void) {
   return 0;
 }
-bool tud_remote_wakeup(void) {
+bool __attribute__((weak)) tud_remote_wakeup(void) {
   return false;
 }
 
-uint32_t tud_cdc_write_str(const char *str) {
+uint32_t __attribute__((weak)) tud_cdc_write_str(const char *str) {
   uart_write_bytes(UART_PORT_NUM, str, strlen(str));
   return 0;
 }
-bool tud_cdc_connected(void) {
+bool __attribute__((weak)) tud_cdc_connected(void) {
   return 1;
 }
-uint32_t tud_cdc_available(void) {
+uint32_t __attribute__((weak)) tud_cdc_available(void) {
   size_t size = 0;
   uart_get_buffered_data_len(UART_PORT_NUM, &size);
   return size;
 }
-uint8_t tud_cdc_read_char(void) {
+uint8_t __attribute__((weak)) tud_cdc_read_char(void) {
   uint8_t data = 0;
   uart_read_bytes(UART_PORT_NUM, &data, 1, 20 / portTICK_PERIOD_MS);  // (20/portTICK_PERIOD_MS) = 2
   return data;
 }
-uint32_t tud_cdc_write_flush(void) {
+uint32_t __attribute__((weak)) tud_cdc_write_flush(void) {
   // uart_flush(UART_PORT_NUM);  // TODO: seems to be a problem when calling this
   return 0;
 }
 
-#endif  // USE_USB_CDC
+// #endif  // USE_USB_CDC
 
-#ifndef USE_USB_HID
-bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, const uint8_t keycode[6]) {
+// #ifndef USE_USB_HID
+bool __attribute__((weak)) tud_hid_keyboard_report(uint8_t report_id,
+                                                   uint8_t modifier,
+                                                   const uint8_t keycode[6]) {
   return 0;
 }
-bool tud_hid_ready(void) {
+bool __attribute__((weak)) tud_hid_ready(void) {
   return 0;
 }
-#endif  // USE_USB_HID
+// #endif  // USE_USB_HID
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
 // REQUIRED FOR usb_descriptors.c
-#ifndef USE_USB_CDC
-uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
+// #ifndef USE_USB_CDC
+// #if (CONFIG_TINYUSB_CDC_ENABLED != 1)
+uint8_t __attribute__((weak)) const *tud_descriptor_configuration_cb(uint8_t index) {
   (void)index;  // for multiple configurations
   // return desc_configuration;
   return 0;
 }
-uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
+uint16_t __attribute__((weak)) const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   (void)langid;
 
   return 0;
 }
-uint8_t const *tud_descriptor_device_cb(void) {
+uint8_t __attribute__((weak)) const *tud_descriptor_device_cb(void) {
   //  return (uint8_t const *)&desc_device;
   return 0;
 }
-#endif  // USE_USB_CDC
+// #endif  // USE_USB_CDC
 
-#ifndef USE_USB_HID
-uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
+// #ifndef USE_USB_HID
+uint8_t __attribute__((weak)) const *tud_hid_descriptor_report_cb(uint8_t instance) {
   (void)instance;
   // return desc_hid_report;
   return 0;
 }
-#endif  // USE_USB_HID
+// #endif  // USE_USB_HID
 ////////////////////////////////////////////////////////////////////////////////

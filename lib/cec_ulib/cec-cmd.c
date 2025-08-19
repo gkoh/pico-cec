@@ -65,12 +65,12 @@ static int send_message(const char *cmdstr, int src_addr, int dst_addr) {
   return -1;
 }
 
-int send_message_to(const char *cmdstr, int dst_addr) {
+int cec_cmd_send(const char *cmdstr, int dst_addr) {
   uint8_t src_addr = cec_get_logical_address();
   return send_message(cmdstr, src_addr, dst_addr);
 }
 
-int cec_cmd_send(printf_ptr_t _printf, int argc, const char **argv) {
+int cec_cmd_sendv(printf_ptr_t _printf, int argc, const char **argv) {
   uint8_t src_addr = cec_get_logical_address();
   uint8_t dst_addr = 0x0;
   if (argc == 2) {
@@ -90,7 +90,7 @@ int cec_cmd_send(printf_ptr_t _printf, int argc, const char **argv) {
     dst_addr = atoi(argv[2]);
     src_addr = atoi(argv[3]);
   } else {
-    // ESP_LOGI(TAG, "cec_cmd_send() INVALID PARAMS");
+    // ESP_LOGI(TAG, "cec_cmd_sendv() INVALID PARAMS");
     return -1;
   }
   return send_message(argv[1], src_addr, dst_addr);

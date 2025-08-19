@@ -11,9 +11,9 @@ typedef struct {
 } command_t;
 
 typedef enum {
-  CEC_CONFIG_KEYMAP_CUSTOM = 0,
-  CEC_CONFIG_KEYMAP_KODI = 1,
-  CEC_CONFIG_KEYMAP_MISTER = 2,
+  CONFIG_KEYMAP_CUSTOM = 0,
+  CONFIG_KEYMAP_KODI = 1,
+  CONFIG_KEYMAP_MISTER = 2,
 } config_keymap_t;
 
 /**

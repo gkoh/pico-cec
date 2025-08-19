@@ -16,7 +16,9 @@ DECLARE_TAG()
 
 #define BLINK_STACK_SIZE (512 * STACK_WORDSIZE)
 // #define CEC_STACK_SIZE (512 * STACK_WORDSIZE)
-// #define CEC_QUEUE_LENGTH (16)
+#define CEC_QUEUE_LENGTH (16)
+
+void cec_task(void *param);
 
 static void blink_task(void *param) {
   static uint32_t blink_delay = 1000;

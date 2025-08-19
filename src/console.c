@@ -51,14 +51,20 @@ static void tcli_print(void *arg, const char *str) {
 // }
 
 static int show_version(void *arg) {
-  cdc_printfln("%s", PICO_CEC_VERSION);
 #if defined(__XTENSA__) || defined(__riscv)
+  cdc_printfln("Board: %s", PICO_CEC_VERSION);
+#else
+  // TODO: the BOARD_NAME will not be set in the header for the esp builds
+  cdc_printfln("Board: %s", BOARD_NAME);
+#endif
   cdc_printfln("Project: %s", PROJECT_NAME);
   cdc_printfln("Version: %s", PROJECT_VERSION);
+#if defined(__XTENSA__) || defined(__riscv)
   cdc_printfln("SDK_VER: %s", IDF_VER);
+#endif
+  cdc_printfln("SDK_VER: %s", SDK_VERSION);
   cdc_printfln("Built: %s", BUILD_TIMESTAMP);
   cdc_printfln("Git: %s (%s)%s", GIT_COMMIT_HASH, GIT_BRANCH, GIT_DIRTY);
-#endif
   return 0;
 }
 
@@ -66,7 +72,7 @@ void save_logical_address(uint8_t addr);
 
 static int debug_test(const char *arg) {
   if (strcmp(arg, "help") == 0) {
-    cdc_printfln("frame|start|stop|dump|clear|rxint|erase");
+    cdc_printfln("frame|clear|rxint|erase");
   } else if (strcmp(arg, "frame") == 0) {
     cdc_printfln("Not implemented");
   } else if (strcmp(arg, "clear") == 0) {
@@ -98,15 +104,18 @@ static int capture(const char *arg) {
   return 0;
 }
 
-int echo_destination_addr = 0;
-int echo_rate = 50;
+void set_echo(int addr, int rate);
 
 static int echo(const char *arg, const char *arg2) {
-  echo_destination_addr = atoi(arg);
+  int addr = 0;
+  int rate = 10;
+
+  addr = atoi(arg);
   if (arg2 != NULL) {
-    echo_rate = atoi(arg2);
+    rate = atoi(arg2);
   }
-  cdc_printfln("send echoes to %d at %d", echo_destination_addr, echo_rate);
+  cdc_printfln("send echoes to %d at %d", addr, rate);
+  set_echo(addr, rate);
   return 0;
 }
 
@@ -242,13 +251,13 @@ static int show_config(config_t *config) {
 
   const char *keymap = "unknown";
   switch (config->keymap_type) {
-    case CEC_CONFIG_KEYMAP_CUSTOM:
+    case CONFIG_KEYMAP_CUSTOM:
       keymap = "custom";
       break;
-    case CEC_CONFIG_KEYMAP_KODI:
+    case CONFIG_KEYMAP_KODI:
       keymap = "Kodi";
       break;
-    case CEC_CONFIG_KEYMAP_MISTER:
+    case CONFIG_KEYMAP_MISTER:
       keymap = "MiSTer";
       break;
   }
@@ -264,12 +273,13 @@ static int show_stats_cec(void) {
   cdc_printfln("%-13s: %lu frames", "CEC tx", stats.tx_frames);
   cdc_printfln("%-13s: %lu frames", "CEC rx abort", stats.rx_abort_frames);
   cdc_printfln("%-13s: %lu frames", "CEC tx noack", stats.tx_noack_frames);
+  cdc_printfln("%-13s: %lu us", "dwell period", stats.dwell_period_max);
   if (stats.rx_frames) {
     cdc_printfln("%-13s: %u %%", "rx abort rate",
                  (unsigned int)(stats.rx_abort_frames * 100 / stats.rx_frames));
   }
   cdc_printfln("%-13s: %lu", "idle timeouts", stats.idle_timeouts);
-  cdc_printfln("%-13s: %lu us", "dwell period", stats.dwell_period_max);
+  cdc_printfln("%-13s: %lu", "arbitrations", stats.tx_arb_fails);
 
   return 0;
 }
@@ -443,11 +453,11 @@ static int exec_set(void *arg, int argc, const char **argv) {
   } else if (argc == 3) {
     if (strcmp(argv[1], "keymap") == 0) {
       if (strcmp(argv[2], "kodi") == 0) {
-        config.keymap_type = CEC_CONFIG_KEYMAP_KODI;
+        config.keymap_type = CONFIG_KEYMAP_KODI;
         config_keymap_set(&config);
         return 0;
       } else if (strcmp(argv[2], "mister") == 0) {
-        config.keymap_type = CEC_CONFIG_KEYMAP_MISTER;
+        config.keymap_type = CONFIG_KEYMAP_MISTER;
         config_keymap_set(&config);
         return 0;
       } else {
@@ -464,8 +474,7 @@ static int exec_set(void *arg, int argc, const char **argv) {
 }
 
 static int exec_send(void *arg, int argc, const char **argv) {
-  // return cec_cmd_send(cdc_printf, argc, argv);
-  int res = cec_cmd_send(cdc_printf, argc, argv);
+  int res = cec_cmd_sendv(cdc_printf, argc, argv);
   if (res < 0) {
     printf("command '%s' unknown\n", argv[1]);
   } else {
@@ -494,11 +503,11 @@ static const tclie_cmd_t cmds[] = {
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},
 };
 
-void console_output(const char *str) {
+void console_put(const char *str) {
   tclie_log(&tclie, str);
 }
 
-void console_input(char c) {
+void console_get(char c) {
   tclie_input_char(&tclie, c);
 }
 

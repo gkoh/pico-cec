@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  *
  */
+#include "config.h"
+
+#if defined(USE_USB_CDC)  // || defined(USE_USB_HID)
 
 #include "tinyusb.h"
 
@@ -119,3 +122,5 @@ const tinyusb_config_t tusb_cfg = {
     .external_phy = false,
     .configuration_descriptor = desc_configuration,
 };
+
+#endif  // USE_USB_CDC

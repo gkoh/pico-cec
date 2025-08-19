@@ -1,19 +1,17 @@
 idf_component_register(SRCS
                     "app_main.c"
                     "../src/blink.c"
-                    "../src/console.c"
                     "../src/config-keymap.c"
+                    "../src/console.c"
                     "../src/ddc.c"
                     "../src/debug.c"
                     "../src/freertos_hook.c"
                     "../src/main.c"
                     "../src/nvs.c"
-#                    "../src/usb_descriptors_esp.c"
-#                    "../src/usb_init.c"
-                    "../src/usb_hid.c"
+                    "../src/usb_descriptors_esp.c"
+                    "../src/usb-init.c"
+                    "../src/usb-hid.c"
                     "../src/usb-cdc.c"
-#                    "../src/ws2812.c"
-#                    "../src/ws2812.pio"
                     "../tcli/source/tcli.c"
                     "../tcli/source/tclie.c"
                     "../lib/cec_ulib/cec-cmd.c"
@@ -25,9 +23,9 @@ idf_component_register(SRCS
                     "../lib/cec_ulib/cec-task.c"
                     "../lib/cec_ulib/cec-user.c"
                     "../lib/cec_ulib/cec-util.c"
-                    "../lib/espidf/portable.c"
-                    "../lib/espidf/prefs.c"
-                    "../lib/espidf/crc/crc32.c"
+                    "../lib/esp_idf/esp-idf.c"
+                    "../lib/esp_idf/prefs.c"
+                    "../lib/esp_idf/crc/crc32.c"
                     PRIV_REQUIRES spi_flash esp_timer nvs_flash
                     REQUIRES driver
                     PRIV_INCLUDE_DIRS
@@ -36,7 +34,7 @@ idf_component_register(SRCS
                     "../include"
                     "../tcli/include"
                     "../lib/cec_ulib/include"
-                    "../lib/espidf"
+                    "../lib/esp_idf"
                     )
 
 # Append the FreeRTOS kernel's internal include directory

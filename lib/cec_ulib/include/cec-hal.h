@@ -20,19 +20,20 @@ void cec_hal_bus_high(void);
 void cec_hal_bus_low(void);
 bool cec_hal_bus_get(void);
 
-#define GPIO_IRQ_EDGE_FALL 0x4u
-#define GPIO_IRQ_EDGE_RISE 0x8u
+void cec_hal_ack_high(void);
+void cec_hal_ack_low(void);
 
-#define CEC_HAL_RX_IRQ_NONE 0x0u
-#define CEC_HAL_RX_IRQ_FALL 0x4u
-#define CEC_HAL_RX_IRQ_RISE 0x8u
-void cec_hal_rx_irq(uint32_t event_mask, bool enabled);
+void cec_hal_rx_irq_low(void);
+void cec_hal_rx_irq_high(void);
+void cec_hal_rx_irq_disable(void);
+void *cec_hal_swap_rx_isr(void *);  // for cec-util.c
 
 void cec_hal_init(unsigned int gpio, cec_frame_rx_callback_t callback);
 void cec_hal_frame_tx(uint32_t time, cec_frame_tx_callback_t callback, void *user_data);
 
-void *cec_hal_swap_rx_isr(void *);  // for cec-util.c
-
 void cec_hal_YIELD_FROM_ISR(BaseType_t);
+
+// uint32_t cec_hal_time32(void);  // defined via macro in port specific header above
+// uint64_t cec_hal_time64(void);  // defined via macro in port specific header above
 
 #endif

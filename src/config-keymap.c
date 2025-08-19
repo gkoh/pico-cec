@@ -71,9 +71,9 @@ void config_keymap_set_default(config_t *config) {
   }
   cec_config_set_default(&config->cec);
 #if KEYMAP_DEFAULT_KODI
-  config->keymap_type = CEC_CONFIG_KEYMAP_KODI;
+  config->keymap_type = CONFIG_KEYMAP_KODI;
 #elif KEYMAP_DEFAULT_MISTER
-  config->keymap_type = CEC_CONFIG_KEYMAP_MISTER;
+  config->keymap_type = CONFIG_KEYMAP_MISTER;
 #else
 #error "Unknown default keymap."
 #endif
@@ -87,12 +87,12 @@ void config_keymap_set(config_t *config) {
   const uint8_t *default_keymap = NULL;
 
   switch (config->keymap_type) {
-    case CEC_CONFIG_KEYMAP_CUSTOM:
+    case CONFIG_KEYMAP_CUSTOM:
       break;
-    case CEC_CONFIG_KEYMAP_KODI:
+    case CONFIG_KEYMAP_KODI:
       default_keymap = &default_kodi_user_keymap[0];
       break;
-    case CEC_CONFIG_KEYMAP_MISTER:
+    case CONFIG_KEYMAP_MISTER:
       default_keymap = &default_mister_user_keymap[0];
       break;
     default:

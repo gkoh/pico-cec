@@ -2,19 +2,14 @@
 #define _PORTABLE_H_
 
 #if defined(__XTENSA__) || defined(__riscv)
-#include "../lib/espidf/portable.h"
+#include "esp-idf.h"
 #include "project_info.h"
 
-#include "config.h"
-
+// TODO: probably move this into esp-idf.h
 #ifdef USE_USB_CDC
 #include <tusb.h>
 #include "tinyusb.h"
 #include "tusb.h"
-#endif
-
-#ifndef PICO_CEC_VERSION
-#define PICO_CEC_VERSION "esp32"
 #endif
 
 #ifndef DEBUG
@@ -42,11 +37,7 @@
 
 #else  // !__XTENSA__
 
-#include "pico-cec/project_info.h"
-
-#ifndef PICO_CEC_VERSION
-#define PICO_CEC_VERSION "unknown"
-#endif
+#include "../build/project_info.h"
 
 #define IRAM_ATTR
 #define DECLARE_TAG()
@@ -87,12 +78,12 @@
 // for freertos_hook.c
 #include "common/tusb_common.h"
 
-// for hdmi-cec.c
+// for cec-task.c
 // #include "class/hid/hid.h"
 // #include "pico/stdlib.h"
 // #include "tusb.h"
 
-// for hdmi-ddc.c
+// for ddc.c
 #include "hardware/i2c.h"
 // #include "pico/stdlib.h"
 

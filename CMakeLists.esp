@@ -14,20 +14,25 @@ set(PROJECT_NAME "${my_project_name}")
 # ESP-IDF build system takes over here
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
+# "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+idf_build_set_property(MINIMAL_BUILD ON)
+
 # Now declare the project explicitly (safe name)
 #project("${my_project_name}")
 project("${my_project_name}" VERSION 1.2.3)
 
-#----------------------------------------------------------
+#-------------------------------------------------------------------------------
+# Create version header file for inclusion in the source code
 
-#cmake_minimum_required(VERSION 3.16)
-#include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-
-#project(my_project VERSION 1.2.3)
-
-# Create version header
 idf_build_get_property(PROJ_NAME PROJECT_NAME)
 idf_build_get_property(PROJ_VER PROJECT_VER)
+
+#message(STATUS "Building with ESP-IDF version: ${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}")
+set(SDK_VERSION ${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH})
+#set(SDK_VERSION ${PICO_SDK_VERSION_STRING})
+
+# TODO: not possible to obtain the target board name here?
+#set(BOARD_NAME ${PICO_BOARD})
 
 # Git info
 execute_process(

@@ -25,9 +25,6 @@
 
 #include "usb_descriptors.h"
 #include "tusb.h"
-#if defined(__XTENSA__) || defined(__riscv)
-#include "tusb_cdc_acm.h"  // TODO: only required for esp32 - but is it part of pico-sdk?
-#endif
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after
  * the first plug. Same VID/PID with different interface e.g MSC (first), then CDC (later) will

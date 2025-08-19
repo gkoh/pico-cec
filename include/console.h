@@ -2,8 +2,8 @@
 #define CONSOLE_H
 
 void console_init(void);
-void console_input(char c);
+void console_get(char c);
 
-void console_output(const char *str);  // used internally by log_task via function pointer
+void console_put(const char *str);  // used internally by log_task via function pointer
 
 #endif

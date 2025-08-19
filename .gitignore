@@ -1,4 +1,5 @@
 build
 generated
 *.stl
+*.sh
 .vscode

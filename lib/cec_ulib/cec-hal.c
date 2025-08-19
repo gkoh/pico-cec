@@ -6,7 +6,11 @@
 // TODO: consider splitting this out into separate esp & pico source modules with common header
 //
 
+static unsigned int cec_pin = 0;
+
 #if defined(__XTENSA__) || defined(__riscv)
+
+#include "sdkconfig.h"  // for CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD
 
 #include "esp-port.h"
 // #define TAG "cec-hal.c"
@@ -15,46 +19,122 @@
 
 static esp_timer_handle_t oneshot_timer_handle;
 
+#define ACK_PIN 5  // GPIO5
+
 ////////////////////////////////////////////////////////////////////////////////
 // CEC gpio and interrupt control
 //
 
 bool cec_hal_bus_get(void) {
-  return gpio_get_level(CEC_PIN);
+  return gpio_get_level(cec_pin);
 }
 void cec_hal_bus_high(void) {
-  gpio_set_direction(CEC_PIN, GPIO_MODE_INPUT);
+  gpio_set_direction(cec_pin, GPIO_MODE_INPUT);
 }
 void cec_hal_bus_low(void) {
-  gpio_set_direction(CEC_PIN, GPIO_MODE_OUTPUT);
+  gpio_set_direction(cec_pin, GPIO_MODE_OUTPUT);
 }
+
+void cec_hal_ack_high(void) {
+  gpio_set_direction(ACK_PIN, GPIO_MODE_INPUT);
+}
+void cec_hal_ack_low(void) {
+  gpio_set_direction(ACK_PIN, GPIO_MODE_OUTPUT);
+}
+
 void IRAM_ATTR cec_hal_rx_irq(uint32_t event_mask, bool enabled) {
   if (enabled) {
-    gpio_set_intr_type(CEC_PIN, GPIO_INTR_ANYEDGE);
-    gpio_intr_enable(CEC_PIN);
+    gpio_set_intr_type(cec_pin, GPIO_INTR_ANYEDGE);
+    gpio_intr_enable(cec_pin);
   } else {
-    gpio_set_intr_type(CEC_PIN, GPIO_INTR_DISABLE);
-    gpio_intr_disable(CEC_PIN);
+    gpio_set_intr_type(cec_pin, GPIO_INTR_DISABLE);
+    gpio_intr_disable(cec_pin);
   }
 }
-void IRAM_ATTR cec_hal_rx_irq_disable(void) {
-  gpio_intr_disable(CEC_PIN);
+void cec_hal_rx_irq_low(void) {
+  gpio_set_intr_type(cec_pin, GPIO_INTR_ANYEDGE);
+  gpio_intr_enable(cec_pin);
 }
-#else
+void cec_hal_rx_irq_high(void) {
+  gpio_set_intr_type(cec_pin, GPIO_INTR_ANYEDGE);
+  gpio_intr_enable(cec_pin);
+}
+void IRAM_ATTR cec_hal_rx_irq_disable(void) {
+  gpio_intr_disable(cec_pin);
+}
+
+#else  // pico-sdk
+
+#define ACK_PIN 2                 // GPIO2
+#define USE_GPIO_EDGE_INTERRUPTS  // TODO: test use of level interrupts
+
 bool cec_hal_bus_get(void) {
-  return gpio_get(CEC_PIN);
+  return gpio_get(cec_pin);
 }
 void cec_hal_bus_high(void) {
-  gpio_set_dir(CEC_PIN, GPIO_IN);
+  gpio_set_dir(cec_pin, GPIO_IN);
 }
 void cec_hal_bus_low(void) {
-  gpio_set_dir(CEC_PIN, GPIO_OUT);
+  gpio_set_dir(cec_pin, GPIO_OUT);
 }
-void cec_hal_rx_irq(uint32_t event_mask, bool enabled) {
-  gpio_set_irq_enabled(CEC_PIN, event_mask, enabled);
+void cec_hal_ack_high(void) {
+  gpio_set_dir(ACK_PIN, GPIO_IN);
 }
+void cec_hal_ack_low(void) {
+  gpio_set_dir(ACK_PIN, GPIO_OUT);
+}
+void cec_hal_rx_irq_low(void) {
+#ifdef USE_GPIO_EDGE_INTERRUPTS
+  gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_FALL, true);
+#else
+  gpio_set_irq_enabled(cec_pin, GPIO_IRQ_LEVEL_LOW, true);
+#endif
+}
+void cec_hal_rx_irq_high(void) {
+#ifdef USE_GPIO_EDGE_INTERRUPTS
+  gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_RISE, true);
+#else
+  gpio_set_irq_enabled(cec_pin, GPIO_IRQ_LEVEL_HIGH, true);
+#endif
+}
+// void cec_hal_rx_irq(uint32_t event_mask, bool enabled) {
+//
+//  It doesn't matter which edge we are looking for, as if we are out-of-sync, then we won't be
+//  receiving a valid frame anyway, and we rely on the handler to sort it out (ie. FRAME ABORT)
+//  The only reason to keep the event_mask parameter is for supporting ports to architectures
+//  which don't support edge interrrupts - as level interrupts can be used just as effectively,
+//  in which case we do need to known here which state we are looking for.
+//
+//  gpio_set_irq_enabled(cec_pin, event_mask, enabled);
+// #ifdef USE_GPIO_EDGE_INTERRUPTS
+// if (enabled) {
+//   gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+// } else {
+//   gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+// }
+// OR:
+//   gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, enabled);
+// OR:
+// if (event_mask == CEC_HAL_RX_IRQ_LOW) {
+//   gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_FALL, enabled);
+// } else {
+//   gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_RISE, enabled);
+// }
+// #else
+//  if (event_mask == CEC_HAL_RX_IRQ_LOW) {
+//    gpio_set_irq_enabled(cec_pin, GPIO_IRQ_LEVEL_LOW, enabled);
+//  } else {
+//    gpio_set_irq_enabled(cec_pin, GPIO_IRQ_LEVEL_HIGH, enabled);
+//  }
+// #endif
+// }
+
 void IRAM_ATTR cec_hal_rx_irq_disable(void) {
-  gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+#ifdef USE_GPIO_EDGE_INTERRUPTS
+  gpio_set_irq_enabled(cec_pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+#else
+  gpio_set_irq_enabled(cec_pin, GPIO_IRQ_LEVEL_HIGH | GPIO_IRQ_LEVEL_LOW, false);
+#endif
 }
 #endif  // __XTENSA__
 
@@ -68,14 +148,14 @@ static cec_frame_rx_callback_t cec_frame_rx_callback;
 static void esp_rx_isr(void *arg) {
   //   uint32_t gpio_num = (uint32_t)arg;
 
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  cec_hal_rx_irq_disable();
   uint32_t edge_time = esp_timer_get_time();
   cec_frame_rx_callback(edge_time);
 }
 #else
 static void pico_rx_isr(unsigned int gpio, uint32_t events) {
   gpio_acknowledge_irq(gpio, events);
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+  cec_hal_rx_irq_disable();
   uint32_t edge_time = time_us_64();
   cec_frame_rx_callback(edge_time);
 }
@@ -113,7 +193,12 @@ void cec_hal_frame_tx(uint32_t time, cec_frame_tx_callback_t callback, void *use
   }
   ESP_ERROR_CHECK(esp_timer_start_once(oneshot_timer_handle, time));
 #else
-  add_alarm_at(time, frame_tx_alarm_callback, user_data, true);  // pico-sdk
+  // Since the pico-sdk alarm function requires the full 64-bit time we add our
+  // 32-bit 'local' timing value to the high 32-bits of current 64-bit count
+  // from time_us_64(). This should still be 'cheaper' than handling 64 bits
+  // throughout our handlers
+  uint64_t abs_time = (time_us_64() & 0xFFFFFFFF00000000) | from_us_since_boot(time);
+  add_alarm_at(abs_time, frame_tx_alarm_callback, user_data, true);  // pico-sdk
 #endif  // __XTENSA__
 }
 
@@ -139,6 +224,7 @@ void cec_hal_YIELD_FROM_ISR(BaseType_t woken) {
 }
 
 void cec_hal_init(unsigned int gpio, cec_frame_rx_callback_t callback) {
+  cec_pin = gpio;
   cec_frame_rx_callback = callback;
 #if defined(__XTENSA__) || defined(__riscv)
   gpio_pullup_en(gpio);
@@ -147,7 +233,9 @@ void cec_hal_init(unsigned int gpio, cec_frame_rx_callback_t callback) {
 
   const esp_timer_create_args_t oneshot_timer_args = {.callback = &frame_tx_timer_callback,
                                                       .arg = (void *)NULL,
+#if (CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD == 1)
                                                       .dispatch_method = ESP_TIMER_ISR,
+#endif
                                                       .name = "one-shot"};
   ESP_ERROR_CHECK(esp_timer_create(&oneshot_timer_args, &oneshot_timer_handle));
 
@@ -159,6 +247,11 @@ void cec_hal_init(unsigned int gpio, cec_frame_rx_callback_t callback) {
   gpio_init(gpio);
   gpio_disable_pulls(gpio);
   gpio_set_dir(gpio, GPIO_IN);
+
+  gpio_init(ACK_PIN);
+  gpio_disable_pulls(ACK_PIN);
+  gpio_set_dir(ACK_PIN, GPIO_IN);
+
   gpio_set_irq_callback(&pico_rx_isr);  // pico-sdk
   irq_set_enabled(IO_IRQ_BANK0, true);  // pico-sdk
 #endif  // __XTENSA__

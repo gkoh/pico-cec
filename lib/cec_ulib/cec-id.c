@@ -116,10 +116,10 @@ static void cec_id_task(void *param) {
           ESP_LOGI(TAG, "CEC_ID_VENDOR_COMMAND_WITH_ID");
           break;
         case CEC_ID_ECHO_REQUEST:
-          ESP_LOGI(TAG, "CEC_ID_ECHO_REQUEST");
+          ESP_LOGD(TAG, "CEC_ID_ECHO_REQUEST");
           break;
         case CEC_ID_ECHO_RESPOND:
-          ESP_LOGI(TAG, "CEC_ID_ECHO_RESPOND");
+          ESP_LOGD(TAG, "CEC_ID_ECHO_RESPOND");
           break;
         default:
           ESP_LOGI(TAG, "CEC_ default");

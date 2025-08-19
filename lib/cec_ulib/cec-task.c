@@ -14,7 +14,7 @@ DECLARE_TAG()
 #include "cec-task.h"
 
 #define _LOG_BR "\r\n"
-#define PICO_CEC_VENDOR_ID 0x0010FA
+#define CEC_QUEUE_LENGTH (16)
 
 // #define CEC_TASK_TRACE
 #ifndef CEC_TASK_TRACE
@@ -35,22 +35,13 @@ DECLARE_TAG()
 #endif  // CEC_TASK_TRACE
 
 /** The running CEC configuration. */
-static cec_config_t config = {0x0};
+static cec_config_t cec_config = {0x0};
 
 /** The status of the CEC connection. */
 static bool cec_active = false;
 
-bool cec_task_get_status(void) {
+bool cec_get_status(void) {
   return cec_active;
-}
-
-void cec_task_set_config(cec_config_t cec_config) {
-  config = cec_config;
-  if (config.monitor_mode) {
-    cec_frame_set_monitor_mode(true);
-  } else {
-    cec_frame_set_monitor_mode(false);
-  }
 }
 
 // HDMI logical addresses
@@ -309,21 +300,24 @@ uint8_t cec_get_logical_address(void) {
 void cec_task(void *param) {
   QueueHandle_t *q = (QueueHandle_t *)param;
 
-  // load configuration
-  // nvs_load_config(&config);
-
+  if (cec_config.monitor_mode) {  // TODO: we may yet support multiple monitor modes
+    cec_frame_set_monitor_mode(true);
+  } else {
+    cec_frame_set_monitor_mode(false);
+  }
+  
   // start the cec protocol event id log task (esp port only)
   cec_id_event_log_start();
 
   // pause for EDID to settle
-  vTaskDelay(pdMS_TO_TICKS(config.edid_delay_ms));
+  vTaskDelay(pdMS_TO_TICKS(cec_config.edid_delay_ms));
 
-  cec_frame_init();
+  cec_frame_init(cec_config.gpio_pin);
 
-  paddr = get_physical_address(&config);
+  paddr = get_physical_address(&cec_config);
   ESP_LOGI(TAG, "physical address: %d", paddr);
   cec_log_submitf("physical address: %d", paddr);
-  laddr = allocate_logical_address(&config);
+  laddr = allocate_logical_address(&cec_config);
   ESP_LOGI(TAG, "logical address: %d", laddr);
   cec_log_submitf("logical address: %d", laddr);
 
@@ -331,7 +325,6 @@ void cec_task(void *param) {
     uint8_t pld[16] = {0x0};
     uint8_t pldcnt;
     uint8_t initiator, destination;
-    //    uint8_t key = HID_KEY_NONE;
     uint8_t user_control = 0xFF;  // magic 'no-op' number, as zero is valid control code
     uint8_t no_active = 0;
 
@@ -379,8 +372,8 @@ void cec_task(void *param) {
         case CEC_ID_ROUTING_CHANGE:
           // uint16_t old_addr = (pld[2] << 8) | pld[3];
           active_addr = (pld[4] << 8) | pld[5];
-          paddr = get_physical_address(&config);
-          laddr = allocate_logical_address(&config);
+          paddr = get_physical_address(&cec_config);
+          laddr = allocate_logical_address(&cec_config);
           if (paddr == active_addr) {
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
@@ -394,10 +387,10 @@ void cec_task(void *param) {
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            paddr = get_physical_address(&config);
-            laddr = allocate_logical_address(&config);  // TODO: why are we doing this?
+            paddr = get_physical_address(&cec_config);
+            laddr = allocate_logical_address(&cec_config);  // TODO: why are we doing this?
             if (paddr != 0x0000) {
-              report_physical_address(laddr, 0x0f, paddr, config.device_type);
+              report_physical_address(laddr, 0x0f, paddr, cec_config.device_type);
             }
           }
           break;
@@ -422,12 +415,12 @@ void cec_task(void *param) {
         case CEC_ID_DEVICE_VENDOR_ID:
           // On broadcast receive, do the same
           if ((initiator == 0x00) && (destination == 0x0f)) {
-            device_vendor_id(laddr, 0x0f, PICO_CEC_VENDOR_ID);
+            device_vendor_id(laddr, 0x0f, cec_config.vendor_id);
           }
           break;
         case CEC_ID_GIVE_DEVICE_VENDOR_ID:
           if (destination == laddr)
-            device_vendor_id(laddr, 0x0f, PICO_CEC_VENDOR_ID);
+            device_vendor_id(laddr, 0x0f, cec_config.vendor_id);
           break;
         case CEC_ID_MENU_STATUS:
           break;
@@ -461,24 +454,16 @@ void cec_task(void *param) {
           break;
         case CEC_ID_GIVE_PHYSICAL_ADDRESS:
           if (destination == laddr && paddr != 0x0000)
-            report_physical_address(laddr, 0x0f, paddr, config.device_type);
+            report_physical_address(laddr, 0x0f, paddr, cec_config.device_type);
           break;
         case CEC_ID_USER_CONTROL_PRESSED:
           if (destination == laddr) {
-            // blink_set(BLINK_STATE_GREEN_ON);
-            // command_t command = config.keymap[pld[2]];
-            // if (command.name != NULL) {
-            //  xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
-            // }
             user_control = pld[2];
             xQueueSend(*q, &user_control, pdMS_TO_TICKS(10));
           }
           break;
         case CEC_ID_USER_CONTROL_RELEASED:
           if (destination == laddr) {
-            // blink_set(BLINK_STATE_OFF);
-            // key = HID_KEY_NONE;
-            // xQueueSend(*q, &key, pdMS_TO_TICKS(10));
             user_control = 0xFF;  // magic 'no-user_control' number, as zero is valid
             xQueueSend(*q, &user_control, pdMS_TO_TICKS(10));
           }
@@ -511,4 +496,55 @@ void cec_task(void *param) {
       cec_id_event_log(pld[1]);
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TaskHandle_t xCECTask;  // referenced internally by cec-frame.c
+// static QueueHandle_t xCECQueue;
+static QueueHandle_t cec_q;
+
+static StaticQueue_t xCECQueue;
+static uint8_t storageCECQueue[CEC_QUEUE_LENGTH * sizeof(uint8_t)];
+static StackType_t stackCEC[CEC_STACK_SIZE];
+static StaticTask_t xCECTCB;  // we don't really need this, currently unused
+
+bool cec_write(uint8_t *data, uint8_t len) {
+  return cec_frame_send(len, data, true);
+}
+
+// // TODO: if we are providing a raw write, perhaps we should also implement a raw read
+// int cec_read(uint8_t *buf, uint8_t size) {
+//   // Our stack cannot essentially operate as a stream device, so this could be futile..
+//   return 0;
+// }
+
+bool cec_read(uint8_t *user_control, int timeout_ticks) {
+  if (cec_q != NULL) {
+    BaseType_t r = xQueueReceive(cec_q, user_control, timeout_ticks);
+    if (r == pdTRUE) {
+      return true;
+    }
+  } else {
+    vTaskDelay(timeout_ticks);
+  }
+  return false;
+}
+
+bool cec_init(cec_config_t config, log_callback_t log_callback) {
+  cec_config = config;
+  cec_q = xQueueCreateStatic(CEC_QUEUE_LENGTH, sizeof(uint8_t), &storageCECQueue[0], &xCECQueue);
+  configASSERT((cec_q));
+  xCECTask = xTaskCreateStatic(cec_task, CEC_TASK_NAME, CEC_STACK_SIZE, &cec_q, CEC_PRIORITY,
+                               &stackCEC[0], &xCECTCB);
+  if (log_callback != NULL) {
+    cec_log_init(log_callback);
+  }
+  return true;
+}
+
+bool cec_gpio(unsigned int gpio) {
+  cec_config_set_default(&cec_config);
+  cec_config.gpio_pin = gpio;
+  return cec_init(cec_config, NULL);
 }

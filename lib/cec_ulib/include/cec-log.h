@@ -15,11 +15,8 @@ void cec_log_mask_toggle(void);
 void cec_log(const char *buffer, int len);
 void cec_log_raw_frame(cec_frame_t *frame);
 void cec_log_frame(cec_frame_t *frame, bool recv);
-void cec_log_vsubmitf(const char *fmt, va_list ap);
 __attribute__((format(printf, 1, 2))) void cec_log_submitf(const char *fmt, ...);
 
 uint64_t util_uptime_ms(void);
-
-void log_task(void *param);
 
 #endif

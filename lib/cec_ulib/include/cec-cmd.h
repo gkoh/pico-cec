@@ -6,8 +6,7 @@
 
 typedef void (*printf_ptr_t)(const char *, ...);
 
-int send_cmd(const char *cmdstr);
-int cec_cmd_send(printf_ptr_t, int argc, const char **argv);
-int send_message_to(const char *cmdstr, int dst_addr);
+int cec_cmd_send(const char *cmdstr, int dst_addr);  // called from main.c ie. cec_cmd_send("echo", echo_addr);
+int cec_cmd_sendv(printf_ptr_t, int argc, const char **argv);  // called from console.c ie. cec_cmd_sendv(cdc_printf, argc, argv);
 
 #endif

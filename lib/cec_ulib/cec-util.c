@@ -21,10 +21,10 @@ static void frame_rx_capture_isr(uint32_t edge_time) {
 
   if (edge_rising) {
     pulse_times[edge_count++] = pulse_time;
-    cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+    cec_hal_rx_irq_low();
     edge_rising = false;
   } else {
-    cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE, true);
+    cec_hal_rx_irq_high();
     edge_rising = true;
   }
 }
@@ -81,20 +81,20 @@ void cec_frame_dump(write_str_ptr_t write_str) {
 
 void *cec_frame_capture(void *ptr) {
   if (ptr) {  // disable capture and restore frame rx isr pointer
-    cec_hal_rx_irq(GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+    cec_hal_rx_irq_disable();
     cec_hal_swap_rx_isr(ptr);
     ptr = NULL;
-    cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+    cec_hal_rx_irq_low();
     pulse_times[edge_count++] = -1;
   } else {  // initialise the capture and return the previous rx isr pointer
     memset(pulse_times, 0, sizeof(uint32_t) * MAX_EDGE_TIME_CAPTURES);
     ptr = cec_hal_swap_rx_isr(&frame_rx_capture_isr);
     edge_rising = false;
-    cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+    cec_hal_rx_irq_low();
   }
   return ptr;
 }
 
 void cec_frame_rxint(void) {  // diagnostic for user force rx int enable (temporary)
-  cec_hal_rx_irq(GPIO_IRQ_EDGE_FALL, true);
+  cec_hal_rx_irq_low();
 }
