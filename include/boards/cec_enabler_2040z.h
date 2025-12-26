@@ -2,8 +2,8 @@
  * Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
  *
  * SPDX-License-Identifier: BSD-3-Clause
- * 
- * @note Waveshare 2040-Zero for CEC-Enabler 
+ *
+ * @note Waveshare 2040-Zero for CEC-Enabler
  */
 
 // -----------------------------------------------------
@@ -76,10 +76,10 @@
 #endif
 // All boards have B1 RP2040
 #ifndef PICO_RP2040_B0_SUPPORTED
-#define PICO_RP2040_B0_SUPPORTED  0
+#define PICO_RP2040_B0_SUPPORTED 0
 #endif
 
-//led
+// led
 #ifndef PICO_DEFAULT_LED_PIN
 #define PICO_DEFAULT_LED_PIN 10
 #endif
