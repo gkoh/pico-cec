@@ -49,6 +49,8 @@ typedef struct {
 void cec_config_set_keymap(cec_config_t *config);
 void cec_config_set_default(cec_config_t *config);
 
+void cec_config_set_user_keymap(cec_config_t *config, uint8_t cec, uint8_t hid);
+
 void cec_config_complete(cec_config_t *config);
 
 #endif

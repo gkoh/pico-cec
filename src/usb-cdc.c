@@ -307,16 +307,41 @@ static int exec_set(void *arg, int argc, const char **argv) {
         }
       }
     }
-  } else if (argc == 3) {
+  } else if (argc >= 3) {
     if (strcmp(argv[1], "keymap") == 0) {
-      if (strcmp(argv[2], "kodi") == 0) {
+      const char *param = argv[2];
+      if (strcmp(param, "kodi") == 0) {
         config.keymap_type = CEC_CONFIG_KEYMAP_KODI;
         cec_config_set_keymap(&config);
         return 0;
-      } else if (strcmp(argv[2], "mister") == 0) {
+      } else if (strcmp(param, "mister") == 0) {
         config.keymap_type = CEC_CONFIG_KEYMAP_MISTER;
         cec_config_set_keymap(&config);
         return 0;
+      } else if (strcmp(param, "custom") == 0) {
+        if (argc == 5) {
+          const char *cec_str = argv[3];
+          const char *hid_str = argv[4];
+          unsigned int cec_in = 0;
+          unsigned int hid_in = 0;
+          int n = sscanf(cec_str, "%x", &cec_in);
+          if ((n != 1) || (cec_in > UINT8_MAX)) {
+            cdc_printfln("Error parsing custom keymap CEC code");
+            return -1;
+          }
+          n = sscanf(hid_str, "%x", &hid_in);
+          if ((n != 1) || (hid_in > UINT8_MAX)) {
+            cdc_printfln("Error parsing custom keymap HID code");
+            return -1;
+          }
+
+          if ((cec_in <= UINT8_MAX) && (hid_in <= UINT8_MAX)) {
+            cec_config_set_user_keymap(&config, (uint8_t)cec_in, (uint8_t)hid_in);
+          }
+        } else {
+          cdc_printfln("Error parsing custom keymap");
+          return -1;
+        }
       } else {
         cdc_printfln("Unknown keymap '%s'", argv[2]);
         return -1;
@@ -351,7 +376,7 @@ static const tclie_cmd_t cmds[] = {
     {"send", exec_send, "Send a CEC opcode.", "send <addr> <opcode>"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
-     "{playback|recording}))|(keymap <value>)}"},
+     "{playback|recording}))|(keymap ({kodi|mister}|(custom <cec> <hid>)))}"},
     {"show", exec_show, "Show information.",
      "show {cec|config|keymap|nvs|(stats {cec|cpu|tasks})|version}"},
     {"reboot", exec_reboot, "Reboot system.", "reboot [bootsel]"},

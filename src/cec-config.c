@@ -64,6 +64,8 @@ static const uint8_t default_kodi_user_keymap[UINT8_MAX] = {
     [CEC_USER_REWIND] = HID_KEY_R,
     [CEC_USER_FAST_FWD] = HID_KEY_F,
     [CEC_USER_SUB_PICTURE] = HID_KEY_L,
+    [CEC_USER_POWER_OFF] = HID_KEY_NONE,
+    [CEC_USER_POWER_ON] = HID_KEY_NONE,
     0x00,
 };
 
@@ -138,6 +140,12 @@ void cec_config_set_keymap(cec_config_t *config) {
   for (unsigned int i = 0; i < UINT8_MAX; i++) {
     config->keymap[i].key = default_keymap[i];
   }
+}
+
+void cec_config_set_user_keymap(cec_config_t *config, uint8_t cec, uint8_t hid) {
+  config->keymap_type = CEC_CONFIG_KEYMAP_CUSTOM;
+  config->keymap[cec].key = hid;
+  config->keymap[cec].name = cec_user_control_name[cec];
 }
 
 void cec_config_complete(cec_config_t *config) {
