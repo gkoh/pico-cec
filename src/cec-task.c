@@ -18,11 +18,18 @@
 /* Intercept HDMI CEC commands, convert to a keypress and send to HID task
  * handler.
  *
- * Based (mostly ripped) from the Arduino version by Szymon Slupik:
+ * Significantly rewritten from the initial Arduino version by Szymon Slupik:
  * https://github.com/SzymonSlupik/CEC-Tiny-Pro
  * which itself is based on the original code by Thomas Sowell:
  * https://github.com/tsowell/avr-hdmi-cec-volume/tree/master
  */
+
+#define CEC_MSG_QUEUE_LENGTH (8)
+
+typedef struct {
+  uint8_t addr;
+  cec_id_t id;
+} send_msg_t;
 
 /** The running CEC configuration. */
 static cec_config_t config = {0x0};
@@ -66,106 +73,160 @@ static void cec_feature_abort(uint8_t initiator,
                               uint8_t destination,
                               uint8_t msg,
                               cec_abort_t reason) {
-  uint8_t pld[4] = {HEADER0(initiator, destination), CEC_ID_FEATURE_ABORT, msg, reason};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_FEATURE_ABORT,
+      .operand = {msg, reason},
+      .len = 4,
+  };
 
-  cec_frame_send(4, pld);
+  cec_frame_send(&message);
 }
 
 static void device_vendor_id(uint8_t initiator, uint8_t destination, uint32_t vendor_id) {
-  uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_DEVICE_VENDOR_ID,
-                    (vendor_id >> 16) & 0x0ff, (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_DEVICE_VENDOR_ID,
+      .operand = {(vendor_id >> 16) & 0x0ff, (vendor_id >> 8) & 0x0ff, (vendor_id >> 0) & 0x0ff},
+      .len = 5,
+  };
 
-  cec_frame_send(5, pld);
+  cec_frame_send(&message);
 }
 
 static void report_power_status(uint8_t initiator, uint8_t destination, uint8_t power_status) {
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_POWER_STATUS, power_status};
+  cec_message_t message = {.header = HEADER0(initiator, destination),
+                           .opcode = CEC_ID_REPORT_POWER_STATUS,
+                           .operand = {power_status},
+                           .len = 3};
 
-  cec_frame_send(3, pld);
+  cec_frame_send(&message);
 }
 
 static void set_system_audio_mode(uint8_t initiator,
                                   uint8_t destination,
                                   uint8_t system_audio_mode) {
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SET_SYSTEM_AUDIO_MODE,
-                    system_audio_mode};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_SET_SYSTEM_AUDIO_MODE,
+      .operand = {system_audio_mode},
+      .len = 3,
+  };
 
-  cec_frame_send(3, pld);
+  cec_frame_send(&message);
 }
 
 static void report_audio_status(uint8_t initiator, uint8_t destination, uint8_t audio_status) {
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_REPORT_AUDIO_STATUS, audio_status};
+  cec_message_t message = {.header = HEADER0(initiator, destination),
+                           .opcode = CEC_ID_REPORT_AUDIO_STATUS,
+                           .operand = {audio_status},
+                           .len = 3};
 
-  cec_frame_send(3, pld);
+  cec_frame_send(&message);
 }
 
 static void system_audio_mode_status(uint8_t initiator,
                                      uint8_t destination,
                                      uint8_t system_audio_mode_status) {
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_SYSTEM_AUDIO_MODE_STATUS,
-                    system_audio_mode_status};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_SYSTEM_AUDIO_MODE_STATUS,
+      .operand = {system_audio_mode_status},
+      .len = 3,
+  };
 
-  cec_frame_send(3, pld);
+  cec_frame_send(&message);
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
-  uint8_t pld[10] = {
-      HEADER0(initiator, destination), CEC_ID_SET_OSD_NAME, 'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_SET_OSD_NAME,
+      .operand = {'P', 'i', 'c', 'o', '-', 'C', 'E', 'C'},
+      .len = 10,
+  };
 
-  cec_frame_send(10, pld);
+  cec_frame_send(&message);
 }
 
 static void report_physical_address(uint8_t initiator,
                                     uint8_t destination,
                                     uint16_t physical_address,
                                     uint8_t device_type) {
-  uint8_t pld[5] = {HEADER0(initiator, destination), CEC_ID_REPORT_PHYSICAL_ADDRESS,
-                    (physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_REPORT_PHYSICAL_ADDRESS,
+      .operand = {(physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff, device_type},
+      .len = 5,
+  };
 
-  cec_frame_send(5, pld);
+  cec_frame_send(&message);
 }
 
 static void report_cec_version(uint8_t initiator, uint8_t destination) {
-  // 0x04 = 1.3a
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_CEC_VERSION, 0x04};
-  cec_frame_send(3, pld);
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_CEC_VERSION,
+      .operand = {0x04},  // 0x04 = 1.3a
+      .len = 3,
+  };
+
+  cec_frame_send(&message);
 }
 
 bool cec_ping(uint8_t destination) {
-  uint8_t pld[1] = {HEADER0(destination, destination)};
-
-  return cec_frame_send(1, pld);
+  cec_message_t message = {
+      .header = HEADER0(destination, destination),
+      .len = 1,
+  };
+  return cec_frame_send(&message);
 }
 
-bool cec_send_opcode(uint8_t opcode) {
+bool cec_send_msg(uint8_t address, uint8_t opcode) {
+  send_msg_t msg = {.addr = address, .id = opcode};
+
   if (cec_tx_queue == NULL) {
     return false;
   }
-  if (xQueueSend(cec_tx_queue, &opcode, pdMS_TO_TICKS(10)) != pdTRUE) {
+
+  if (xQueueSend(cec_tx_queue, &msg, pdMS_TO_TICKS(10)) != pdTRUE) {
     return false;
   }
-  xTaskNotifyIndexed(xCECTask, NOTIFY_KICK, 0, eNoAction);
+  xTaskNotifyIndexed(xCECTask, NOTIFY_RX, NOTIFY_RX_TX, eSetBits);
   return true;
 }
 
 static void image_view_on(uint8_t initiator, uint8_t destination) {
-  uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_IMAGE_VIEW_ON,
+      .len = 2,
+  };
 
-  cec_frame_send(2, pld);
+  cec_frame_send(&message);
 }
 
 static void active_source(uint8_t initiator, uint16_t physical_address) {
-  uint8_t pld[4] = {HEADER0(initiator, 0x0f), CEC_ID_ACTIVE_SOURCE, (physical_address >> 8) & 0x0ff,
-                    (physical_address >> 0) & 0x0ff};
+  cec_message_t message = {
+      .header = HEADER0(initiator, 0x0f),
+      .opcode = CEC_ID_ACTIVE_SOURCE,
+      .operand = {(physical_address >> 8) & 0x0ff, (physical_address >> 0) & 0x0ff},
+      .len = 4,
+  };
 
-  cec_frame_send(4, pld);
+  cec_frame_send(&message);
 }
 
 static void menu_status(uint8_t initiator, uint8_t destination, bool menu_state) {
   uint8_t state = menu_state ? (uint8_t)CEC_MENU_ACTIVATE : (uint8_t)CEC_MENU_DEACTIVATE;
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_MENU_STATUS, state};
+  cec_message_t message = {
+      .header = HEADER0(initiator, destination),
+      .opcode = CEC_ID_MENU_STATUS,
+      .operand = {state},
+      .len = 3,
+  };
 
-  cec_frame_send(sizeof(pld), pld);
+  cec_frame_send(&message);
 }
 
 static uint8_t allocate_logical_address(cec_config_t *config) {
@@ -221,25 +282,28 @@ void cec_task(void *param) {
   laddr = allocate_logical_address(&config);
 
   while (true) {
-    uint8_t pld[16] = {0x0};
-    uint8_t pldcnt;
-    uint8_t initiator, destination;
+    cec_message_t msg = {0x0};
     uint8_t key = HID_KEY_NONE;
     uint8_t no_active = 0;
 
-    uint8_t tx_opcode;
-    if (xQueueReceive(cec_tx_queue, &tx_opcode, 0) == pdTRUE) {
-      uint8_t tx_pld[2] = {HEADER0(laddr, 0x00), tx_opcode};
-      cec_frame_send(2, tx_pld);
+    cec_frame_recv(&msg, laddr);
+
+    send_msg_t tx_req;
+    if (xQueueReceive(cec_tx_queue, &tx_req, 0) == pdTRUE) {
+      cec_message_t tx_msg = {
+          .header = HEADER0(laddr, tx_req.addr),
+          .opcode = tx_req.id,
+          .len = 2,
+      };
+      cec_frame_send(&tx_msg);
+      continue;
     }
 
-    pldcnt = cec_frame_recv(pld, laddr);
-    // printf("pldcnt = %u\n", pldcnt);
-    initiator = (pld[0] & 0xf0) >> 4;
-    destination = pld[0] & 0x0f;
+    if (msg.len > 1) {
+      uint8_t initiator = (msg.header & 0xf0) >> 4;
+      uint8_t destination = msg.header & 0x0f;
 
-    if ((pldcnt > 1)) {
-      switch (pld[1]) {
+      switch (msg.opcode) {
         case CEC_ID_IMAGE_VIEW_ON:
           break;
         case CEC_ID_TEXT_VIEW_ON:
@@ -262,7 +326,7 @@ void cec_task(void *param) {
           break;
         case CEC_ID_SET_SYSTEM_AUDIO_MODE:
           if (destination == laddr || destination == 0x0f) {
-            audio_status = (pld[2] == 1);
+            audio_status = (msg.operand[0] == 1);
           }
           break;
         case CEC_ID_GIVE_SYSTEM_AUDIO_MODE_STATUS:
@@ -272,8 +336,7 @@ void cec_task(void *param) {
         case CEC_ID_SYSTEM_AUDIO_MODE_STATUS:
           break;
         case CEC_ID_ROUTING_CHANGE:
-          // uint16_t old_addr = (pld[2] << 8) | pld[3];
-          active_addr = (pld[4] << 8) | pld[5];
+          active_addr = (msg.operand[2] << 8) | msg.operand[3];
           paddr = get_physical_address(&config);
           laddr = allocate_logical_address(&config);
           if (paddr == active_addr) {
@@ -283,7 +346,7 @@ void cec_task(void *param) {
           }
           break;
         case CEC_ID_ACTIVE_SOURCE:
-          active_addr = (pld[2] << 8) | pld[3];
+          active_addr = (msg.operand[0] << 8) | msg.operand[1];
           no_active = 0;
           break;
         case CEC_ID_REPORT_PHYSICAL_ADDRESS:
@@ -305,7 +368,7 @@ void cec_task(void *param) {
           }
           break;
         case CEC_ID_SET_STREAM_PATH:
-          if (paddr == ((pld[2] << 8) | pld[3])) {
+          if (paddr == ((msg.operand[0] << 8) | msg.operand[1])) {
             active_addr = paddr;
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
@@ -329,7 +392,7 @@ void cec_task(void *param) {
           break;
         case CEC_ID_MENU_REQUEST:
           if (destination == laddr) {
-            cec_menu_t request = (uint8_t)pld[2];
+            cec_menu_t request = msg.operand[0];
             switch (request) {
               case CEC_MENU_ACTIVATE:
                 menu_state = true;
@@ -378,7 +441,7 @@ void cec_task(void *param) {
         case CEC_ID_USER_CONTROL_PRESSED:
           if (destination == laddr) {
             blink_set(BLINK_STATE_GREEN_ON);
-            command_t command = config.keymap[pld[2]];
+            command_t command = config.keymap[msg.operand[0]];
             if (command.name != NULL) {
               xQueueSend(*q, &command.key, pdMS_TO_TICKS(10));
             }
@@ -393,7 +456,7 @@ void cec_task(void *param) {
           break;
         case CEC_ID_ABORT:
           if (destination == laddr) {
-            cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_REFUSED);
+            cec_feature_abort(laddr, initiator, msg.opcode, CEC_ABORT_REFUSED);
           }
           break;
         case CEC_ID_FEATURE_ABORT:
@@ -402,7 +465,7 @@ void cec_task(void *param) {
           break;
         default:
           if (destination == laddr) {
-            cec_feature_abort(laddr, initiator, pld[1], CEC_ABORT_UNRECOGNIZED);
+            cec_feature_abort(laddr, initiator, msg.opcode, CEC_ABORT_UNRECOGNIZED);
           }
           break;
       }

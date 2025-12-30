@@ -328,10 +328,12 @@ static int exec_set(void *arg, int argc, const char **argv) {
 }
 
 static int exec_send(void *arg, int argc, const char **argv) {
-  if (argc == 2) {
+  if (argc == 3) {
+    unsigned int address = 0;
     unsigned int opcode = 0;
-    if (sscanf(argv[1], "%x", &opcode) == 1 && opcode <= UINT8_MAX) {
-      if (cec_send_opcode((uint8_t)opcode)) {
+    if (sscanf(argv[1], "%x", &address) == 1 && address <= 0x0f
+        && sscanf(argv[2], "%x", &opcode) == 1 && opcode <= UINT8_MAX) {
+      if (cec_send_msg((uint8_t)address, (uint8_t)opcode)) {
         return 0;
       }
       cdc_printfln("Send failed (queue full)");
@@ -346,7 +348,7 @@ static const tclie_cmd_t cmds[] = {
     {"debug", exec_debug, "Control debug output.", "debug {on|off}"},
     {"query", exec_query, "Query information.", "query {edid}"},
     {"save", exec_save, "Save configuration.", "save"},
-    {"send", exec_send, "Send a CEC opcode (broadcast).", "send <opcode>"},
+    {"send", exec_send, "Send a CEC opcode.", "send <addr> <opcode>"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
      "{playback|recording}))|(keymap <value>)}"},
@@ -387,9 +389,9 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
 
   if (dtr) {
     // Terminal connected
-    tud_cdc_write_str("Connected"_CDC_BR);
+    tud_cdc_write_str("Connected" _CDC_BR);
   } else {
     // Terminal disconnected
-    tud_cdc_write_str("Disconnected"_CDC_BR);
+    tud_cdc_write_str("Disconnected" _CDC_BR);
   }
 }

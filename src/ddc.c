@@ -41,13 +41,13 @@ static int verify(uint8_t *edid, size_t len) {
   // log the data
   if ((len % 8) == 0) {
     for (size_t i = 0; i < len; i += 8) {
-      cec_log_submitf("[%d] %02x %02x %02x %02x %02x %02x %02x %02x"_LOG_BR, i, edid[i],
+      cec_log_submitf("[%d] %02x %02x %02x %02x %02x %02x %02x %02x" _LOG_BR, i, edid[i],
                       edid[i + 1], edid[i + 2], edid[i + 3], edid[i + 4], edid[i + 5], edid[i + 6],
                       edid[i + 7]);
     }
   } else {
     for (size_t i = 0; i < len; i++) {
-      cec_log_submitf("[%d] %02x"_LOG_BR, i, edid[i]);
+      cec_log_submitf("[%d] %02x" _LOG_BR, i, edid[i]);
     }
   }
 
@@ -65,16 +65,16 @@ static int verify(uint8_t *edid, size_t len) {
 static int read_edid_block(uint8_t *edid, size_t len) {
   int ret = i2c_read_timeout_us(i2c_default, EDID_I2C_ADDR, edid, len, false, EDID_I2C_TIMEOUT_US);
   if (ret != len) {
-    cec_log_submitf("Failed to read %d bytes from 0x%02x"_LOG_BR, len, EDID_I2C_ADDR);
+    cec_log_submitf("Failed to read %d bytes from 0x%02x" _LOG_BR, len, EDID_I2C_ADDR);
     return PICO_ERROR_GENERIC;
   }
 
   if (verify(edid, len)) {
-    cec_log_submitf("Failed to verify EDID block checksum"_LOG_BR);
+    cec_log_submitf("Failed to verify EDID block checksum" _LOG_BR);
     return PICO_ERROR_GENERIC;
   }
 
-  cec_log_submitf("Read %d bytes from 0x%02x"_LOG_BR, ret, EDID_I2C_ADDR);
+  cec_log_submitf("Read %d bytes from 0x%02x" _LOG_BR, ret, EDID_I2C_ADDR);
 
   return PICO_ERROR_NONE;
 }
@@ -94,7 +94,7 @@ static uint16_t find_physical_address(uint8_t *block, size_t len) {
   if (memcmp(&block[1], vsbhdr, 3) == 0) {
     // HDMI Licensing, LLC block
     uint16_t addr = (block[4] << 8) | block[3];
-    cec_log_submitf("  physical address = %04x"_LOG_BR, addr);
+    cec_log_submitf("  physical address = %04x" _LOG_BR, addr);
     return addr;
   }
 
@@ -113,23 +113,23 @@ static uint16_t get_physical_address(void) {
     return 0x0000;
   }
 
-  cec_log_submitf(" EDID header"_LOG_BR);
+  cec_log_submitf(" EDID header" _LOG_BR);
   if (edid[126] == 0x00) {
-    cec_log_submitf("Missing CTA extensions"_LOG_BR);
+    cec_log_submitf("Missing CTA extensions" _LOG_BR);
     return 0x0000;
   }
 
   uint8_t *cta = &edid[EDID_BLOCK_SIZE];
   if (memcmp(cta, ctahdr, 2) == 0) {
     // Valid CTA extension block
-    cec_log_submitf(" CTA Extension"_LOG_BR);
-    cec_log_submitf("    DTD start: 0x%02x"_LOG_BR, cta[EDID_CTA_DTD_START]);
+    cec_log_submitf(" CTA Extension" _LOG_BR);
+    cec_log_submitf("    DTD start: 0x%02x" _LOG_BR, cta[EDID_CTA_DTD_START]);
 
     uint8_t offset = EDID_CTA_DBC_OFFSET;
     for (uint8_t i = offset; i < cta[EDID_CTA_DTD_START];) {
       uint8_t *db = &cta[i];
       uint8_t len = (db[0] & 0x1f);
-      cec_log_submitf("  [%u](%u) data block: %02x"_LOG_BR, i, len, db[0]);
+      cec_log_submitf("  [%u](%u) data block: %02x" _LOG_BR, i, len, db[0]);
       if (len == 0x00) {
         i++;
         continue;
@@ -153,11 +153,11 @@ uint16_t ddc_get_physical_address(void) {
 
   ddc_init();
 
-  cec_log_submitf("%s"_LOG_BR, "Issuing DDC reset");
+  cec_log_submitf("%s" _LOG_BR, "Issuing DDC reset");
   // issue a DDC reset
   int ret = i2c_write_timeout_us(i2c_default, EDID_I2C_ADDR, &zero, 1, true, EDID_I2C_TIMEOUT_US);
   if (ret != 1) {
-    cec_log_submitf("Failed to write DDC reset: %s"_LOG_BR,
+    cec_log_submitf("Failed to write DDC reset: %s" _LOG_BR,
                     ret == PICO_ERROR_TIMEOUT ? "timeout" : "generic");
     return 0x0000;
   }

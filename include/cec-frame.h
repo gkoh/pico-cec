@@ -8,14 +8,30 @@
 #define CEC_PIN 3  // GPIO3 == D10 (Seeed Studio XIAO RP2040)
 #endif
 
+/* Maximum length of CEC frame in bytes. */
+#define CEC_FRAME_MAX_LEN (16)
+
+/* Maximum length of CEC frame operand in bytes. */
+#define CEC_FRAME_MAX_OPERAND_LEN (CEC_FRAME_MAX_LEN - 2)
+
 extern TaskHandle_t xCECTask;
 
 #define NOTIFY_RX ((UBaseType_t)0)
 #define NOTIFY_TX ((UBaseType_t)1)
-#define NOTIFY_KICK ((UBaseType_t)2)
 
-typedef struct {
-  uint8_t *data;
+#define NOTIFY_RX_RX (1UL << 0)
+#define NOTIFY_RX_ABORT (1UL << 1)
+#define NOTIFY_RX_TX (1UL << 2)
+
+typedef struct __attribute__((packed)) {
+  union {
+    struct {
+      uint8_t header;
+      uint8_t opcode;
+      uint8_t operand[CEC_FRAME_MAX_OPERAND_LEN];
+    };
+    uint8_t data[CEC_FRAME_MAX_LEN];
+  };
   uint8_t len;
 } cec_message_t;
 
@@ -56,7 +72,7 @@ typedef struct {
 
 void cec_frame_init(void);
 void cec_frame_get_stats(cec_frame_stats_t *stats);
-bool cec_frame_send(uint8_t pldcnt, uint8_t *pld);
-uint8_t cec_frame_recv(uint8_t *pld, uint8_t address);
+bool cec_frame_send(const cec_message_t *message);
+void cec_frame_recv(cec_message_t *message, uint8_t address);
 
 #endif
