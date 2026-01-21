@@ -227,9 +227,9 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], status);
         break;
       case CEC_ID_MENU_STATUS:
-        log_printf(initiator, destination, recv, frame->ack, "[%s][%02x]",
-                   cec_message[cmd], msg->data[2]);
-        break;        
+        log_printf(initiator, destination, recv, frame->ack, "[%s][%02x]", cec_message[cmd],
+                   msg->data[2]);
+        break;
       default: {
         const char *message = cec_message[cmd];
         if (strlen(message) > 0) {
