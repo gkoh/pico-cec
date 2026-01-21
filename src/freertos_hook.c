@@ -29,11 +29,12 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#include "common/tusb_common.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "ws2812.h"
 
-void vApplicationStackOverflowHook(xTaskHandle pxTask, char *pcTaskName) {
+void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName) {
   (void)pxTask;
   (void)pcTaskName;
 

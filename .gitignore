@@ -1,4 +1,6 @@
 build
 generated
+project_info.h
 *.stl
+*.sh
 .vscode

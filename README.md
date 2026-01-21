@@ -146,7 +146,7 @@ The software is extremely simple and built on FreeRTOS tasks:
    * read the user control messages from the queue and send to the USB task
 * usbd_task
    * generate an HID keyboard input for the USB host
-* blink_task
+* led_task
    * heart beat, no blink == no work
 
 ## cec_task

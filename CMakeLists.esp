@@ -1,0 +1,65 @@
+# The following lines of boilerplate have to be in your project's
+# CMakeLists in this exact order for cmake to work correctly
+cmake_minimum_required(VERSION 3.16)
+
+# Dynamically determine project name from directory name
+get_filename_component(my_project_name "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+
+# Replace spaces with underscores
+string(REPLACE " " "_" my_project_name "${my_project_name}")
+
+# Pass sanitized project name to ESP-IDF system
+set(PROJECT_NAME "${my_project_name}")
+
+# ESP-IDF build system takes over here
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+# "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+idf_build_set_property(MINIMAL_BUILD ON)
+
+# Now declare the project explicitly (safe name)
+#project("${my_project_name}")
+project("${my_project_name}" VERSION 1.2.3)
+
+#-------------------------------------------------------------------------------
+# Create version header file for inclusion in the source code
+
+idf_build_get_property(PROJ_NAME PROJECT_NAME)
+idf_build_get_property(PROJ_VER PROJECT_VER)
+
+#message(STATUS "Building with ESP-IDF version: ${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}")
+set(SDK_VERSION ${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH})
+#set(SDK_VERSION ${PICO_SDK_VERSION_STRING})
+
+# TODO: not possible to obtain the target board name here?
+#set(BOARD_NAME ${PICO_BOARD})
+
+# Git info
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND bash -c "git diff --quiet || echo +dirty"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_DIRTY
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S")
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/project_info.h.in
+    ${CMAKE_BINARY_DIR}/project_info.h
+    @ONLY
+)

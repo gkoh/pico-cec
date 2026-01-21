@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <hardware/flash.h>
-#include <hardware/sync.h>
+#include "portable.h"
+DECLARE_TAG()
 
 #include "crc/crc32.h"
 
-#include "cec-config.h"
+#include "config-keymap.h"
 #include "nvs.h"
 
 /**
@@ -43,20 +43,10 @@ typedef struct __attribute__((packed)) {
  * Structure is packed to ensure checksum correctness.
  */
 typedef struct __attribute__((packed)) {
-  /** DDC EDID delay in milliseconds. */
-  uint32_t edid_delay_ms;
-
-  /** CEC physical address. */
-  uint16_t physical_address;
-
-  /** CEC logical address (unused). */
-  uint8_t logical_address;
-
-  /** CEC device type (unused). */
-  uint8_t device_type;
+  cec_config_t cec;
 
   /** Keymap. */
-  cec_config_keymap_t keymap_type;
+  config_keymap_t keymap_type;
 
   /** User Control key mapping table. */
   uint8_t keymap[UINT8_MAX];
@@ -89,7 +79,7 @@ extern uint32_t __CEC_NVS_LEN[];
 
 const uint8_t CEC_CONFIG_VERSION_01 = 0x01;
 const uint8_t CEC_CONFIG_VERSION = 0x02;
-const size_t CEC_CONFIG_SIZE = sizeof(cec_config_t);
+const size_t CEC_CONFIG_SIZE = sizeof(config_t);
 
 static uint32_t nvs_get_flash_address(void) {
   return ((uint32_t)CEC_NVS_BASE_ADDR - XIP_BASE);
@@ -98,12 +88,12 @@ static uint32_t nvs_get_flash_address(void) {
 /**
  * Migrate v1 config to current config.
  */
-static bool migrate_v1(const pico_cec_nvs_t *nvs, cec_config_t *config) {
+static bool migrate_v1(const pico_cec_nvs_t *nvs, config_t *config) {
   if (crc32((unsigned char *)&nvs->config, sizeof(cec_config_nvs_v1_t)) == nvs->config_crc) {
     cec_config_nvs_v1_t *configv1 = (cec_config_nvs_v1_t *)&nvs->config;
     // deserialise and migrate
-    config->edid_delay_ms = configv1->edid_delay_ms;
-    config->physical_address = configv1->physical_address;
+    config->cec.edid_delay_ms = configv1->edid_delay_ms;
+    config->cec.physical_address = configv1->physical_address;
     for (uint8_t n = 0; n < UINT8_MAX; n++) {
       config->keymap[n].key = configv1->keymap[n];
     }
@@ -117,16 +107,18 @@ static bool migrate_v1(const pico_cec_nvs_t *nvs, cec_config_t *config) {
 /**
  * Load current config.
  */
-static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
+static bool load_config(pico_cec_nvs_t *nvs, config_t *config) {
   if (crc32((unsigned char *)&nvs->config, sizeof(nvs->config)) == nvs->config_crc) {
     // deserialise
-    config->edid_delay_ms = nvs->config.edid_delay_ms;
-    config->physical_address = nvs->config.physical_address;
-    config->logical_address = nvs->config.logical_address;
-    config->device_type = nvs->config.device_type;
+    config->cec.edid_delay_ms = nvs->config.cec.edid_delay_ms;
+    config->cec.monitor_mode = nvs->config.cec.monitor_mode;
+    config->cec.physical_address = nvs->config.cec.physical_address;
+    config->cec.logical_address = nvs->config.cec.logical_address;
+    config->cec.device_type = nvs->config.cec.device_type;
+    config->cec.allocated_laddr = nvs->config.cec.allocated_laddr;
     // hack to support previous unused setting
-    if (config->device_type == CEC_CONFIG_DEVICE_TYPE_TV) {
-      config->device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
+    if (config->cec.device_type == CEC_CONFIG_DEVICE_TYPE_TV) {
+      config->cec.device_type = CEC_CONFIG_DEVICE_TYPE_PLAYBACK;
     }
     config->keymap_type = nvs->config.keymap_type;
     for (uint8_t n = 0; n < UINT8_MAX; n++) {
@@ -139,14 +131,21 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
   return false;
 }
 
-bool nvs_read_config(cec_config_t *config) {
+bool nvs_read_config(config_t *config) {
   bool success = false;
 
+#if defined(__XTENSA__) || defined(__riscv)
+  pico_cec_nvs_t pico_cec_nvs = {0x0};
+  flash_range_read(nvs_get_flash_address(), (const void *)&pico_cec_nvs, sizeof(pico_cec_nvs));
+  pico_cec_nvs_t *cec_nvs = &pico_cec_nvs;
+#else
   // flash is mmapped for read
   pico_cec_nvs_t *cec_nvs = (pico_cec_nvs_t *)(CEC_NVS_BASE_ADDR);
+#endif
 
   // start with default config, then overlay from nvs
-  cec_config_set_default(config);
+  cec_config_set_default(&config->cec);
+  config_keymap_set_default(config);
 
   // read and check header/config CRCs
   if (crc32((unsigned char *)&cec_nvs->header, sizeof(cec_nvs->header)) == cec_nvs->header_crc) {
@@ -160,29 +159,30 @@ bool nvs_read_config(cec_config_t *config) {
   return success;
 }
 
-void nvs_load_config(cec_config_t *config) {
+void nvs_load_config(config_t *config) {
   nvs_read_config(config);
 
   switch (config->keymap_type) {
-    case CEC_CONFIG_KEYMAP_KODI:
-    case CEC_CONFIG_KEYMAP_MISTER:
-      cec_config_set_keymap(config);
+    case CONFIG_KEYMAP_KODI:
+    case CONFIG_KEYMAP_MISTER:
+      config_keymap_set(config);
       break;
-    case CEC_CONFIG_KEYMAP_CUSTOM:
+    case CONFIG_KEYMAP_CUSTOM:
       // should already be loaded
       break;
     default:
       break;
   }
 
-  cec_config_complete(config);
+  config_keymap_complete(config);
 
   return;
 }
 
-bool nvs_save_config(const cec_config_t *config) {
+bool nvs_save_config(const config_t *config) {
   pico_cec_nvs_t cec_nvs = {0x0};
 
+  // TODO: it looks like CEC_NVS_LEN is the address of a variable containing a len
   if (sizeof(cec_nvs) > CEC_NVS_LEN) {
     return false;
   }
@@ -193,10 +193,12 @@ bool nvs_save_config(const cec_config_t *config) {
   cec_nvs.header_crc = crc32((unsigned char *)&cec_nvs.header, sizeof(cec_nvs.header));
 
   // serialise and checksum config
-  cec_nvs.config.edid_delay_ms = config->edid_delay_ms;
-  cec_nvs.config.physical_address = config->physical_address;
-  cec_nvs.config.logical_address = config->logical_address;
-  cec_nvs.config.device_type = config->device_type;
+  cec_nvs.config.cec.edid_delay_ms = config->cec.edid_delay_ms;
+  cec_nvs.config.cec.monitor_mode = config->cec.monitor_mode;
+  cec_nvs.config.cec.physical_address = config->cec.physical_address;
+  cec_nvs.config.cec.logical_address = config->cec.logical_address;
+  cec_nvs.config.cec.device_type = config->cec.device_type;
+  cec_nvs.config.cec.allocated_laddr = config->cec.allocated_laddr;
   cec_nvs.config.keymap_type = config->keymap_type;
 
   for (unsigned int n = 0; n < UINT8_MAX; n++) {
@@ -221,3 +223,17 @@ bool nvs_save_config(const cec_config_t *config) {
 
   return true;
 }
+
+#if defined(__XTENSA__) || defined(__riscv)
+#else
+// // {0x04, 0x08, 0x0b, 0x0f},  // Playback Device
+uint8_t foo_laddr = 0x0b;
+
+void save_logical_address(uint8_t addr) {
+  foo_laddr = addr;
+}
+
+uint8_t load_logical_address(void) {
+  return foo_laddr;
+}
+#endif

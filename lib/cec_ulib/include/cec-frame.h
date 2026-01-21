@@ -4,10 +4,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#ifndef CEC_PIN
-#define CEC_PIN 3  // GPIO3 == D10 (Seeed Studio XIAO RP2040)
-#endif
-
 extern TaskHandle_t xCECTask;
 
 typedef struct {
@@ -27,14 +23,15 @@ typedef enum {
   CEC_FRAME_STATE_ACK_WAIT = 8,
   CEC_FRAME_STATE_ACK_END = 9,
   CEC_FRAME_STATE_END = 10,
-  CEC_FRAME_STATE_ABORT = 11
+  CEC_FRAME_STATE_ARBITRATION = 11,
+  CEC_FRAME_STATE_ABORT = 12
 } cec_frame_state_t;
 
 typedef struct cec_frame_t {
   cec_message_t *message;
   unsigned int bit;
   unsigned int byte;
-  uint64_t start;
+  uint32_t start;
   bool first;
   bool eom;
   bool ack;
@@ -48,11 +45,22 @@ typedef struct {
   uint32_t tx_frames;
   uint32_t rx_abort_frames;
   uint32_t tx_noack_frames;
+  uint32_t tx_arb_fails;
+  uint32_t idle_timeouts;
+  uint32_t dwell_period_max;
 } cec_frame_stats_t;
 
-void cec_frame_init(void);
+void cec_frame_init(unsigned int gpio);
+void cec_frame_clear_stats(void);
 void cec_frame_get_stats(cec_frame_stats_t *stats);
-bool cec_frame_send(uint8_t pldcnt, uint8_t *pld);
+bool cec_frame_send(uint8_t pldcnt, uint8_t *pld, bool force);
 uint8_t cec_frame_recv(uint8_t *pld, uint8_t address);
+void cec_frame_set_monitor_mode(int mode);
+int cec_frame_get_monitor_mode(void);
+
+bool cec_frame_ping(uint8_t destination);
+
+/* Construct the frame address header. */
+#define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
 
 #endif

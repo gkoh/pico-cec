@@ -28,16 +28,13 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
-#include "queue.h"
-#include "semphr.h"
 #include "task.h"
 
-#include "bsp/board.h"
-#include "pico/stdlib.h"
-#include "tusb.h"
+#include "portable.h"
+DECLARE_TAG()
 
+#include "usb-hid.h"
 #include "usb_descriptors.h"
-#include "usb_hid.h"
 
 // USB Device Driver task
 // This top level thread process all usb events and invoke callbacks

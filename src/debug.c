@@ -4,15 +4,21 @@
 #include "queue.h"
 #include "task.h"
 
-#include "hardware/timer.h"
-#include "pico/stdlib.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "cec-frame.h"
 #include "cec-task.h"
 
-#define BLINK_STACK_SIZE (128)
-#define CEC_STACK_SIZE (512)
+#ifndef STACK_WORDSIZE
+#define STACK_WORDSIZE 1
+#endif
+
+#define BLINK_STACK_SIZE (512 * STACK_WORDSIZE)
+// #define CEC_STACK_SIZE (512 * STACK_WORDSIZE)
 #define CEC_QUEUE_LENGTH (16)
+
+void cec_task(void *param);
 
 static void blink_task(void *param) {
   static uint32_t blink_delay = 1000;
@@ -25,7 +31,11 @@ static void blink_task(void *param) {
   }
 }
 
+#if defined(__XTENSA__) || defined(__riscv)
+int debug_main() {
+#else
 int main() {
+#endif
   static StaticQueue_t xStaticCECQueue;
   static uint8_t storageCECQueue[CEC_QUEUE_LENGTH * sizeof(uint8_t)];
 
