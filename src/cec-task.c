@@ -144,6 +144,12 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
   cec_frame_send(4, pld);
 }
 
+static void menu_status(uint8_t initiator, uint8_t destination, bool activated) {
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_MENU_STATUS, (uint8_t)activated};
+
+  cec_frame_send(3, pld);
+}
+
 static uint8_t allocate_logical_address(cec_config_t *config) {
   if (config->logical_address != 0x00 && config->logical_address != 0x0f) {
     return config->logical_address;
@@ -273,6 +279,7 @@ void cec_task(void *param) {
             active_addr = paddr;
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
+            menu_status(laddr, 0x00, true);
             no_active = 0;
             blink_set_blink(BLINK_STATE_GREEN_2HZ);
           }
