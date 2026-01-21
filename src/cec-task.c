@@ -145,7 +145,7 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
 }
 
 static void menu_status(uint8_t initiator, uint8_t destination, bool activated) {
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_MENU_STATUS, (uint8_t)activated};
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_MENU_STATUS, (uint8_t) !activated};
 
   cec_frame_send(3, pld);
 }
