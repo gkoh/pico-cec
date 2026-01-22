@@ -66,6 +66,8 @@ SECTIONS
         KEEP (*(.vectors))
         KEEP (*(.binary_info_header))
         __binary_info_header_end = .;
+        KEEP (*(.embedded_block))
+        __embedded_block_end = .;
         KEEP (*(.reset))
     }
 
@@ -105,8 +107,13 @@ SECTIONS
     } > NVS
 
     /* Vector table goes first in RAM, to avoid large alignment hole */
-   .ram_vector_table (NOLOAD): {
+    .ram_vector_table (NOLOAD): {
         *(.ram_vector_table)
+    } > RAM
+
+    .uninitialized_data (NOLOAD): {
+        . = ALIGN(4);
+        *(.uninitialized_data*)
     } > RAM
 
     .text : {
@@ -178,16 +185,48 @@ SECTIONS
 
         *(.jcr)
         . = ALIGN(4);
-        /* All data end */
-        __data_end__ = .;
     } > RAM AT> FLASH
+
+    .tdata : {
+        . = ALIGN(4);
+		*(.tdata .tdata.* .gnu.linkonce.td.*)
+        /* All data end */
+        __tdata_end = .;
+    } > RAM AT> FLASH
+    PROVIDE(__data_end__ = .);
+
     /* __etext is (for backwards compatibility) the name of the .data init source pointer (...) */
     __etext = LOADADDR(.data);
 
-    .uninitialized_data (NOLOAD): {
+    .tbss (NOLOAD) : {
         . = ALIGN(4);
-        *(.uninitialized_data*)
+        __bss_start__ = .;
+        __tls_base = .;
+        *(.tbss .tbss.* .gnu.linkonce.tb.*)
+        *(.tcommon)
+
+        __tls_end = .;
     } > RAM
+
+    .bss  : {
+        . = ALIGN(4);
+        __tbss_end = .;
+
+        *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.bss*)))
+        *(COMMON)
+        . = ALIGN(4);
+        __bss_end__ = .;
+    } > RAM
+
+    .heap (NOLOAD):
+    {
+        __end__ = .;
+        end = __end__;
+        KEEP(*(.heap*))
+    } > RAM
+    /* historically on GCC sbrk was growing past __HeapLimit to __StackLimit, however
+       to be more compatible, we now set __HeapLimit explicitly to where the end of the heap is */
+    __HeapLimit = ORIGIN(RAM) + LENGTH(RAM);
 
     /* Start and end symbols must be word-aligned */
     .scratch_x : {
@@ -205,23 +244,6 @@ SECTIONS
         __scratch_y_end__ = .;
     } > SCRATCH_Y AT > FLASH
     __scratch_y_source__ = LOADADDR(.scratch_y);
-
-    .bss  : {
-        . = ALIGN(4);
-        __bss_start__ = .;
-        *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.bss*)))
-        *(COMMON)
-        . = ALIGN(4);
-        __bss_end__ = .;
-    } > RAM
-
-    .heap (NOLOAD):
-    {
-        __end__ = .;
-        end = __end__;
-        KEEP(*(.heap*))
-        __HeapLimit = .;
-    } > RAM
 
     /* .stack*_dummy section doesn't contains any symbols. It is only
      * used for linker to calculate size of stack sections, and assign
@@ -242,7 +264,8 @@ SECTIONS
     } > SCRATCH_Y
 
     .flash_end : {
-        __flash_binary_end = .;
+        KEEP(*(.embedded_end_block*))
+        PROVIDE(__flash_binary_end = .);
     } > FLASH
 
     /* stack limit is poorly named, but historically is maximum heap ptr */
@@ -252,6 +275,17 @@ SECTIONS
     __StackOneBottom = __StackOneTop - SIZEOF(.stack1_dummy);
     __StackBottom = __StackTop - SIZEOF(.stack_dummy);
     PROVIDE(__stack = __StackTop);
+
+    /* picolibc and LLVM */
+    PROVIDE (__heap_start = __end__);
+    PROVIDE (__heap_end = __HeapLimit);
+    PROVIDE( __tls_align = MAX(ALIGNOF(.tdata), ALIGNOF(.tbss)) );
+    PROVIDE( __tls_size_align = (__tls_size + __tls_align - 1) & ~(__tls_align - 1));
+    PROVIDE( __arm32_tls_tcb_offset = MAX(8, __tls_align) );
+
+    /* llvm-libc */
+    PROVIDE (_end = __end__);
+    PROVIDE (__llvm_libc_heap_limit = __HeapLimit);
 
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed")

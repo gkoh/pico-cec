@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 
 set(PROJECT pico-cec)
-set(FAMILY rp2040)
 set(BOARD "pico_sdk") # Configure TinyUSB use pico-sdk board configuration
 set(PICO_BOARD "seeed_xiao_rp2040" CACHE STRING "Raspberry Pi Pico board type.")
 
+#set(PICO_BOARD "seeed_xiao_rp2350" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "waveshare_rp2040_zero" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "vcc_gnd_yd_2040" CACHE STRING "Raspberry Pi Pico board type.")
 #set(PICO_BOARD "pico" CACHE STRING "Raspberry Pi Pico board type.")
@@ -23,7 +23,13 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # Include FreeRTOS kernel
+if(${PICO_PLATFORM} STREQUAL "rp2040")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Kernel/portable/ThirdParty/GCC/RP2040)
+elseif(${PICO_PLATFORM} STREQUAL "rp2350-arm-s")
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Kernel/portable/ThirdParty/GCC/RP2350_ARM_NTZ)
+else()
+message(FATAL_ERROR "Unsupport Pico platform: ${PICO_PLATFORM}")
+endif()
 
 # Include CRC library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/crc)
@@ -105,7 +111,7 @@ target_link_libraries(${PROJECT}
 
 pico_add_extra_outputs(${PROJECT})
 pico_set_binary_type(${PROJECT} copy_to_ram)
-pico_set_linker_script(${PROJECT} ${PROJECT_SOURCE_DIR}/src/memmap_ram_nvs.ld)
+pico_set_linker_script(${PROJECT} ${PROJECT_SOURCE_DIR}/src/memmap_ram_nvs_${PICO_PLATFORM}.ld)
 
 # disable stdio and uart
 pico_enable_stdio_usb(${PROJECT} 0)
