@@ -138,6 +138,7 @@ const char *cec_message[] = {
     [CEC_ID_DEVICE_VENDOR_ID] = "Device Vendor ID",
     [CEC_ID_GIVE_DEVICE_VENDOR_ID] = "Give Device Vendor ID",
     [CEC_ID_MENU_STATUS] = "Menu Status",
+    [CEC_ID_MENU_REQUEST] = "Menu Request",
     [CEC_ID_GIVE_DEVICE_POWER_STATUS] = "Give Device Power Status",
     [CEC_ID_REPORT_POWER_STATUS] = "Report Power Status",
     [CEC_ID_GET_MENU_LANGUAGE] = "Get Menu Language",
@@ -227,6 +228,7 @@ void cec_log_frame(cec_frame_t *frame, bool recv) {
         log_printf(initiator, destination, recv, frame->ack, "[%s][%s]", cec_message[cmd], status);
         break;
       case CEC_ID_MENU_STATUS:
+      case CEC_ID_MENU_REQUEST:
         log_printf(initiator, destination, recv, frame->ack, "[%s][%02x]", cec_message[cmd],
                    msg->data[2]);
         break;

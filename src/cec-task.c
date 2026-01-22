@@ -144,10 +144,11 @@ static void active_source(uint8_t initiator, uint16_t physical_address) {
   cec_frame_send(4, pld);
 }
 
-static void menu_status(uint8_t initiator, uint8_t destination, bool activated) {
-  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_MENU_STATUS, (uint8_t)!activated};
+static void menu_status(uint8_t initiator, uint8_t destination, bool menu_state) {
+  uint8_t state = menu_state ? (uint8_t)CEC_MENU_ACTIVATE : (uint8_t)CEC_MENU_DEACTIVATE;
+  uint8_t pld[3] = {HEADER0(initiator, destination), CEC_ID_MENU_STATUS, state};
 
-  cec_frame_send(3, pld);
+  cec_frame_send(sizeof(pld), pld);
 }
 
 static uint8_t allocate_logical_address(cec_config_t *config) {
@@ -184,6 +185,9 @@ uint8_t cec_get_logical_address(void) {
 
 void cec_task(void *param) {
   QueueHandle_t *q = (QueueHandle_t *)param;
+
+  /* Menu state. */
+  bool menu_state = false;
 
   // load configuration
   nvs_load_config(&config);
@@ -279,7 +283,8 @@ void cec_task(void *param) {
             active_addr = paddr;
             image_view_on(laddr, 0x00);
             active_source(laddr, paddr);
-            menu_status(laddr, 0x00, true);
+            menu_state = true;
+            menu_status(laddr, 0x00, menu_state);
             no_active = 0;
             blink_set_blink(BLINK_STATE_GREEN_2HZ);
           }
@@ -295,6 +300,22 @@ void cec_task(void *param) {
             device_vendor_id(laddr, 0x0f, 0x0010FA);
           break;
         case CEC_ID_MENU_STATUS:
+          break;
+        case CEC_ID_MENU_REQUEST:
+          if (destination == laddr) {
+            cec_menu_t request = (uint8_t)pld[2];
+            switch (request) {
+              case CEC_MENU_ACTIVATE:
+                menu_state = true;
+                break;
+              case CEC_MENU_DEACTIVATE:
+                menu_state = false;
+                break;
+              case CEC_MENU_QUERY:
+                break;
+            }
+            menu_status(laddr, initiator, menu_state);
+          }
           break;
         case CEC_ID_GIVE_DEVICE_POWER_STATUS:
           if (destination == laddr)
