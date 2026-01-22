@@ -36,6 +36,7 @@ jobs:
       matrix:
         pico_board:
           - seeed_xiao_rp2040
+          - seeed_xiao_rp2350
           - waveshare_rp2040_zero
           - vcc_gnd_yd_2040
 
@@ -55,7 +56,7 @@ jobs:
         sudo apt install --no-install-recommends -y gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/${{matrix.pico_board}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPICO_CEC_VERSION=${{github.ref_name}}
+      run: cmake -B ${{github.workspace}}/${{matrix.pico_board}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPICO_CEC_VERSION=${{github.ref_name}} -DPICO_BOARD=${{matrix.pico_board}}
 
     - name: Build Pico-CEC
       run: cmake --build ${{github.workspace}}/${{matrix.pico_board}} --config ${{env.BUILD_TYPE}} --parallel
