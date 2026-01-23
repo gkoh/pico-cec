@@ -1,8 +1,13 @@
 .PHONY: all stl
 
+COMPONENTS := pico-cec-base.stl pico-cec-middle.stl pico-cec-top.stl pico-cec-pusher.stl
+
 %.stl: %.scad pico-cec-lib.scad
 	openscad -o $@ $<
 
-all: stl
+pico-cec.tar.gz: ${COMPONENTS}
+	@tar czvf $@ $^
 
-stl: pico-cec-base.stl pico-cec-middle.stl pico-cec-top.stl pico-cec.stl
+all: stl pico-cec.tar.gz
+
+stl: ${COMPONENTS} pico-cec.stl

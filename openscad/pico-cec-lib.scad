@@ -158,6 +158,8 @@ module middle() {
             // hdmi adapter pins
             translate([0, 4, 0])
                 cube([27.8, 8, 4.05], true);
+            translate([0, 0, 0])
+                cube([15.0, 8, 4.05], true);
         }
         // usb-c port bottom half
         translate([0, -20.25, (4+2.9)/2])
@@ -173,6 +175,14 @@ module middle() {
          translate([9.6, -14.5, (4+2.9)/2])
             cube([1.3, 12, 2.9], true);
         }
+}
+
+module pusher() {
+    union() {
+      cylinder(h=8.0,r=1.5);
+      translate([0, 0, 1.5])
+          cylinder(h=4.6/2, r1=2.0, r2=1.5);
+    }
 }
 
 module top() {
@@ -195,11 +205,24 @@ module top() {
             head_m3();
         translate([11, 2, 2.5])
             head_m3();
-        // led/button slot
-        translate([0, 6.7, 2.2])
-            cube([15, 3, 5], true);
+
+        // R button shaft
+        translate([5.0, 7.5, -2.0])
+            scale([1.15, 1.15, 1.1]) pusher();
+        translate([5.0, 7.5, -5.0])
+            cylinder(h=5,r=2.3);
+        // B button shaft
+        translate([-5.0, 7.5, -2.0])
+            scale([1.15, 1.15, 1.1]) pusher();
+        translate([-5.0, 7.5, -5.0])
+            cylinder(h=5,r=2.3);
+
         // power led
         translate([-6, -10, -0.3])
+            cylinder(5, r=1.5);
+
+        // RGB led
+        translate([0, 6, -0.3])
             cylinder(5, r=1.5);
     }
 }
