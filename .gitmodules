@@ -10,3 +10,6 @@
 [submodule "crc"]
 	path = crc
 	url = https://github.com/gityf/crc
+[submodule "openscad/BOSL2"]
+	path = openscad/BOSL2
+	url = https://github.com/BelfrySCAD/BOSL2.git

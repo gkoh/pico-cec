@@ -1,3 +1,5 @@
+include <BOSL2/std.scad>
+
 $fa = 1;
 $fs = $preview ? 2 : 0.5;
 
@@ -91,7 +93,7 @@ module base() {
     difference() {
         union() {
             difference() {
-                cube([32, 40.5+1.5, 9], true);
+                cuboid([32, 40.5+1.5, 9], chamfer=1, edges=BOTTOM);
                 translate([0, 0, 1.5])
                     cube([32-3, 40.5+1.5-3, 9-1.5], true);
                 translate([0, 4.1, 1.5])
@@ -102,14 +104,14 @@ module base() {
                     cube([15.0, 3, 3], true);
             }
             // posts
-            translate([11, 13.0, -4.5])
-                cylinder(5, r=5);
-            translate([11, -4.0, -4.5])
-                cylinder(5, r=5);
-            translate([-11, 13.0, -4.5])
-                cylinder(5, r=5);
-            translate([-11, -4.0, -4.5])
-                cylinder(5, r=5);
+            translate([11, 13.0, -3.5])
+                cylinder(4, r=5);
+            translate([11, -4.0, -3.5])
+                cylinder(4, r=5);
+            translate([-11, 13.0, -3.5])
+                cylinder(4, r=5);
+            translate([-11, -4.0, -3.5])
+                cylinder(4, r=5);
         }
         // bolt
         translate([11, 13.0, -4.55])
@@ -135,7 +137,7 @@ module base() {
 module middle() {
     union() {
         difference() {
-            cube([32, 40.5+1.5, 4], true);
+            cuboid([32, 40.5+1.5, 4], chamfer=1, edges=TOP+BACK+LEFT+RIGHT);
             // bolt
             translate([11, 13.0, -2.55])
                 cylinder(5.1, r=1.6);
@@ -187,7 +189,7 @@ module pusher() {
 
 module top() {
     difference() {
-        cube([32,30, 9], true);
+        cuboid([32,30, 9], chamfer=1, edges=TOP);
         translate([0, -2.5, -3])
             cube([32-3, 30-8.5, 9-3], true);
         translate([0, -13.25, -1.5 ])
