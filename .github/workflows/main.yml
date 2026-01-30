@@ -11,7 +11,6 @@ on:
 env:
   BUILD_TYPE: Release
   RELEASE_ZIP: pico-cec-${{github.ref_name}}.zip
-  RELEASE_BOARD: seeed_xiao_rp2040
 
 jobs:
   format:
@@ -118,9 +117,10 @@ jobs:
     - name: Generate release hashes
       run: |
         ls -lR
-        mv pico-cec-${{env.RELEASE_BOARD}}-${{github.run_id}}/pico-cec.uf2 .
+        mv pico-cec-seeed_xiao_rp2040-${{github.run_id}}/pico-cec-seeed_xiao_rp2040-${{github.ref_name}}.uf2 .
+        mv pico-cec-seeed_xiao_rp2350-${{github.run_id}}/pico-cec-seeed_xiao_rp2350-${{github.ref_name}}.uf2 .
         mv pico-cec-stl-${{github.run_id}}/*.stl .
-        sha256sum pico-cec.uf2 *.stl > sha256sum.txt
+        sha256sum pico-cec*.uf2 *.stl > sha256sum.txt
 
     - name: Compress release assets
       run: |
