@@ -124,7 +124,7 @@ jobs:
 
     - name: Compress release assets
       run: |
-        zip ${{env.RELEASE_ZIP}} pico-cec.uf2 *.stl sha256sum.txt
+        zip ${{env.RELEASE_ZIP}} pico-cec*.uf2 *.stl sha256sum.txt
 
     - name: Release
       uses: softprops/action-gh-release@v2
