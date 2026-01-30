@@ -3,7 +3,11 @@
 A Raspberry Pi Pico based project to bridge HDMI CEC (Consumer Electronics
 Control) and USB HID keyboard control (especially for use with Kodi).
 
-![Fully assembled Pico-CEC.](https://github.com/gkoh/pico-cec/assets/5484552/443a47cb-7011-49a5-afbe-c527a2d5b086)
+![Fully assembled Pico-CEC.](https://github.com/user-attachments/assets/7b971a8d-e5fd-4bc1-8ff5-a342004288a5)
+
+## Update January 2026
+
+The reference hardware for `pico-cec` has been upgraded from RP2040 to RP2350. Support for RP2040 builds will continue where possible.
 
 ## Motivation
 
@@ -52,7 +56,7 @@ $ make
 
 ### Customising the Build
 The CMake project supports three options:
-* PICO_BOARD: specify variant of Pico board, defaults to Seeed XIAO RP2040
+* PICO_BOARD: specify variant of Pico board, defaults to Seeed XIAO RP2350
 * CEC_PIN: specify GPIO pin for HDMI CEC, defaults to GPIO3
 
 Example invocation to specify:
@@ -109,12 +113,15 @@ Thus, we need to directly connect four wires:
 * HDMI CEC ground pin 17 direct to GND
 * HDMI DDC clock pin 15 direct to SCL
 * HDMI DDC data pin 16 direct to SDA
+* Optional if safe:
+   * HDMI +5V power pin direct to 5V
 
-For the Seeed Studio XIAO RP2040:
+For the Seeed Studio XIAO RP2350:
 * HDMI pin 13 --> D10
 * HDMI pin 17 --> GND
 * HDMI pin 15 --> D5
 * HDMI pin 16 --> D4
+* HDMI pin 18 --> 5V/VUSB
 
 ### Schematic
 ![Basic schematic.](https://github.com/user-attachments/assets/e7cff86f-3934-4b47-be95-2e42a42eb1ed)
@@ -181,8 +188,8 @@ This project uses:
 * [tcli](https://github.com/dpse/tcli)
 
 # Hardware
-* Seeed Studio XIAO RP2040 (chosen for form factor)
-   * https://www.seeedstudio.com/XIAO-RP2040-v1-0-p-5026.html
+* Seeed Studio XIAO RP2350 (chosen for form factor)
+   * https://www.seeedstudio.com/Seeed-XIAO-RP2350-p-5944.html
    * Originally prototyped on the Raspberry Pi Pico board (still works but
      requires RGB unhacking)
 * HDMI male/female passthrough adapter
@@ -193,16 +200,16 @@ This project uses:
 * custom 3d printed housing
 
 # Bill of Materials
-| Component | Quantity | Price (June 2024) (AUD) |
+| Component | Quantity | Price (January 2026) (AUD) |
 | :--- | ---: | ---: |
-| Seeed Studio XIAO RP2040 | 1 | 11.50 |
+| Seeed Studio XIAO RP2350 | 1 | 10.60 |
 | HDMI male/female adapter | 1 | 4.30 |
 | M3x10mm bolt & nut | 2 | 0.16 |
 | M3x20mm bolt & nut | 2 | 0.17 |
 | Random short wires | 4 | basically free |
 | Scunge 3D print from friend | 1 | mostly free |
 | Umpteen hours of engineering | 1 | priceless |
-| Total | | 16.13 |
+| Total | | 15.23 |
 
 # cec-compliance
 As of v0.2.2, `pico-cec` now passes the cec-compliance test suite found in the
