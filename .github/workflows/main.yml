@@ -117,8 +117,8 @@ jobs:
     - name: Generate release hashes
       run: |
         ls -lR
-        mv pico-cec-seeed_xiao_rp2040-${{github.run_id}}/pico-cec-seeed_xiao_rp2040-${{github.ref_name}}.uf2 .
-        mv pico-cec-seeed_xiao_rp2350-${{github.run_id}}/pico-cec-seeed_xiao_rp2350-${{github.ref_name}}.uf2 .
+        mv pico-cec-seeed_xiao_rp2040-${{github.run_id}}/pico-cec.uf2 pico-cec-seeed_xiao_rp2040-${{github.ref_name}}.uf2
+        mv pico-cec-seeed_xiao_rp2350-${{github.run_id}}/pico-cec.uf2 pico-cec-seeed_xiao_rp2350-${{github.ref_name}}.uf2
         mv pico-cec-stl-${{github.run_id}}/*.stl .
         sha256sum pico-cec*.uf2 *.stl > sha256sum.txt
 
