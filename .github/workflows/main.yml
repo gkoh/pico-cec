@@ -52,6 +52,7 @@ jobs:
     - name: Install required packages
       shell: bash
       run: |
+        sudo apt update
         sudo apt install --no-install-recommends -y gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
 
     - name: Configure CMake
@@ -78,6 +79,7 @@ jobs:
     - name: Install OpenSCAD
       shell: bash
       run: |
+        sudo apt update
         sudo apt install --no-install-recommends -y openscad
 
     - name: Export to STL
