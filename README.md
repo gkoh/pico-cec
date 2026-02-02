@@ -124,7 +124,7 @@ For the Seeed Studio XIAO RP2350:
 * HDMI pin 18 --> 5V/VUSB
 
 ### Schematic
-![Basic schematic.](https://github.com/user-attachments/assets/e7cff86f-3934-4b47-be95-2e42a42eb1ed)
+![Basic schematic.](https://github.com/user-attachments/assets/61a759ca-198a-4f6b-a60f-0255d08b8441)
 
 After this we:
 * connect `Pico-CEC` to the HDMI output of the PC
