@@ -12,7 +12,7 @@ void blink_init(void) {
   gpio_set_dir(PICO_DEFAULT_WS2812_POWER_PIN, GPIO_OUT);
   gpio_put(PICO_DEFAULT_WS2812_POWER_PIN, true);
 #endif
-#ifdef PICO_DEFAULT_WS2812_PIN
+#ifndef PICO_DEFAULT_WS2812_PIN
 // default to pin 2 if the board doesn't have a default WS2812 pin defined
 #define PICO_DEFAULT_WS2812_PIN 2
 #endif
