@@ -39,6 +39,9 @@ typedef struct {
   /** CEC device type. */
   uint8_t device_type;
 
+  /** Use CEC monitor mode. (bus analyser) */
+  uint8_t monitor_mode;
+
   /** Keymap configuration. */
   cec_config_keymap_t keymap_type;
 

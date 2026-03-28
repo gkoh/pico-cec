@@ -51,8 +51,11 @@ typedef struct {
 } cec_frame_stats_t;
 
 void cec_frame_init(void);
+void cec_frame_clear_stats(void);
 void cec_frame_get_stats(cec_frame_stats_t *stats);
 bool cec_frame_send(uint8_t pldcnt, uint8_t *pld);
 uint8_t cec_frame_recv(uint8_t *pld, uint8_t address);
+void cec_frame_set_monitor_mode(bool mode);
+bool cec_frame_get_monitor_mode(void);
 
 #endif

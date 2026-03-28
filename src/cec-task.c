@@ -125,7 +125,7 @@ static void report_cec_version(uint8_t initiator, uint8_t destination) {
   cec_frame_send(3, pld);
 }
 
-bool cec_ping(uint8_t destination) {
+static bool cec_ping(uint8_t destination) {
   uint8_t pld[1] = {HEADER0(destination, destination)};
 
   return cec_frame_send(1, pld);
@@ -170,7 +170,7 @@ static uint8_t allocate_logical_address(cec_config_t *config) {
   return a;
 }
 
-uint16_t get_physical_address(const cec_config_t *config) {
+static uint16_t get_physical_address(const cec_config_t *config) {
   return (config->physical_address == 0x0000) ? ddc_get_physical_address()
                                               : config->physical_address;
 }
@@ -191,6 +191,11 @@ void cec_task(void *param) {
 
   // load configuration
   nvs_load_config(&config);
+  if (config.monitor_mode != 0) {
+    cec_frame_set_monitor_mode(true);
+  } else {
+    cec_frame_set_monitor_mode(false);
+  }
 
   // pause for EDID to settle
   vTaskDelay(pdMS_TO_TICKS(config.edid_delay_ms));
