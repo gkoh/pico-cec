@@ -7,6 +7,7 @@
 
 uint16_t cec_get_physical_address(void);
 uint8_t cec_get_logical_address(void);
+bool cec_send_opcode(uint8_t opcode);
 void cec_task(void *param);
 
 #endif

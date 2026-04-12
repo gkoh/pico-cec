@@ -327,10 +327,26 @@ static int exec_set(void *arg, int argc, const char **argv) {
   return -1;
 }
 
+static int exec_send(void *arg, int argc, const char **argv) {
+  if (argc == 2) {
+    unsigned int opcode = 0;
+    if (sscanf(argv[1], "%x", &opcode) == 1 && opcode <= UINT8_MAX) {
+      if (cec_send_opcode((uint8_t)opcode)) {
+        return 0;
+      }
+      cdc_printfln("Send failed (queue full)");
+      return -1;
+    }
+    cdc_printfln("Error parsing opcode");
+  }
+  return -1;
+}
+
 static const tclie_cmd_t cmds[] = {
     {"debug", exec_debug, "Control debug output.", "debug {on|off}"},
     {"query", exec_query, "Query information.", "query {edid}"},
     {"save", exec_save, "Save configuration.", "save"},
+    {"send", exec_send, "Send a CEC opcode (broadcast).", "send <opcode>"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
      "{playback|recording}))|(keymap <value>)}"},

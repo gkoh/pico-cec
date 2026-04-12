@@ -10,6 +10,10 @@
 
 extern TaskHandle_t xCECTask;
 
+#define NOTIFY_RX ((UBaseType_t)0)
+#define NOTIFY_TX ((UBaseType_t)1)
+#define NOTIFY_KICK ((UBaseType_t)2)
+
 typedef struct {
   uint8_t *data;
   uint8_t len;

@@ -7,9 +7,6 @@
 #include "cec-frame.h"
 #include "cec-log.h"
 
-#define NOTIFY_RX ((UBaseType_t)0)
-#define NOTIFY_TX ((UBaseType_t)1)
-
 TaskHandle_t xCECTask;
 
 static uint8_t rx_buffer[16] = {0x0};
@@ -155,7 +152,15 @@ uint8_t cec_frame_recv(uint8_t *pld, uint8_t address) {
   rx_frame.ack = false;
   memset(&rx_frame.message->data[0], 0, 16);
   gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_FALL, true);
-  ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, portMAX_DELAY);
+
+  /* Wait for an RX notification, but wake early if a TX kick arrives. */
+  while (ulTaskNotifyTakeIndexed(NOTIFY_RX, pdTRUE, pdMS_TO_TICKS(50)) == 0) {
+    if (ulTaskNotifyTakeIndexed(NOTIFY_KICK, pdTRUE, 0) != 0) {
+      gpio_set_irq_enabled(CEC_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+      return 0;
+    }
+  }
+
   memcpy(pld, rx_frame.message->data, rx_frame.message->len);
   // printf("high water mark = %lu\n", uxTaskGetStackHighWaterMark(xCECTask));
 

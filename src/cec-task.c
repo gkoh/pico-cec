@@ -53,6 +53,12 @@ static uint16_t active_addr = 0x0000;
 /* Audio state. */
 static bool audio_status = false;
 
+/* Outbound TX queue: holds opcodes to be sent as broadcast frames. */
+#define CEC_TX_QUEUE_LEN 1
+static QueueHandle_t cec_tx_queue = NULL;
+static StaticQueue_t cec_tx_queue_buf;
+static uint8_t cec_tx_queue_storage[CEC_TX_QUEUE_LEN];
+
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
 
@@ -131,6 +137,17 @@ bool cec_ping(uint8_t destination) {
   return cec_frame_send(1, pld);
 }
 
+bool cec_send_opcode(uint8_t opcode) {
+  if (cec_tx_queue == NULL) {
+    return false;
+  }
+  if (xQueueSend(cec_tx_queue, &opcode, pdMS_TO_TICKS(10)) != pdTRUE) {
+    return false;
+  }
+  xTaskNotifyIndexed(xCECTask, NOTIFY_KICK, 0, eNoAction);
+  return true;
+}
+
 static void image_view_on(uint8_t initiator, uint8_t destination) {
   uint8_t pld[2] = {HEADER0(initiator, destination), CEC_ID_IMAGE_VIEW_ON};
 
@@ -192,6 +209,9 @@ void cec_task(void *param) {
   // load configuration
   nvs_load_config(&config);
 
+  cec_tx_queue = xQueueCreateStatic(CEC_TX_QUEUE_LEN, sizeof(uint8_t), cec_tx_queue_storage,
+                                    &cec_tx_queue_buf);
+
   // pause for EDID to settle
   vTaskDelay(pdMS_TO_TICKS(config.edid_delay_ms));
 
@@ -206,6 +226,12 @@ void cec_task(void *param) {
     uint8_t initiator, destination;
     uint8_t key = HID_KEY_NONE;
     uint8_t no_active = 0;
+
+    uint8_t tx_opcode;
+    if (xQueueReceive(cec_tx_queue, &tx_opcode, 0) == pdTRUE) {
+      uint8_t tx_pld[2] = {HEADER0(0x0f, 0x0f), tx_opcode};
+      cec_frame_send(2, tx_pld);
+    }
 
     pldcnt = cec_frame_recv(pld, laddr);
     // printf("pldcnt = %u\n", pldcnt);
