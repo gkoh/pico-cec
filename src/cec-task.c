@@ -229,7 +229,7 @@ void cec_task(void *param) {
 
     uint8_t tx_opcode;
     if (xQueueReceive(cec_tx_queue, &tx_opcode, 0) == pdTRUE) {
-      uint8_t tx_pld[2] = {HEADER0(0x0f, 0x0f), tx_opcode};
+      uint8_t tx_pld[2] = {HEADER0(laddr, 0x00), tx_opcode};
       cec_frame_send(2, tx_pld);
     }
 
