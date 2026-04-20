@@ -64,7 +64,7 @@ static bool audio_status = false;
 #define CEC_TX_QUEUE_LEN 1
 static QueueHandle_t cec_tx_queue = NULL;
 static StaticQueue_t cec_tx_queue_buf;
-static uint8_t cec_tx_queue_storage[CEC_TX_QUEUE_LEN];
+static uint8_t cec_tx_queue_storage[CEC_TX_QUEUE_LEN * sizeof(send_msg_t)];
 
 /* Construct the frame address header. */
 #define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
@@ -270,7 +270,7 @@ void cec_task(void *param) {
   // load configuration
   nvs_load_config(&config);
 
-  cec_tx_queue = xQueueCreateStatic(CEC_TX_QUEUE_LEN, sizeof(uint8_t), cec_tx_queue_storage,
+  cec_tx_queue = xQueueCreateStatic(CEC_TX_QUEUE_LEN, sizeof(send_msg_t), cec_tx_queue_storage,
                                     &cec_tx_queue_buf);
 
   // pause for EDID to settle
