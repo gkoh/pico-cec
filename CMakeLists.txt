@@ -87,7 +87,7 @@ set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
 set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
 set(KEYMAP_DEFAULT "KODI" CACHE STRING "Default keymap, specify KODI or MISTER.")
 
-set_source_files_properties(src/hdmi-cec.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(src/cec-frame.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
 
 set_source_files_properties(src/usb-cdc.c PROPERTIES COMPILE_DEFINITIONS
