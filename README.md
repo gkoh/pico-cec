@@ -45,14 +45,26 @@ git clone --recurse-submodules
 ```
 
 ## Building
-This project uses the 'normal' CMake based build. To build the default image:
+This project uses the 'normal' CMake based build.
+
+Two boards are supported, and the RP2040 and RP2350 produce incompatible
+`.uf2` images, so build for the board you actually have:
 ```
 $ git clone <blah blah as above>
 $ cd pico-cec
-$ mkdir build && cd build
-$ cmake ..
-$ make
 ```
+
+For the Seeed XIAO RP2350 (current reference hardware):
+```
+$ cmake -S . -B build -DPICO_BOARD=seeed_xiao_rp2350 && cmake --build build
+```
+
+For the Seeed XIAO RP2040 (legacy):
+```
+$ cmake -S . -B build -DPICO_BOARD=seeed_xiao_rp2040 && cmake --build build
+```
+
+Switching boards requires a clean build directory (`rm -rf build`).
 
 ### Customising the Build
 The CMake project supports three options:
