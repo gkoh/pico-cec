@@ -139,6 +139,9 @@ After this we:
 The enclosure is a reasonably simple three piece sandwich 3d print modelled with OpenSCAD. It is designed to be printed as three separate pieces which are bolted together with M3 nuts and bolts.
 An exploded preview of the result can be found in this [STL](openscad/pico-cec.stl).
 
+### PCB
+
+4-layer PCB; order with the JLC04161H-7628 stackup. This is not a minor detail; it will not work with a different stackup.
 
 ### Assembly
 ![XIAO RP2040 with HDMI pass through and DDC.](https://github.com/user-attachments/assets/01c244b4-b5af-4926-94d2-38306876485b)
