@@ -32,6 +32,9 @@ In this project we use a Pico to both:
    * play
    * pause
    * numbers 0-9
+ 
+> [!CAUTION]
+> The build quality of the HDMI breakout boards is highly variable, thus pass through of 4K video may not function in all circumstances.
 
 ## Cloning
 To avoid cloning unneeded code, clone like this:
