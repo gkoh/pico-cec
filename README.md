@@ -141,7 +141,19 @@ An exploded preview of the result can be found in this [STL](openscad/pico-cec.s
 
 ### PCB
 
-4-layer PCB; order with the JLC04161H-7628 stackup. This is not a minor detail; it will not work with a different stackup.
+The hardware is split across two KiCad projects under [`pcb/`](pcb):
+
+* [`pcb/hdmi-breakout`](pcb/hdmi-breakout) — the HDMI passthrough breakout that
+  carries the CEC and DDC signals. This is a 4-layer board; order it with the
+  **JLC04161H-7628 stackup**. Stackup is not a minor detail; incorrect stackup
+  will destroy performance.
+* [`pcb/rp2040-adaptor`](pcb/rp2040-adaptor) — a simple breakout for the RP2040-Zero
+  that connects to the HDMI breakout. This is an ordinary **2-layer** board with
+  no controlled-impedance requirement, so any standard stackup is fine.
+
+Shared symbols and footprints live in [`pcb/library`](pcb/library). Fabrication
+outputs (gerbers, BOM, CPL) for each board can be generated with
+[`jlcpcb_fab.py`](jlcpcb_fab.py).
 
 ### Assembly
 ![XIAO RP2040 with HDMI pass through and DDC.](https://github.com/user-attachments/assets/01c244b4-b5af-4926-94d2-38306876485b)

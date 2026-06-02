@@ -26,6 +26,23 @@ def find_one(project_dir: Path, suffix: str) -> Path:
     return hits[0]
 
 
+def discover_projects(root: Path) -> list[Path]:
+    """Return board project dirs under root (a dir is a board if it holds a .kicad_pcb).
+
+    If root itself is a board project, return it directly; otherwise scan its
+    immediate subdirectories. Shared dirs like ``library/`` or ``*-backups/`` carry
+    no top-level .kicad_pcb and are skipped automatically.
+    """
+    if list(root.glob("*.kicad_pcb")):
+        return [root]
+    projects = sorted(
+        d for d in root.iterdir() if d.is_dir() and list(d.glob("*.kicad_pcb"))
+    )
+    if not projects:
+        sys.exit(f"no board projects (*.kicad_pcb) found in {root} or its subdirectories")
+    return projects
+
+
 def detect_copper_layers(pcb: Path) -> list[str]:
     """Parse the (layers ...) block and return signal-layer names in order."""
     text = pcb.read_text()
@@ -82,12 +99,7 @@ def export_cpl(pcb: Path, out_path: Path) -> None:
         raw.unlink(missing_ok=True)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("project_dir", type=Path)
-    opts = parser.parse_args()
-
-    project_dir = opts.project_dir.resolve()
+def process_project(project_dir: Path) -> None:
     pcb = find_one(project_dir, ".kicad_pcb")
     sch = find_one(project_dir, ".kicad_sch")
     name = pcb.stem
@@ -99,7 +111,7 @@ def main() -> None:
 
     copper = detect_copper_layers(pcb)
     layers = ",".join(copper + FAB_LAYERS)
-    print(f"==> layers: {layers}")
+    print(f"==> {name}: layers: {layers}")
 
     with tempfile.TemporaryDirectory(prefix=f"jlcpcb_{name}_") as tmp:
         work_dir = Path(tmp)
@@ -133,6 +145,31 @@ def main() -> None:
     print(f"done: {zip_path}")
     print(f"done: {bom_path}")
     print(f"done: {cpl_path}")
+
+
+def default_pcb_root() -> Path:
+    """Repo's pcb/ directory if present, else the script's own directory."""
+    here = Path(__file__).resolve().parent
+    pcb = here / "pcb"
+    return pcb if pcb.is_dir() else here
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "project_dir",
+        type=Path,
+        nargs="?",
+        default=default_pcb_root(),
+        help="a board project dir, or a parent dir of board projects "
+             "(default: the repo's pcb/ directory)",
+    )
+    opts = parser.parse_args()
+
+    projects = discover_projects(opts.project_dir.resolve())
+    print(f"==> board projects: {', '.join(p.name for p in projects)}")
+    for project_dir in projects:
+        process_project(project_dir)
 
 
 if __name__ == "__main__":
