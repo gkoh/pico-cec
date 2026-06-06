@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Generate a JLCPCB-ready gerber + drill zip from a KiCad project."""
+
 from __future__ import annotations
 
 import argparse
@@ -12,9 +13,12 @@ import zipfile
 from pathlib import Path
 
 FAB_LAYERS = [
-    "F.Paste", "B.Paste",
-    "F.Silkscreen", "B.Silkscreen",
-    "F.Mask", "B.Mask",
+    "F.Paste",
+    "B.Paste",
+    "F.Silkscreen",
+    "B.Silkscreen",
+    "F.Mask",
+    "B.Mask",
     "Edge.Cuts",
 ]
 
@@ -39,7 +43,9 @@ def discover_projects(root: Path) -> list[Path]:
         d for d in root.iterdir() if d.is_dir() and list(d.glob("*.kicad_pcb"))
     )
     if not projects:
-        sys.exit(f"no board projects (*.kicad_pcb) found in {root} or its subdirectories")
+        sys.exit(
+            f"no board projects (*.kicad_pcb) found in {root} or its subdirectories"
+        )
     return projects
 
 
@@ -62,15 +68,49 @@ def run_kicad(args: list[str]) -> None:
 
 def export_bom(sch: Path, out_path: Path) -> None:
     """Export a JLCPCB-format BOM: Comment, Designator, Footprint, LCSC Part #."""
-    run_kicad([
-        "sch", "export", "bom",
-        "--output", str(out_path),
-        "--fields", "Value,Reference,Footprint,LCSC",
-        "--labels", "Comment,Designator,Footprint,LCSC Part #",
-        "--group-by", "Value,Footprint,LCSC",
-        "--exclude-dnp",
-        str(sch),
-    ])
+    run_kicad(
+        [
+            "sch",
+            "export",
+            "bom",
+            "--output",
+            str(out_path),
+            "--fields",
+            "Value,Reference,Footprint,LCSC",
+            "--labels",
+            "Comment,Designator,Footprint,LCSC Part #",
+            "--group-by",
+            "Value,Footprint,LCSC",
+            "--exclude-dnp",
+            str(sch),
+        ]
+    )
+
+
+def render_board(pcb: Path, out_path: Path) -> None:
+    """Render an isometric 3D view of the board to a PNG under docs/."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    run_kicad(
+        [
+            "pcb",
+            "render",
+            "--output",
+            str(out_path),
+            "--width",
+            "1024",
+            "--height",
+            "1024",
+            "--rotate",
+            "-45,0,225",
+            "--zoom",
+            "0.8",
+            "--quality",
+            "high",
+            "--perspective",
+            "--floor",
+            str(pcb),
+        ]
+    )
 
 
 def export_cpl(pcb: Path, out_path: Path) -> None:
@@ -78,16 +118,24 @@ def export_cpl(pcb: Path, out_path: Path) -> None:
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
         raw = Path(tmp.name)
     try:
-        run_kicad([
-            "pcb", "export", "pos",
-            "--output", str(raw),
-            "--side", "both",
-            "--format", "csv",
-            "--units", "mm",
-            "--use-drill-file-origin",
-            "--exclude-dnp",
-            str(pcb),
-        ])
+        run_kicad(
+            [
+                "pcb",
+                "export",
+                "pos",
+                "--output",
+                str(raw),
+                "--side",
+                "both",
+                "--format",
+                "csv",
+                "--units",
+                "mm",
+                "--use-drill-file-origin",
+                "--exclude-dnp",
+                str(pcb),
+            ]
+        )
         with raw.open(newline="") as fin:
             rows = list(csv.DictReader(fin))
         with out_path.open("w", newline="") as fout:
@@ -108,6 +156,7 @@ def process_project(project_dir: Path) -> None:
     zip_path = out_dir / f"{name}_jlcpcb.zip"
     bom_path = out_dir / f"{name}_bom.csv"
     cpl_path = out_dir / f"{name}_cpl.csv"
+    render_path = Path(__file__).resolve().parent / "docs" / f"{name}.png"
 
     copper = detect_copper_layers(pcb)
     layers = ",".join(copper + FAB_LAYERS)
@@ -115,24 +164,40 @@ def process_project(project_dir: Path) -> None:
 
     with tempfile.TemporaryDirectory(prefix=f"jlcpcb_{name}_") as tmp:
         work_dir = Path(tmp)
-        run_kicad([
-            "pcb", "export", "gerbers",
-            "--output", f"{work_dir}/",
-            "--layers", layers,
-            "--no-x2",
-            "--subtract-soldermask",
-            str(pcb),
-        ])
-        run_kicad([
-            "pcb", "export", "drill",
-            "--output", f"{work_dir}/",
-            "--format", "excellon",
-            "--drill-origin", "absolute",
-            "--excellon-units", "mm",
-            "--excellon-zeros-format", "decimal",
-            "--excellon-oval-format", "alternate",
-            str(pcb),
-        ])
+        run_kicad(
+            [
+                "pcb",
+                "export",
+                "gerbers",
+                "--output",
+                f"{work_dir}/",
+                "--layers",
+                layers,
+                "--no-x2",
+                "--subtract-soldermask",
+                str(pcb),
+            ]
+        )
+        run_kicad(
+            [
+                "pcb",
+                "export",
+                "drill",
+                "--output",
+                f"{work_dir}/",
+                "--format",
+                "excellon",
+                "--drill-origin",
+                "absolute",
+                "--excellon-units",
+                "mm",
+                "--excellon-zeros-format",
+                "decimal",
+                "--excellon-oval-format",
+                "alternate",
+                str(pcb),
+            ]
+        )
 
         zip_path.unlink(missing_ok=True)
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
@@ -142,9 +207,11 @@ def process_project(project_dir: Path) -> None:
 
     export_bom(sch, bom_path)
     export_cpl(pcb, cpl_path)
+    render_board(pcb, render_path)
     print(f"done: {zip_path}")
     print(f"done: {bom_path}")
     print(f"done: {cpl_path}")
+    print(f"done: {render_path}")
 
 
 def default_pcb_root() -> Path:
@@ -162,7 +229,7 @@ def main() -> None:
         nargs="?",
         default=default_pcb_root(),
         help="a board project dir, or a parent dir of board projects "
-             "(default: the repo's pcb/ directory)",
+        "(default: the repo's pcb/ directory)",
     )
     opts = parser.parse_args()
 
