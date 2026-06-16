@@ -353,12 +353,29 @@ static int exec_set(void *arg, int argc, const char **argv) {
 }
 
 static int exec_send(void *arg, int argc, const char **argv) {
-  if (argc == 3) {
+  if (argc >= 3) {
     unsigned int address = 0;
     unsigned int opcode = 0;
     if (sscanf(argv[1], "%x", &address) == 1 && address <= 0x0f
         && sscanf(argv[2], "%x", &opcode) == 1 && opcode <= UINT8_MAX) {
-      if (cec_send_msg((uint8_t)address, (uint8_t)opcode)) {
+      cec_message_t msg = {0};
+      msg.header = HEADER0(cec_get_logical_address(), (uint8_t)address);
+      msg.opcode = (uint8_t)opcode;
+      msg.len = 2;  // header + opcode
+
+      // Parse optional operands (hex bytes)
+      for (int i = 3; i < argc && msg.len < CEC_FRAME_MAX_LEN; i++) {
+        unsigned int byte;
+        if (sscanf(argv[i], "%x", &byte) == 1 && byte <= 0xff) {
+          msg.operand[msg.len - 2] = (uint8_t)byte;
+          msg.len++;
+        } else {
+          cdc_printfln("Error parsing operand %d", i);
+          return -1;
+        }
+      }
+
+      if (cec_send_msg(&msg)) {
         return 0;
       }
       cdc_printfln("Send failed (queue full)");
@@ -373,7 +390,8 @@ static const tclie_cmd_t cmds[] = {
     {"debug", exec_debug, "Control debug output.", "debug {on|off}"},
     {"query", exec_query, "Query information.", "query {edid}"},
     {"save", exec_save, "Save configuration.", "save"},
-    {"send", exec_send, "Send a CEC opcode.", "send <addr> <opcode>"},
+    {"send", exec_send, "Send a CEC opcode.",
+     "send <addr> <opcode> [<operand>] [<operand>] [<operand>]"},
     {"set", exec_set, "Set configuration parameters.",
      "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
      "{playback|recording}))|(keymap ({kodi|mister}|(custom <cec> <hid>)))}"},

@@ -26,11 +26,6 @@
 
 #define CEC_MSG_QUEUE_LENGTH (8)
 
-typedef struct {
-  uint8_t addr;
-  cec_id_t id;
-} send_msg_t;
-
 /** The running CEC configuration. */
 static cec_config_t config = {0x0};
 
@@ -60,14 +55,11 @@ static uint16_t active_addr = 0x0000;
 /* Audio state. */
 static bool audio_status = false;
 
-/* Outbound TX queue: holds opcodes to be sent as broadcast frames. */
+/* Outbound TX queue: holds CEC messages to be sent. */
 #define CEC_TX_QUEUE_LEN 1
 static QueueHandle_t cec_tx_queue = NULL;
 static StaticQueue_t cec_tx_queue_buf;
-static uint8_t cec_tx_queue_storage[CEC_TX_QUEUE_LEN * sizeof(send_msg_t)];
-
-/* Construct the frame address header. */
-#define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
+static uint8_t cec_tx_queue_storage[CEC_TX_QUEUE_LEN * sizeof(cec_message_t)];
 
 static void cec_feature_abort(uint8_t initiator,
                               uint8_t destination,
@@ -186,14 +178,12 @@ bool cec_ping(uint8_t destination) {
   return cec_frame_send(&message);
 }
 
-bool cec_send_msg(uint8_t address, uint8_t opcode) {
-  send_msg_t msg = {.addr = address, .id = opcode};
-
+bool cec_send_msg(const cec_message_t *msg) {
   if (cec_tx_queue == NULL) {
     return false;
   }
 
-  if (xQueueSend(cec_tx_queue, &msg, pdMS_TO_TICKS(10)) != pdTRUE) {
+  if (xQueueSend(cec_tx_queue, msg, pdMS_TO_TICKS(10)) != pdTRUE) {
     return false;
   }
   xTaskNotifyIndexed(xCECTask, NOTIFY_RX, NOTIFY_RX_TX, eSetBits);
@@ -274,7 +264,7 @@ void cec_task(void *param) {
   // load configuration
   nvs_load_config(&config);
 
-  cec_tx_queue = xQueueCreateStatic(CEC_TX_QUEUE_LEN, sizeof(send_msg_t), cec_tx_queue_storage,
+  cec_tx_queue = xQueueCreateStatic(CEC_TX_QUEUE_LEN, sizeof(cec_message_t), cec_tx_queue_storage,
                                     &cec_tx_queue_buf);
 
   // pause for EDID to settle
@@ -292,13 +282,8 @@ void cec_task(void *param) {
 
     cec_frame_recv(&msg, laddr);
 
-    send_msg_t tx_req;
-    if (xQueueReceive(cec_tx_queue, &tx_req, 0) == pdTRUE) {
-      cec_message_t tx_msg = {
-          .header = HEADER0(laddr, tx_req.addr),
-          .opcode = tx_req.id,
-          .len = 2,
-      };
+    cec_message_t tx_msg;
+    if (xQueueReceive(cec_tx_queue, &tx_msg, 0) == pdTRUE) {
       cec_frame_send(&tx_msg);
       continue;
     }

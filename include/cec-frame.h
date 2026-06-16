@@ -23,6 +23,9 @@ extern TaskHandle_t xCECTask;
 #define NOTIFY_RX_ABORT (1UL << 1)
 #define NOTIFY_RX_TX (1UL << 2)
 
+/* Construct the frame address header. */
+#define HEADER0(iaddr, daddr) ((iaddr << 4) | daddr)
+
 typedef struct __attribute__((packed)) {
   union {
     struct {
