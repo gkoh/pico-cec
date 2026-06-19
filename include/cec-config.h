@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#ifndef CEC_OSD_NAME
+#define CEC_OSD_NAME "Pico-CEC"
+#endif
+
+#define CEC_OSD_NAME_MAX_LEN 14  // CEC spec limit: 14 characters max
+
 typedef struct {
   const char *name;
   uint8_t key;

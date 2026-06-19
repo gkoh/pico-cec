@@ -86,12 +86,16 @@ target_include_directories(${PROJECT} PRIVATE
 set(CEC_PIN "3" CACHE STRING "GPIO pin for HDMI CEC.")
 set(PICO_CEC_VERSION "unknown" CACHE STRING "Pico-CEC version string.")
 set(KEYMAP_DEFAULT "KODI" CACHE STRING "Default keymap, specify KODI or MISTER.")
+set(CEC_OSD_NAME "Pico-CEC" CACHE STRING "OSD name for the CEC device (max 14 characters).")
 
 set_source_files_properties(src/cec-frame.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_PIN=${CEC_PIN}")
 
 set_source_files_properties(src/usb-cdc.c PROPERTIES COMPILE_DEFINITIONS
   "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
+
+set_source_files_properties(src/cec-task.c PROPERTIES COMPILE_DEFINITIONS
+  "CEC_OSD_NAME=\"${CEC_OSD_NAME}\"")
 
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h
 target_compile_options(${PROJECT} PRIVATE
