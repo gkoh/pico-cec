@@ -179,6 +179,14 @@
 		(path "/ffeb990e-7530-4af0-854e-50e67adef33e")
 		(sheetname "/")
 		(sheetfile "rp2040-adaptor.kicad_sch")
+		(units
+			(unit
+				(name "A")
+				(pins "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "23" "22" "21" "20" "19"
+					"18" "17" "16" "15" "14" "13" "12" "11"
+				)
+			)
+		)
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -803,6 +811,9 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.25)
+			(net "unconnected-(RZ1-GP9-Pad10)")
+			(pinfunction "GP9_10")
+			(pintype "bidirectional")
 			(thermal_bridge_angle 45)
 			(uuid "47940339-2086-40d0-b551-0c13fa0b4bc0")
 			(padstack
@@ -829,6 +840,9 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.25)
+			(net "unconnected-(RZ1-GP10-Pad11)")
+			(pinfunction "GP10_11")
+			(pintype "bidirectional")
 			(thermal_bridge_angle 45)
 			(uuid "cc9311ad-a3a6-43e7-b99a-e288bae55380")
 			(padstack
@@ -855,6 +869,9 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.25)
+			(net "unconnected-(RZ1-GP11-Pad12)")
+			(pinfunction "GP11_12")
+			(pintype "bidirectional")
 			(thermal_bridge_angle 45)
 			(uuid "243377ef-703f-4b36-87ca-21576f32f7d3")
 			(padstack
@@ -881,6 +898,9 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.25)
+			(net "unconnected-(RZ1-GP12-Pad13)")
+			(pinfunction "GP12_13")
+			(pintype "bidirectional")
 			(thermal_bridge_angle 45)
 			(uuid "a46e429d-618d-4d72-be58-6b80a705655f")
 			(padstack
@@ -907,6 +927,9 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.25)
+			(net "unconnected-(RZ1-GP13-Pad14)")
+			(pinfunction "GP13_14")
+			(pintype "bidirectional")
 			(thermal_bridge_angle 45)
 			(uuid "7241bf58-2da4-4524-8349-7ec755d4ac25")
 			(padstack
@@ -1180,14 +1203,14 @@
 			)
 		)
 	)
-	(footprint "Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical"
+	(footprint "Connector_PinSocket_2.54mm:PinSocket_1x09_P2.54mm_Vertical"
 		(layer "B.Cu")
 		(uuid "8029d00f-8d1b-4eb2-98a9-b615390aca10")
 		(at 106.5 99.35 -90)
-		(descr "Through hole straight pin header, 1x09, 2.54mm pitch, single row")
-		(tags "Through hole pin header THT 1x09 2.54mm single row")
+		(descr "Through hole straight socket strip, 1x09, 2.54mm pitch, single row (from Kicad 4.0.7), script generated")
+		(tags "Through hole socket strip THT 1x09 2.54mm single row")
 		(property "Reference" "J2"
-			(at 0 2.38 90)
+			(at 0 2.77 90)
 			(layer "B.SilkS")
 			(uuid "93ac4ed6-cfcd-4fa5-9045-be01e325e045")
 			(effects
@@ -1199,7 +1222,7 @@
 			)
 		)
 		(property "Value" "Conn_01x09"
-			(at 0 -22.7 90)
+			(at 0 -23.09 90)
 			(layer "B.Fab")
 			(uuid "e0979d2b-989d-43d3-8c98-2846a957b581")
 			(effects
@@ -1251,51 +1274,17 @@
 		(path "/9a4706fe-f98a-4407-940c-df53114ee927")
 		(sheetname "/")
 		(sheetfile "rp2040-adaptor.kicad_sch")
+		(units
+			(unit
+				(name "A")
+				(pins "1" "2" "3" "4" "5" "6" "7" "8" "9")
+			)
+		)
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
-			(start -1.38 1.38)
-			(end 0 1.38)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "4d22b592-1401-4d85-8508-b2b441517770")
-		)
-		(fp_line
-			(start -1.38 0)
-			(end -1.38 1.38)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "233ba08e-dbc5-492f-bd99-0f0e2b33e247")
-		)
-		(fp_line
-			(start -1.38 -1.27)
-			(end 1.38 -1.27)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "1c3e40d3-d293-4385-96ce-d8038368059f")
-		)
-		(fp_line
-			(start -1.38 -1.27)
-			(end -1.38 -21.7)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "54a26a1a-41fd-4c80-ad30-ec2c9ade4cca")
-		)
-		(fp_line
-			(start 1.38 -1.27)
-			(end 1.38 -21.7)
+			(start 0 1.33)
+			(end 1.33 1.33)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -1304,8 +1293,8 @@
 			(uuid "575808fa-7e6d-4342-9acf-d265e76c800a")
 		)
 		(fp_line
-			(start -1.38 -21.7)
-			(end 1.38 -21.7)
+			(start 1.33 1.33)
+			(end 1.33 0)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -1313,20 +1302,89 @@
 			(layer "B.SilkS")
 			(uuid "5f939ab7-1316-4bb3-a2be-fe9ea8f0736e")
 		)
-		(fp_rect
+		(fp_line
+			(start -1.33 -1.27)
+			(end 1.33 -1.27)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "54a26a1a-41fd-4c80-ad30-ec2c9ade4cca")
+		)
+		(fp_line
+			(start -1.33 -1.27)
+			(end -1.33 -21.65)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "4d22b592-1401-4d85-8508-b2b441517770")
+		)
+		(fp_line
+			(start 1.33 -1.27)
+			(end 1.33 -21.65)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "233ba08e-dbc5-492f-bd99-0f0e2b33e247")
+		)
+		(fp_line
+			(start -1.33 -21.65)
+			(end 1.33 -21.65)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "1c3e40d3-d293-4385-96ce-d8038368059f")
+		)
+		(fp_line
 			(start -1.77 1.77)
+			(end 1.77 1.77)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "4da2bb2f-5c2d-4fc5-8cf9-55932744a295")
+		)
+		(fp_line
+			(start 1.77 1.77)
 			(end 1.77 -22.09)
 			(stroke
 				(width 0.05)
 				(type solid)
 			)
-			(fill no)
 			(layer "B.CrtYd")
-			(uuid "1bdd014e-7b2e-44f2-b080-b04a7b62d606")
+			(uuid "ee32043e-403f-43f2-aee0-3d4e8e663818")
 		)
 		(fp_line
-			(start -0.635 1.27)
-			(end 1.27 1.27)
+			(start -1.77 -22.09)
+			(end -1.77 1.77)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "60626ace-08ef-459c-afd4-f6d2c45fa00b")
+		)
+		(fp_line
+			(start 1.77 -22.09)
+			(end -1.77 -22.09)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "e5c504b2-f23c-43d2-a153-7acd1cdee4fa")
+		)
+		(fp_line
+			(start -1.27 1.27)
+			(end 0.635 1.27)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -1335,7 +1393,17 @@
 			(uuid "066fd175-5d3e-484f-86c5-f8a23442d0f7")
 		)
 		(fp_line
-			(start 1.27 1.27)
+			(start 0.635 1.27)
+			(end 1.27 0.635)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "00085956-1399-4048-b5bd-903f504e4654")
+		)
+		(fp_line
+			(start 1.27 0.635)
 			(end 1.27 -21.59)
 			(stroke
 				(width 0.1)
@@ -1345,18 +1413,8 @@
 			(uuid "7fd9a069-3e63-4eec-8e9e-efbf11e4947e")
 		)
 		(fp_line
-			(start -1.27 0.635)
-			(end -0.635 1.27)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "00085956-1399-4048-b5bd-903f504e4654")
-		)
-		(fp_line
 			(start -1.27 -21.59)
-			(end -1.27 0.635)
+			(end -1.27 1.27)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -1375,7 +1433,7 @@
 			(uuid "84d1550d-9234-4616-9d58-cc2b742547f6")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 -10.16 0)
+			(at 0 -10.16 180)
 			(layer "B.Fab")
 			(uuid "cca760d9-acba-4779-a79c-90bf4d6f699b")
 			(effects
@@ -1486,7 +1544,7 @@
 			(uuid "9eac094a-3a58-4bab-8b0b-f22c9a212bcf")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x09_P2.54mm_Vertical.step"
+		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x09_P2.54mm_Vertical.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1498,14 +1556,14 @@
 			)
 		)
 	)
-	(footprint "Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical"
+	(footprint "Connector_PinSocket_2.54mm:PinSocket_1x09_P2.54mm_Vertical"
 		(layer "B.Cu")
 		(uuid "eef53c42-3f4b-4bc3-a123-4b7d13d2957e")
 		(at 106.5 74.35 -90)
-		(descr "Through hole straight pin header, 1x09, 2.54mm pitch, single row")
-		(tags "Through hole pin header THT 1x09 2.54mm single row")
+		(descr "Through hole straight socket strip, 1x09, 2.54mm pitch, single row (from Kicad 4.0.7), script generated")
+		(tags "Through hole socket strip THT 1x09 2.54mm single row")
 		(property "Reference" "J1"
-			(at 0 2.38 90)
+			(at 0 2.77 90)
 			(layer "B.SilkS")
 			(uuid "6ea133f9-cf9e-4070-add9-9c15bc69d6aa")
 			(effects
@@ -1517,7 +1575,7 @@
 			)
 		)
 		(property "Value" "Conn_01x09"
-			(at 0 -22.7 90)
+			(at 0 -23.09 90)
 			(layer "B.Fab")
 			(uuid "e46ab87f-f277-4f64-b77f-2024f7bf77ca")
 			(effects
@@ -1569,11 +1627,17 @@
 		(path "/9fcdad9b-c324-4e51-9fcb-c1a64b64f444")
 		(sheetname "/")
 		(sheetfile "rp2040-adaptor.kicad_sch")
+		(units
+			(unit
+				(name "A")
+				(pins "1" "2" "3" "4" "5" "6" "7" "8" "9")
+			)
+		)
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
-			(start -1.38 1.38)
-			(end 0 1.38)
+			(start 0 1.33)
+			(end 1.33 1.33)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -1582,18 +1646,8 @@
 			(uuid "8b801774-8881-40e5-a7a4-8a3721a52c80")
 		)
 		(fp_line
-			(start -1.38 0)
-			(end -1.38 1.38)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "3f9d4bb4-30f7-42ad-a77d-b8bce021a58d")
-		)
-		(fp_line
-			(start -1.38 -1.27)
-			(end 1.38 -1.27)
+			(start 1.33 1.33)
+			(end 1.33 0)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -1602,8 +1656,18 @@
 			(uuid "762ba328-09cf-4ee4-a063-800f529fce21")
 		)
 		(fp_line
-			(start -1.38 -1.27)
-			(end -1.38 -21.7)
+			(start -1.33 -1.27)
+			(end 1.33 -1.27)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "5e2e94a7-f17f-40a7-914c-bdd9c356268d")
+		)
+		(fp_line
+			(start -1.33 -1.27)
+			(end -1.33 -21.65)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -1612,8 +1676,18 @@
 			(uuid "10685650-ad24-43a2-91fd-ecddba5aab6f")
 		)
 		(fp_line
-			(start 1.38 -1.27)
-			(end 1.38 -21.7)
+			(start 1.33 -1.27)
+			(end 1.33 -21.65)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "3f9d4bb4-30f7-42ad-a77d-b8bce021a58d")
+		)
+		(fp_line
+			(start -1.33 -21.65)
+			(end 1.33 -21.65)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -1622,29 +1696,58 @@
 			(uuid "1903b913-0784-4aeb-ae80-40c529f3fae1")
 		)
 		(fp_line
-			(start -1.38 -21.7)
-			(end 1.38 -21.7)
+			(start -1.77 1.77)
+			(end 1.77 1.77)
 			(stroke
-				(width 0.12)
+				(width 0.05)
 				(type solid)
 			)
-			(layer "B.SilkS")
-			(uuid "5e2e94a7-f17f-40a7-914c-bdd9c356268d")
+			(layer "B.CrtYd")
+			(uuid "5f2af4e3-ea58-4430-a346-9f652f9fea2f")
 		)
-		(fp_rect
-			(start -1.77 1.77)
+		(fp_line
+			(start 1.77 1.77)
 			(end 1.77 -22.09)
 			(stroke
 				(width 0.05)
 				(type solid)
 			)
-			(fill no)
 			(layer "B.CrtYd")
-			(uuid "09cd6ee0-9465-4b9f-a410-8a29ad6b675f")
+			(uuid "86b66e9d-0929-46d5-a39c-998ac6ecf694")
 		)
 		(fp_line
-			(start -0.635 1.27)
-			(end 1.27 1.27)
+			(start -1.77 -22.09)
+			(end -1.77 1.77)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "91683a03-3db5-4449-8521-70351df56bf9")
+		)
+		(fp_line
+			(start 1.77 -22.09)
+			(end -1.77 -22.09)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "28c856ff-fc28-40de-988f-85e0c3bcf1ec")
+		)
+		(fp_line
+			(start -1.27 1.27)
+			(end 0.635 1.27)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "fdbafa00-f52f-4d10-bd6a-6debf15f0830")
+		)
+		(fp_line
+			(start 0.635 1.27)
+			(end 1.27 0.635)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -1653,7 +1756,7 @@
 			(uuid "2174ef55-5111-4082-bd59-c5c27fb81515")
 		)
 		(fp_line
-			(start 1.27 1.27)
+			(start 1.27 0.635)
 			(end 1.27 -21.59)
 			(stroke
 				(width 0.1)
@@ -1663,18 +1766,8 @@
 			(uuid "d02cd5da-b8db-4a77-8fc2-c3ee81b90ec3")
 		)
 		(fp_line
-			(start -1.27 0.635)
-			(end -0.635 1.27)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "fdbafa00-f52f-4d10-bd6a-6debf15f0830")
-		)
-		(fp_line
 			(start -1.27 -21.59)
-			(end -1.27 0.635)
+			(end -1.27 1.27)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -1693,7 +1786,7 @@
 			(uuid "cd66ab65-c6fa-4ad7-bb81-42d391ef80d8")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 -10.16 0)
+			(at 0 -10.16 180)
 			(layer "B.Fab")
 			(uuid "dc800a37-fdec-47e9-9047-8e7168d3e2b0")
 			(effects
@@ -1804,7 +1897,7 @@
 			(uuid "837b7d20-1c0b-4a4d-a616-c5a316bb4a62")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x09_P2.54mm_Vertical.step"
+		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x09_P2.54mm_Vertical.step"
 			(offset
 				(xyz 0 0 0)
 			)

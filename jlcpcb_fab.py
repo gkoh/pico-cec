@@ -87,6 +87,12 @@ def export_bom(sch: Path, out_path: Path) -> None:
     )
 
 
+def export_schematic_pdf(sch: Path, out_path: Path) -> None:
+    """Export the schematic as a PDF."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    run_kicad(["sch", "export", "pdf", "--output", str(out_path), str(sch)])
+
+
 def render_board(pcb: Path, out_path: Path) -> None:
     """Render an isometric 3D view of the board to a PNG under docs/."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -156,7 +162,9 @@ def process_project(project_dir: Path) -> None:
     zip_path = out_dir / f"{name}_jlcpcb.zip"
     bom_path = out_dir / f"{name}_bom.csv"
     cpl_path = out_dir / f"{name}_cpl.csv"
-    render_path = Path(__file__).resolve().parent / "docs" / f"{name}.png"
+    docs_dir = Path(__file__).resolve().parent / "docs"
+    pdf_path = docs_dir / f"{name}_schematic.pdf"
+    render_path = docs_dir / f"{name}.png"
 
     copper = detect_copper_layers(pcb)
     layers = ",".join(copper + FAB_LAYERS)
@@ -207,10 +215,12 @@ def process_project(project_dir: Path) -> None:
 
     export_bom(sch, bom_path)
     export_cpl(pcb, cpl_path)
+    export_schematic_pdf(sch, pdf_path)
     render_board(pcb, render_path)
     print(f"done: {zip_path}")
     print(f"done: {bom_path}")
     print(f"done: {cpl_path}")
+    print(f"done: {pdf_path}")
     print(f"done: {render_path}")
 
 
