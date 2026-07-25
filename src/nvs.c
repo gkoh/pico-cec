@@ -25,6 +25,7 @@ typedef struct __attribute__((packed)) {
  * CEC configuration block NVS representation (version 1)
  *
  * Structure is packed to ensure checksum correctness.
+ * Do not modify to ensure non-volatile storage compatibility.
  */
 typedef struct __attribute__((packed)) {
   /** DDC EDID delay in milliseconds. */
@@ -38,7 +39,33 @@ typedef struct __attribute__((packed)) {
 } cec_config_nvs_v1_t;
 
 /**
- * CEC configuration block NVS representation.
+ * CEC configuration block NVS representation (version 2)
+ *
+ * Structure is packed to ensure checksum correctness.
+ * Do not modify to ensure non-volatile storage compatibility.
+ */
+typedef struct __attribute__((packed)) {
+  /** DDC EDID delay in milliseconds. */
+  uint32_t edid_delay_ms;
+
+  /** CEC physical address. */
+  uint16_t physical_address;
+
+  /** CEC logical address (unused). */
+  uint8_t logical_address;
+
+  /** CEC device type (unused). */
+  uint8_t device_type;
+
+  /** Keymap. */
+  cec_config_keymap_t keymap_type;
+
+  /** User Control key mapping table. */
+  uint8_t keymap[UINT8_MAX];
+} cec_config_nvs_v2_t;
+
+/**
+ * CEC configuration block NVS representation (current, v3).
  *
  * Structure is packed to ensure checksum correctness.
  */
@@ -57,6 +84,9 @@ typedef struct __attribute__((packed)) {
 
   /** Keymap. */
   cec_config_keymap_t keymap_type;
+
+  /** CEC OSD name. */
+  char osd_name[CEC_OSD_NAME_MAX_LEN + 1];
 
   /** User Control key mapping table. */
   uint8_t keymap[UINT8_MAX];
@@ -88,7 +118,8 @@ extern uint32_t __CEC_NVS_LEN[];
 #define CEC_NVS_LEN ((uint32_t)(&__CEC_NVS_LEN))
 
 const uint8_t CEC_CONFIG_VERSION_01 = 0x01;
-const uint8_t CEC_CONFIG_VERSION = 0x02;
+const uint8_t CEC_CONFIG_VERSION_02 = 0x02;
+const uint8_t CEC_CONFIG_VERSION = 0x03;
 const size_t CEC_CONFIG_SIZE = sizeof(cec_config_t);
 
 static uint32_t nvs_get_flash_address(void) {
@@ -115,6 +146,28 @@ static bool migrate_v1(const pico_cec_nvs_t *nvs, cec_config_t *config) {
 }
 
 /**
+ * Migrate v2 config to current config.
+ */
+static bool migrate_v2(const pico_cec_nvs_t *nvs, cec_config_t *config) {
+  if (crc32((unsigned char *)&nvs->config, sizeof(cec_config_nvs_v2_t)) == nvs->config_crc) {
+    cec_config_nvs_v2_t *configv2 = (cec_config_nvs_v2_t *)&nvs->config;
+    // deserialise and migrate
+    config->edid_delay_ms = configv2->edid_delay_ms;
+    config->physical_address = configv2->physical_address;
+    config->logical_address = configv2->logical_address;
+    config->device_type = configv2->device_type;
+    config->keymap_type = configv2->keymap_type;
+    for (uint8_t n = 0; n < UINT8_MAX; n++) {
+      config->keymap[n].key = configv2->keymap[n];
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Load current config.
  */
 static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
@@ -132,6 +185,7 @@ static bool load_config(pico_cec_nvs_t *nvs, cec_config_t *config) {
     for (uint8_t n = 0; n < UINT8_MAX; n++) {
       config->keymap[n].key = nvs->config.keymap[n];
     }
+    memcpy(config->osd_name, nvs->config.osd_name, sizeof(nvs->config.osd_name));
 
     return true;
   }
@@ -152,6 +206,8 @@ bool nvs_read_config(cec_config_t *config) {
   if (crc32((unsigned char *)&cec_nvs->header, sizeof(cec_nvs->header)) == cec_nvs->header_crc) {
     if (cec_nvs->header.version == CEC_CONFIG_VERSION_01) {
       success = migrate_v1(cec_nvs, config);
+    } else if (cec_nvs->header.version == CEC_CONFIG_VERSION_02) {
+      success = migrate_v2(cec_nvs, config);
     } else if (cec_nvs->header.version == CEC_CONFIG_VERSION) {
       success = load_config(cec_nvs, config);
     }
@@ -176,6 +232,12 @@ void nvs_load_config(cec_config_t *config) {
   }
 
   cec_config_complete(config);
+
+  // If empty, use default CEC OSD name.
+  if (config->osd_name[0] == '\0') {
+    strncpy(config->osd_name, CEC_OSD_NAME, CEC_OSD_NAME_MAX_LEN);
+    config->osd_name[CEC_OSD_NAME_MAX_LEN] = '\0';
+  }
 
   return;
 }
@@ -202,6 +264,8 @@ bool nvs_save_config(const cec_config_t *config) {
   for (unsigned int n = 0; n < UINT8_MAX; n++) {
     cec_nvs.config.keymap[n] = config->keymap[n].key;
   }
+
+  memcpy(cec_nvs.config.osd_name, config->osd_name, sizeof(cec_nvs.config.osd_name));
 
   cec_nvs.config_crc = crc32((unsigned char *)&cec_nvs.config, sizeof(cec_nvs.config));
 

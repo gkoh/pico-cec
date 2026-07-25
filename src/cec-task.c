@@ -131,8 +131,7 @@ static void system_audio_mode_status(uint8_t initiator,
 }
 
 static void set_osd_name(uint8_t initiator, uint8_t destination) {
-  const char *osd_name = CEC_OSD_NAME;
-  uint8_t name_len = strnlen(osd_name, CEC_OSD_NAME_MAX_LEN);
+  uint8_t name_len = strnlen(config.osd_name, CEC_OSD_NAME_MAX_LEN);
 
   cec_message_t message = {
       .header = HEADER0(initiator, destination),
@@ -140,7 +139,7 @@ static void set_osd_name(uint8_t initiator, uint8_t destination) {
       .len = 2 + name_len,
   };
 
-  memcpy(message.operand, osd_name, name_len);
+  memcpy(message.operand, config.osd_name, name_len);
 
   cec_frame_send(&message);
 }

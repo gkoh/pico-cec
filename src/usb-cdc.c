@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tusb.h>
@@ -110,6 +111,10 @@ static void print_logical_address(uint8_t address) {
   cdc_printfln("%-17s: 0x%02x", "Logical address", address);
 }
 
+static void print_osd_name(const char *name) {
+  cdc_printfln("%-17s: %s", "OSD name", name);
+}
+
 static int show_config(cec_config_t *config) {
   // UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   // cdc_printfln("StackHighWaterMark = %lu", uxHighWaterMark);
@@ -153,6 +158,8 @@ static int show_config(cec_config_t *config) {
       break;
   }
   cdc_printfln("%-17s: %s", "Keymap", keymap);
+
+  print_osd_name(config->osd_name);
 
   return 0;
 }
@@ -305,6 +312,22 @@ static int exec_set(void *arg, int argc, const char **argv) {
           cdc_printfln("Unknown device type \'%s\'", argv[3]);
           return -1;
         }
+      } else if (strcmp(argv[2], "osd_name") == 0) {
+        if (strlen(argv[3]) > CEC_OSD_NAME_MAX_LEN) {
+          cdc_printfln("OSD name too long (max %d characters)", CEC_OSD_NAME_MAX_LEN);
+          return -1;
+        }
+        for (size_t i = 0; argv[3][i] != '\0'; i++) {
+          if (!isprint((unsigned char)argv[3][i])) {
+            cdc_printfln("OSD name contains non-printable characters");
+            return -1;
+          }
+        }
+        size_t len = strlen(argv[3]);
+        memcpy(config.osd_name, argv[3], len);
+        config.osd_name[len] = '\0';
+        print_osd_name(config.osd_name);
+        return 0;
       }
     }
   } else if (argc >= 3) {
@@ -393,7 +416,7 @@ static const tclie_cmd_t cmds[] = {
     {"send", exec_send, "Send a CEC opcode.",
      "send <addr> <opcode> [<operand>] [<operand>] [<operand>]"},
     {"set", exec_set, "Set configuration parameters.",
-     "set {(config (edid_delay_ms|logical_address|physical_address <value>)|(device_type "
+     "set {(config (edid_delay_ms|logical_address|physical_address|osd_name <value>)|(device_type "
      "{playback|recording}))|(keymap ({kodi|mister}|(custom <cec> <hid>)))}"},
     {"show", exec_show, "Show information.",
      "show {cec|config|keymap|nvs|(stats {cec|cpu|tasks})|version}"},

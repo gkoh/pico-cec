@@ -94,7 +94,7 @@ set_source_files_properties(src/cec-frame.c PROPERTIES COMPILE_DEFINITIONS
 set_source_files_properties(src/usb-cdc.c PROPERTIES COMPILE_DEFINITIONS
   "PICO_CEC_VERSION=\"${PICO_CEC_VERSION}\"")
 
-set_source_files_properties(src/cec-task.c PROPERTIES COMPILE_DEFINITIONS
+set_source_files_properties(src/nvs.c PROPERTIES COMPILE_DEFINITIONS
   "CEC_OSD_NAME=\"${CEC_OSD_NAME}\"")
 
 # Undefine TinyUSB built-in OS, redefined in our tusb_config.h

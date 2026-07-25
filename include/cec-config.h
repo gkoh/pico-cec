@@ -48,6 +48,9 @@ typedef struct {
   /** Keymap configuration. */
   cec_config_keymap_t keymap_type;
 
+  /** CEC OSD name. */
+  char osd_name[CEC_OSD_NAME_MAX_LEN + 1];
+
   /** User Control key mapping table. */
   command_t keymap[UINT8_MAX];
 } cec_config_t;
