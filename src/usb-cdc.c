@@ -415,7 +415,7 @@ void cdc_task(void *params) {
       // There are data available
       while (tud_cdc_available()) {
         uint8_t c = tud_cdc_read_char();
-        tclie_input_char(&tclie, c);
+        tclie_in_char(&tclie, c);
       }
 
       tud_cdc_write_flush();
