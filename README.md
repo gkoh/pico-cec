@@ -156,6 +156,35 @@ After this we:
 The enclosure is a reasonably simple three piece sandwich 3d print modelled with OpenSCAD. It is designed to be printed as three separate pieces which are bolted together with M3 nuts and bolts.
 An exploded preview of the result can be found in this [STL](openscad/pico-cec.stl).
 
+### PCB
+
+The hardware is split across two KiCad projects under [`pcb/`](pcb). You will
+need to have *both* these boards produced:
+
+* [`pcb/hdmi-breakout`](pcb/hdmi-breakout) — the HDMI passthrough breakout that
+  carries the CEC and DDC signals. This is a 4-layer board; order it with the
+  **JLC04161H-7628 stackup**. Stackup is not a minor detail; incorrect stackup
+  will destroy performance.
+* [`pcb/rp2040-adaptor`](pcb/rp2040-adaptor) — a simple breakout for the RP2040-Zero
+  that connects to the HDMI breakout. This is an ordinary **2-layer** board with
+  no controlled-impedance requirement, so any standard stackup is fine.
+
+Shared symbols and footprints live in [`pcb/library`](pcb/library). Fabrication
+outputs (gerbers, BOM, CPL) for each board can be generated with
+[`jlcpcb_fab.py`](jlcpcb_fab.py).
+
+Additional BOM (parts to source separately on top of the fabricated boards):
+
+| Count | Part |
+| ----- | ---- |
+| 2 | HDMI Type-A receptacle (Molex 208658-1001, LCSC C138388) |
+| 1 | Waveshare RP2040-Zero |
+| 2 | 1×9 2.54mm male pin header strip |
+| 2 | 1×9 2.54mm female header / socket strip |
+| 2 | M3 × 16mm socket head cap screw |
+| 2 | M3 nut |
+
+Remember that you can easily cut a longer 2.54mm header to size with some snips.
 
 ### Assembly
 ![XIAO RP2040 with HDMI pass through and DDC.](https://github.com/user-attachments/assets/01c244b4-b5af-4926-94d2-38306876485b)
