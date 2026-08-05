@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "hardware/i2c.h"
-#include "pico/stdlib.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "cec-log.h"
 #include "ddc.h"

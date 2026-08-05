@@ -32,9 +32,8 @@
 #include "semphr.h"
 #include "task.h"
 
-#include "bsp/board.h"
-#include "pico/stdlib.h"
-#include "tusb.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "usb_descriptors.h"
 #include "usb_hid.h"

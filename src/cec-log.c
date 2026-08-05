@@ -6,6 +6,9 @@
 #include "message_buffer.h"
 #include "task.h"
 
+#include "portable.h"
+DECLARE_TAG()
+
 #include "pico-cec/config.h"
 #include "pico-cec/util.h"
 

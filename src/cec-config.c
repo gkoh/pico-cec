@@ -1,5 +1,5 @@
-#include "class/hid/hid.h"
-#include "tusb.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "cec-config.h"
 #include "cec-user.h"

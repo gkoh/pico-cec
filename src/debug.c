@@ -4,8 +4,8 @@
 #include "queue.h"
 #include "task.h"
 
-#include "hardware/timer.h"
-#include "pico/stdlib.h"
+#include "portable.h"
+DECLARE_TAG()
 
 #include "cec-frame.h"
 #include "cec-task.h"
